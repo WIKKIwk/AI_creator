@@ -2,13 +2,10 @@
 
 namespace App\Models;
 
-// use Illuminate\Contracts\Auth\MustVerifyEmail;
-use App\Enums\LearnStatus;
+use App\Enums\RolesEnum;
 use Illuminate\Support\Carbon;
 use Laravel\Sanctum\HasApiTokens;
 use Illuminate\Notifications\Notifiable;
-use Illuminate\Database\Eloquent\Collection;
-use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 
@@ -18,15 +15,12 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
  * @property int $id
  * @property string $name
  * @property string $email
+ * @property RolesEnum $role
  * @property Carbon|null $email_verified_at
  * @property mixed $password
  * @property string|null $remember_token
  * @property Carbon|null $created_at
  * @property Carbon|null $updated_at
- *
- * @property-read Collection<Word> $words
- * @property-read Collection<Word> $dictionaryWords
- * @property-read Collection<Category> $categories
  */
 class User extends Authenticatable
 {
@@ -43,6 +37,7 @@ class User extends Authenticatable
         'password',
         'country_id',
         'status',
+        'role',
     ];
 
     /**
@@ -63,20 +58,6 @@ class User extends Authenticatable
     protected $casts = [
         'email_verified_at' => 'datetime',
         'password' => 'hashed',
+        'role' => -RolesEnum::class,
     ];
-
-    public function words(): HasMany
-    {
-        return $this->hasMany(Word::class);
-    }
-
-    public function dictionaryWords(): HasMany
-    {
-        return $this->hasMany(Word::class)->where('learn_status', LearnStatus::Learned);
-    }
-
-    public function categories(): HasMany
-    {
-        return $this->hasMany(Category::class);
-    }
 }
