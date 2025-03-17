@@ -1,0 +1,12 @@
+.git
+.idea
+.github
+_docker/data
+vendor
+node_modules
+backups
+
+.env
+README.md
+docker-compose.yml
+docker-compose-prod.yml

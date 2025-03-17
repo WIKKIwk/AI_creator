@@ -1,0 +1,51 @@
+services:
+    nginx:
+        image: nginx:1.26.0-alpine
+        volumes:
+            - ./:/app
+            - ./_docker/development/nginx/conf.d:/etc/nginx/conf.d
+        ports:
+            - "${APP_PORT}:80"
+        depends_on:
+            - php
+
+    php:
+        build:
+            args:
+                uid: ${UID}
+                gid: ${GID}
+            context: _docker/development
+            dockerfile: php/Dockerfile
+        volumes:
+            - ./:/app
+        depends_on:
+            - db
+
+    db:
+        image: postgres:17.2-alpine
+        environment:
+            POSTGRES_USER: ${DB_USERNAME}
+            POSTGRES_PASSWORD: ${DB_PASSWORD}
+            POSTGRES_DB: ${DB_DATABASE}
+        volumes:
+            - ./_docker/development/postgres:/docker-entrypoint-initdb.d
+            - ./_docker/data/postgres:/var/lib/postgresql/data
+
+    pgadmin:
+        image: dpage/pgadmin4:latest
+        environment:
+            PGADMIN_DEFAULT_EMAIL: ${PGADMIN_DEFAULT_EMAIL}
+            PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_DEFAULT_PASSWORD}
+        volumes:
+            - ./_docker/data/pgadmin:/root/.pgadmin
+        ports:
+            - "${PGADMIN_PORT}:80"
+        depends_on:
+            - db
+
+#    mailhog:
+#        image: mailhog/mailhog
+#        restart: always
+#        ports:
+#            - "${MAILHOG_PORT}:8025"
+#            - "1025:1025"
