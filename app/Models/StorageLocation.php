@@ -12,27 +12,29 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 /**
  * @property int $id
  * @property string $name
- * @property string $description
- * @property int $parent_id
+ * @property string|null $number
+ * @property string|null $floor
+ * @property string|null $description
+ * @property int $work_station_id
  * @property Carbon $created_at
  * @property Carbon $updated_at
  *
- * @property-read ProductCategory $parent
- * @property-read Collection<ProductCategory> $children
+ * @property-read WorkStation $workStation
+ * @property-read Collection<Stock> $stocks
  */
-class ProductCategory extends Model
+class StorageLocation extends Model
 {
     use HasFactory;
 
     protected $guarded = ['id'];
 
-    public function parent(): BelongsTo
+    public function workStation(): BelongsTo
     {
-        return $this->belongsTo(ProductCategory::class, 'parent_id');
+        return $this->belongsTo(WorkStation::class);
     }
 
-    public function children(): HasMany
+    public function stocks(): HasMany
     {
-        return $this->hasMany(ProductCategory::class, 'parent_id');
+        return $this->hasMany(Stock::class);
     }
 }

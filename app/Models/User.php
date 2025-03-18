@@ -2,7 +2,7 @@
 
 namespace App\Models;
 
-use App\Enums\RolesEnum;
+use App\Enums\RoleType;
 use Illuminate\Support\Carbon;
 use Laravel\Sanctum\HasApiTokens;
 use Illuminate\Notifications\Notifiable;
@@ -15,7 +15,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
  * @property int $id
  * @property string $name
  * @property string $email
- * @property RolesEnum $role
+ * @property RoleType $role
  * @property Carbon|null $email_verified_at
  * @property mixed $password
  * @property string|null $remember_token
@@ -58,6 +58,6 @@ class User extends Authenticatable
     protected $casts = [
         'email_verified_at' => 'datetime',
         'password' => 'hashed',
-        'role' => -RolesEnum::class,
+        'role' => -RoleType::class,
     ];
 }

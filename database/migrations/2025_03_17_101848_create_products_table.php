@@ -22,13 +22,13 @@ return new class extends Migration
 
         Schema::create('products', function (Blueprint $table) {
             $table->id();
-            $table->integer('type');
+            $table->integer('type')->comment('RM, SFP, RP');
             $table->string('name');
             $table->string('description')->nullable();
             $table->double('price');
             $table->integer('measure_unit');
-            $table->bigInteger('category_id');
-            $table->foreign('category_id')->references('id')->on('product_categories');
+            $table->bigInteger('product_category_id');
+            $table->foreign('product_category_id')->references('id')->on('product_categories');
             $table->timestamps();
         });
     }

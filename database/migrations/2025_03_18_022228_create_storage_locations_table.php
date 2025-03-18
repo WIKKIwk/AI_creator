@@ -11,12 +11,14 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::create('organizations', function (Blueprint $table) {
+        Schema::create('storage_locations', function (Blueprint $table) {
             $table->id();
             $table->string('name');
-            $table->string('phone')->nullable();
-            $table->string('email')->nullable();
-            $table->integer('type')->comment('agents, suppliers');
+            $table->string('number')->nullable();
+            $table->string('floor')->nullable();
+            $table->string('description')->nullable();
+            $table->bigInteger('work_station_id')->unsigned();
+            $table->foreign('work_station_id')->references('id')->on('work_stations');
             $table->timestamps();
         });
     }
@@ -26,6 +28,6 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::dropIfExists('organizations');
+        Schema::dropIfExists('storage_locations');
     }
 };

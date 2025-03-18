@@ -2,7 +2,7 @@
 
 namespace App\Enums;
 
-enum RolesEnum:int
+enum RoleType: int
 {
     case ADMIN = 1;
     case PRODUCTION_MANAGER = 2;
@@ -14,11 +14,11 @@ enum RolesEnum:int
     public function getLabel(): string
     {
         return match ($this) {
-            self::ADMIN                => 'Admin',
-            self::PRODUCTION_MANAGER   => 'Production Manager',
-            self::ALLOCATION_MANAGER   => 'Allocation Manager',
-            self::STOCK_MANAGER        => 'Stock Manager',
-            self::LEADER               => 'Leader',
+            self::ADMIN => 'Admin',
+            self::PRODUCTION_MANAGER => 'Production Manager',
+            self::ALLOCATION_MANAGER => 'Allocation Manager',
+            self::STOCK_MANAGER => 'Stock Manager',
+            self::LEADER => 'Leader',
             self::WORK_STATION_MANAGER => 'Work Station Manager',
         };
     }
