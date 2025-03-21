@@ -10,8 +10,6 @@ use Filament\Forms\Form;
 use Filament\Resources\Resource;
 use Filament\Tables;
 use Filament\Tables\Table;
-use Illuminate\Database\Eloquent\Builder;
-use Illuminate\Database\Eloquent\SoftDeletingScope;
 
 class ProdOrderResource extends Resource
 {
@@ -23,12 +21,15 @@ class ProdOrderResource extends Resource
     {
         return $form
             ->schema([
-                Forms\Components\TextInput::make('product_id')
-                    ->required()
-                    ->numeric(),
-                Forms\Components\TextInput::make('agent_id')
-                    ->required()
-                    ->numeric(),
+                Forms\Components\Select::make('product_id')
+                    ->native(false)
+                    ->searchable()
+                    ->relationship('product', 'name')
+                    ->required(),
+                Forms\Components\Select::make('agent_id')
+                    ->native(false)
+                    ->relationship('agent', 'name')
+                    ->required(),
                 Forms\Components\TextInput::make('quantity')
                     ->required()
                     ->numeric(),
@@ -48,11 +49,14 @@ class ProdOrderResource extends Resource
     public static function table(Table $table): Table
     {
         return $table
+            ->modifyQueryUsing(function ($query) {
+                $query->with(['product', 'agent']);
+            })
             ->columns([
-                Tables\Columns\TextColumn::make('product_id')
+                Tables\Columns\TextColumn::make('product.name')
                     ->numeric()
                     ->sortable(),
-                Tables\Columns\TextColumn::make('agent_id')
+                Tables\Columns\TextColumn::make('agent.name')
                     ->numeric()
                     ->sortable(),
                 Tables\Columns\TextColumn::make('quantity')
@@ -68,7 +72,7 @@ class ProdOrderResource extends Resource
                     ->numeric()
                     ->sortable(),
                 Tables\Columns\TextColumn::make('status')
-                    ->numeric()
+                    ->badge()
                     ->sortable(),
                 Tables\Columns\TextColumn::make('created_at')
                     ->dateTime()

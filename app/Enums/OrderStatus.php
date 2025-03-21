@@ -3,8 +3,9 @@
 namespace App\Enums;
 
 use Filament\Support\Contracts\HasColor;
+use Filament\Support\Contracts\HasLabel;
 
-enum OrderStatus: int implements HasColor
+enum OrderStatus: int implements HasColor, HasLabel
 {
     case Pending = 1;
     case Processing = 2;
