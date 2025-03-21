@@ -2,7 +2,7 @@
 
 namespace App\Enums;
 
-enum StockStatus: int
+enum InventoryStatus: int
 {
     use BaseEnum;
 

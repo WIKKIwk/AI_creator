@@ -1,0 +1,2 @@
+After OUT inventory -> avg_cost changes? (paint 100$ + paint 105$ = paint 103$) => - paint 105$ - ?
+

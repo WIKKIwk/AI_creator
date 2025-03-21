@@ -2,8 +2,6 @@
 
 namespace Database\Seeders;
 
-use App\Models\Role;
-use App\Models\RoleUser;
 use App\Models\User;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\Hash;
@@ -22,7 +20,7 @@ class DatabaseSeeder extends Seeder
 
     protected function createAdmin(): void
     {
-        $admin = User::query()->updateOrCreate(
+        User::query()->updateOrCreate(
             ['email' => env('ADMIN_EMAIL')],
             [
                 'name' => 'Admin',

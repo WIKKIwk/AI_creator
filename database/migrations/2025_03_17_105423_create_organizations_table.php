@@ -16,7 +16,7 @@ return new class extends Migration
             $table->string('name');
             $table->string('phone')->nullable();
             $table->string('email')->nullable();
-            $table->integer('type')->comment('agents, suppliers');
+            $table->integer('type')->nullable();
             $table->timestamps();
         });
     }

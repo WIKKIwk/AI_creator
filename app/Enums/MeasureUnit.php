@@ -2,7 +2,10 @@
 
 namespace App\Enums;
 
-enum MeasureUnit: int
+use Filament\Support\Contracts\HasColor;
+use Filament\Support\Contracts\HasLabel;
+
+enum MeasureUnit: int implements HasLabel, HasColor
 {
     use BaseEnum;
 
@@ -26,6 +29,16 @@ enum MeasureUnit: int
             self::MILLIMETER => 'MILLIMETER',
             self::LITER => 'LITER',
             self::MILLILITER => 'MILLILITER',
+        };
+    }
+
+    public function getColor(): string|array|null
+    {
+        return match ($this) {
+            self::PCS => 'gray',
+            self::MILLILITER, self::LITER => 'info',
+            self::KG, self::GRAM => 'warning',
+            self::METER, self::CENTIMETER, self::MILLIMETER => 'success',
         };
     }
 }

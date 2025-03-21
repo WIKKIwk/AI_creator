@@ -2,7 +2,10 @@
 
 namespace App\Enums;
 
-enum ProductType: int
+use Filament\Support\Contracts\HasColor;
+use Filament\Support\Contracts\HasLabel;
+
+enum ProductType: int implements HasColor, HasLabel
 {
     use BaseEnum;
 
@@ -16,6 +19,15 @@ enum ProductType: int
             self::RawMaterial => 'Raw Material',
             self::SemiFinishedProduct => 'Semi Finished Product',
             self::ReadyProduct => 'Ready Product',
+        };
+    }
+
+    public function getColor(): string|array|null
+    {
+        return match ($this) {
+            self::RawMaterial => 'gray',
+            self::SemiFinishedProduct => 'yellow',
+            self::ReadyProduct => 'success',
         };
     }
 }

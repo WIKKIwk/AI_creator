@@ -17,8 +17,8 @@ return new class extends Migration
             $table->string('number')->nullable();
             $table->string('floor')->nullable();
             $table->string('description')->nullable();
-            $table->bigInteger('work_station_id')->unsigned();
-            $table->foreign('work_station_id')->references('id')->on('work_stations');
+            $table->bigInteger('warehouse_id')->unsigned();
+            $table->foreign('warehouse_id')->references('id')->on('warehouses');
             $table->timestamps();
         });
     }
