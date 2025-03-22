@@ -2,9 +2,11 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 /**
  * @property int $id
@@ -15,6 +17,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  *
  * @property ProductCategory $productCategory
  * @property Organization $organization
+ * @property Collection<PerformanceRate> $performanceRates
  */
 class WorkStation extends Model
 {
@@ -30,5 +33,10 @@ class WorkStation extends Model
     public function organization(): BelongsTo
     {
         return $this->belongsTo(Organization::class);
+    }
+
+    public function performanceRates(): HasMany
+    {
+        return $this->hasMany(PerformanceRate::class);
     }
 }

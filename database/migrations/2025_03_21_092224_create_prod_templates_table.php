@@ -20,23 +20,13 @@ return new class extends Migration
             $table->timestamps();
         });
 
-        Schema::create('prod_template_stations', function (Blueprint $table) {
+        Schema::create('prod_template_steps', function (Blueprint $table) {
             $table->id();
             $table->bigInteger('prod_template_id')->unsigned();
             $table->foreign('prod_template_id')->references('id')->on('prod_templates');
             $table->bigInteger('work_station_id')->unsigned();
             $table->foreign('work_station_id')->references('id')->on('work_stations');
             $table->integer('sequence');
-            $table->timestamps();
-        });
-
-        Schema::create('prod_template_station_materials', function (Blueprint $table) {
-            $table->id();
-            $table->bigInteger('prod_template_station_id')->unsigned();
-            $table->foreign('prod_template_station_id')->references('id')->on('prod_template_stations');
-            $table->bigInteger('material_product_id')->unsigned();
-            $table->foreign('material_product_id')->references('id')->on('products');
-            $table->double('quantity');
             $table->timestamps();
         });
     }
@@ -46,7 +36,6 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::dropIfExists('prod_template_materials');
         Schema::dropIfExists('prod_template_stations');
         Schema::dropIfExists('prod_templates');
     }

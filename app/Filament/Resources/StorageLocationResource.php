@@ -45,7 +45,7 @@ class StorageLocationResource extends Resource
                     ->searchable(),
                 Tables\Columns\TextColumn::make('number')
                     ->searchable(),
-                Tables\Columns\TextColumn::make('floor')
+                Tables\Columns\TextColumn::make('floors_count')
                     ->searchable(),
                 Tables\Columns\TextColumn::make('description')
                     ->searchable(),

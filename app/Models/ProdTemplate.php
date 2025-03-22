@@ -7,6 +7,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasManyThrough;
 
 /**
  * @property int $id
@@ -17,7 +18,8 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
  * @property string $updated_at
  *
  * @property Product $product
- * @property Collection<ProdTemplateStation> $stations
+ * @property Collection<ProdTemplateStep> $steps
+ * @property Collection<WorkStation> $workStations
  */
 class ProdTemplate extends Model
 {
@@ -30,8 +32,20 @@ class ProdTemplate extends Model
         return $this->belongsTo(Product::class);
     }
 
-    public function stations(): HasMany
+    public function steps(): HasMany
     {
-        return $this->hasMany(ProdTemplateStation::class, 'prod_template_id');
+        return $this->hasMany(ProdTemplateStep::class, 'prod_template_id');
+    }
+
+    public function workStations(): HasManyThrough
+    {
+        return $this->hasManyThrough(
+            WorkStation::class,
+            ProdTemplateStep::class,
+            'prod_template_id',
+            'id',
+            'id',
+            'work_station_id'
+        );
     }
 }

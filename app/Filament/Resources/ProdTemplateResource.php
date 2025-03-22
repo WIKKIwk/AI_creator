@@ -2,9 +2,11 @@
 
 namespace App\Filament\Resources;
 
+use App\Enums\StepProductType;
 use App\Filament\Resources\ProdTemplateResource\Pages;
 use App\Filament\Resources\ProdTemplateResource\RelationManagers;
 use App\Models\ProdTemplate;
+use App\Models\Product;
 use Filament\Forms;
 use Filament\Forms\Form;
 use Filament\Resources\Resource;
@@ -34,8 +36,8 @@ class ProdTemplateResource extends Resource
                     ->label('Comment')
                     ->columnSpanFull(),
 
-                Forms\Components\Repeater::make('stations')
-                    ->relationship('stations')
+                Forms\Components\Repeater::make('steps')
+                    ->relationship('steps')
                     ->columnSpanFull()
                     ->addActionAlignment('end')
                     ->reorderable()
@@ -47,15 +49,12 @@ class ProdTemplateResource extends Resource
                         $sequence = 1;
                         foreach ($state as $uuid => $item) {
                             $item['sequence'] = $sequence;
-                            $set("stations.$uuid.sequence", $sequence);
+                            $set("steps.$uuid.sequence", $sequence);
                             $sequence++;
                         }
                     })
                     ->schema([
                         Forms\Components\Grid::make()->schema([
-//                            Forms\Components\TextInput::make('sequence')
-//                                ->label('Sequence')
-//                                ->numeric(),
                             Forms\Components\Select::make('work_station_id')
                                 ->label('Work Station')
                                 ->relationship('workStation', 'name')
@@ -64,24 +63,75 @@ class ProdTemplateResource extends Resource
                                 ->required(),
                         ]),
 
-                        Forms\Components\Repeater::make('materials')
+                        Forms\Components\Repeater::make('expectedItems')
                             ->columnSpanFull()
-                            ->relationship('materials')
+                            ->relationship('expectedItems')
                             ->addActionAlignment('end')
                             ->schema([
+                                Forms\Components\Hidden::make('type'),
                                 Forms\Components\Grid::make()->schema([
-                                    Forms\Components\Select::make('material_product_id')
-                                        ->label('Material')
-                                        ->relationship('materialProduct', 'name')
+                                    Forms\Components\Select::make('product_id')
+                                        ->label('Result product')
+                                        ->relationship('product', 'name')
                                         ->searchable()
                                         ->preload()
+                                        ->reactive()
                                         ->required(),
                                     Forms\Components\TextInput::make('quantity')
                                         ->label('Quantity')
                                         ->numeric()
+                                        ->suffix(function ($get) {
+                                            /** @var Product|null $product */
+                                            $product = $get('product_id') ? Product::query()->find(
+                                                $get('product_id')
+                                            ) : null;
+                                            if ($product?->measure_unit) {
+                                                return $product->measure_unit->getLabel();
+                                            }
+                                            return null;
+                                        })
                                         ->required(),
                                 ]),
-                            ]),
+                            ])
+                            ->mutateRelationshipDataBeforeCreateUsing(function ($data) {
+                                $data['type'] = StepProductType::Expected;
+                                return $data;
+                            }),
+
+                        Forms\Components\Repeater::make('requiredItems')
+                            ->columnSpanFull()
+                            ->relationship('requiredItems')
+                            ->addActionAlignment('end')
+                            ->schema([
+                                Forms\Components\Hidden::make('type'),
+                                Forms\Components\Grid::make()->schema([
+                                    Forms\Components\Select::make('product_id')
+                                        ->label('Material')
+                                        ->relationship('product', 'name')
+                                        ->searchable()
+                                        ->preload()
+                                        ->reactive()
+                                        ->required(),
+                                    Forms\Components\TextInput::make('quantity')
+                                        ->label('Quantity')
+                                        ->numeric()
+                                        ->suffix(function ($get) {
+                                            /** @var Product|null $product */
+                                            $product = $get('product_id') ? Product::query()->find(
+                                                $get('product_id')
+                                            ) : null;
+                                            if ($product?->measure_unit) {
+                                                return $product->measure_unit->getLabel();
+                                            }
+                                            return null;
+                                        })
+                                        ->required(),
+                                ]),
+                            ])
+                            ->mutateRelationshipDataBeforeCreateUsing(function ($data) {
+                                $data['type'] = StepProductType::Required;
+                                return $data;
+                            }),
                     ]),
             ]);
     }

@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources;
 
+use App\Enums\OrderStatus;
 use App\Filament\Resources\ProdOrderResource\Pages;
 use App\Filament\Resources\ProdOrderResource\RelationManagers;
 use App\Models\ProdOrder;
@@ -36,13 +37,25 @@ class ProdOrderResource extends Resource
                 Forms\Components\TextInput::make('offer_price')
                     ->required()
                     ->numeric(),
-                Forms\Components\TextInput::make('total_cost')
-                    ->numeric(),
-                Forms\Components\TextInput::make('deadline')
-                    ->numeric(),
-                Forms\Components\TextInput::make('status')
-                    ->required()
-                    ->numeric(),
+
+                Forms\Components\Grid::make(3)->schema([
+                    Forms\Components\TextInput::make('status')
+                        ->default(OrderStatus::Pending->value)
+                        ->formatStateUsing(fn($state) => OrderStatus::tryFrom($state)?->getLabel())
+                        ->hidden(fn($record) => !$record?->id)
+                        ->disabled()
+                        ->required(),
+                    Forms\Components\TextInput::make('total_cost')
+                        ->label('Expected total Cost')
+                        ->hidden(fn($record) => !$record?->id)
+                        ->disabled()
+                        ->required(),
+                    Forms\Components\TextInput::make('deadline')
+                        ->label('Expected deadline')
+                        ->hidden(fn($record) => !$record?->id)
+                        ->disabled()
+                        ->required(),
+                ])
             ]);
     }
 
@@ -65,15 +78,15 @@ class ProdOrderResource extends Resource
                 Tables\Columns\TextColumn::make('offer_price')
                     ->numeric()
                     ->sortable(),
-                Tables\Columns\TextColumn::make('total_cost')
+                Tables\Columns\TextColumn::make('status')
+                    ->badge()
+                    ->sortable(),
+                /*Tables\Columns\TextColumn::make('total_cost')
                     ->numeric()
                     ->sortable(),
                 Tables\Columns\TextColumn::make('deadline')
                     ->numeric()
-                    ->sortable(),
-                Tables\Columns\TextColumn::make('status')
-                    ->badge()
-                    ->sortable(),
+                    ->sortable(),*/
                 Tables\Columns\TextColumn::make('created_at')
                     ->dateTime()
                     ->sortable()
@@ -87,6 +100,17 @@ class ProdOrderResource extends Resource
                 //
             ])
             ->actions([
+                Tables\Actions\Action::make('startProduction')
+                    ->label('Start')
+                    ->hidden(fn($record) => $record->status != OrderStatus::Pending)
+                    ->action(function($record) {
+                        $record->startProduction();
+                    })
+                    ->requiresConfirmation(),
+                Tables\Actions\Action::make('details')
+                    ->label('Details')
+                    ->url(fn($record) => ProdOrderResource::getUrl('details', ['record' => $record]))
+                    ->requiresConfirmation(),
                 Tables\Actions\EditAction::make(),
             ])
             ->bulkActions([
@@ -109,6 +133,7 @@ class ProdOrderResource extends Resource
             'index' => Pages\ListProdOrders::route('/'),
             'create' => Pages\CreateProdOrder::route('/create'),
             'edit' => Pages\EditProdOrder::route('/{record}/edit'),
+            'details' => Pages\ProdOrderDetails::route('/{record}'),
         ];
     }
 }

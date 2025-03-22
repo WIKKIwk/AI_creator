@@ -3,9 +3,12 @@
 namespace App\Models;
 
 use App\Enums\OrderStatus;
+use App\Services\ProdOrderService;
+use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 /**
  * @property int $id
@@ -21,6 +24,8 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  *
  * @property Agent $agent
  * @property Product $product
+ * @property Collection<ProdOrderStep> $steps
+ *
  */
 class ProdOrder extends Model
 {
@@ -40,5 +45,15 @@ class ProdOrder extends Model
     public function product(): BelongsTo
     {
         return $this->belongsTo(Product::class);
+    }
+
+    public function steps(): HasMany
+    {
+        return $this->hasMany(ProdOrderStep::class);
+    }
+
+    public function startProduction(): void
+    {
+        app()->make(ProdOrderService::class)->start($this);
     }
 }

@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Enums\StepProductType;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -9,24 +10,29 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 /**
  * @property int $id
  * @property int $prod_template_station_id
- * @property int $material_product_id
+ * @property int $product_id
  * @property float $quantity
+ * @property StepProductType $type
  *
- * @property ProdTemplateStation $station
- * @property Product $materialProduct
+ * @property ProdTemplateStep $step
+ * @property Product $product
  */
-class ProdTemplateStationMaterial extends Model
+class ProdTemplateStepProduct extends Model
 {
     use HasFactory;
 
     protected $guarded = ['id'];
 
-    public function station(): BelongsTo
+    protected $casts = [
+        'type' => StepProductType::class,
+    ];
+
+    public function step(): BelongsTo
     {
-        return $this->belongsTo(ProdTemplateStation::class);
+        return $this->belongsTo(ProdTemplateStep::class);
     }
 
-    public function materialProduct(): BelongsTo
+    public function product(): BelongsTo
     {
         return $this->belongsTo(Product::class);
     }
