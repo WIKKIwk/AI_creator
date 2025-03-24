@@ -12,7 +12,7 @@ return new class extends Migration
     public function up(): void
     {
         Schema::table('prod_orders', function (Blueprint $table) {
-            $table->bigInteger('warehouse_id')->nullable()->after('product_id');
+            $table->bigInteger('warehouse_id')->after('product_id');
             $table->foreign('warehouse_id')->references('id')->on('warehouses');
         });
     }

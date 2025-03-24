@@ -17,8 +17,7 @@ class ProdOrderService
 {
     public function __construct(
         protected TransactionService $transactionService
-    ) {
-    }
+    ) {}
 
     /**
      * @throws Exception
@@ -43,7 +42,7 @@ class ProdOrderService
                 foreach ($templateStep->expectedItems as $item) {
                     $prodOrderStep->productItems()->create([
                         'product_id' => $item->product_id,
-                        'quantity' => $item->quantity,
+                        'quantity' => $item->quantity * $prodOrder->quantity,
                         'type' => StepProductType::Expected,
                     ]);
                 }
@@ -51,7 +50,7 @@ class ProdOrderService
                 foreach ($templateStep->requiredItems as $item) {
                     $prodOrderStep->productItems()->create([
                         'product_id' => $item->product_id,
-                        'quantity' => $item->quantity,
+                        'quantity' => $item->quantity * $prodOrder->quantity,
                         'type' => StepProductType::Required,
                     ]);
 
@@ -59,8 +58,7 @@ class ProdOrderService
                         $this->createActualItem(
                             $prodOrderStep,
                             $item->product_id,
-                            $item->quantity,
-                            $prodOrder->warehouse_id
+                            $item->quantity * $prodOrder->quantity
                         );
                     }
                 }
@@ -120,7 +118,6 @@ class ProdOrderService
             } else {
                 $prodOrder->status = OrderStatus::Completed;
             }
-
             $prodOrder->save();
 
             DB::commit();
@@ -133,9 +130,40 @@ class ProdOrderService
     /**
      * @throws Exception
      */
-    public function createActualItem(ProdOrderStep $prodOrderStep, $productId, $quantity, $warehouseId = null): void
+    public function approve(ProdOrder $prodOrder): void
     {
-        $this->transactionService->removeStock($productId, $quantity, $warehouseId, $prodOrderStep->work_station_id);
+        try {
+            $this->transactionService->removeMiniStock(
+                $prodOrder->product_id,
+                $prodOrder->quantity,
+                $prodOrder->currentStep->work_station_id
+            );
+            $this->transactionService->addStock(
+                $prodOrder->product_id,
+                $prodOrder->quantity,
+                0,
+                $prodOrder->warehouse_id,
+                $prodOrder->currentStep->work_station_id
+            );
+
+            $prodOrder->status = OrderStatus::Approved;
+            $prodOrder->save();
+        } catch (Throwable $e) {
+            throw new Exception($e->getMessage());
+        }
+    }
+
+    /**
+     * @throws Exception
+     */
+    public function createActualItem(ProdOrderStep $prodOrderStep, $productId, $quantity): void
+    {
+        $this->transactionService->removeStock(
+            $productId,
+            $quantity,
+            $prodOrderStep->prodOrder->warehouse_id,
+            $prodOrderStep->work_station_id
+        );
 
         $this->transactionService->addMiniStock($productId, $quantity, null, $prodOrderStep->work_station_id);
 

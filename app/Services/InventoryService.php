@@ -49,10 +49,11 @@ class InventoryService
     public function getInventoryItem(Inventory $inventory, $storageLocationId): InventoryItem
     {
         $properInventoryItem = $inventory->items->first(function ($item) use ($storageLocationId) {
+            $hasQuantity = $item->quantity > 0;
             if ($storageLocationId) {
-                return $item->storage_location_id === $storageLocationId;
+                return $item->storage_location_id === $storageLocationId && $hasQuantity;
             }
-            return true;
+            return $hasQuantity;
         });
 
         if (!$properInventoryItem) {

@@ -2,10 +2,18 @@
 
 namespace App\Livewire;
 
+use App\Enums\OrderStatus;
+use App\Models\ProdOrderStep;
 use App\Enums\StepProductType;
 use App\Models\ProdOrder;
+use App\Services\ProdOrderService;
+use Filament\Tables\Actions\Action;
+use Filament\Forms\Components\Grid;
 use App\Models\ProdOrderStepProduct;
 use App\Models\Product;
+use Filament\Forms\Components\Select;
+use Filament\Forms\Components\TextInput;
+use Filament\Notifications\Notification;
 use Filament\Forms\Concerns\InteractsWithForms;
 use Filament\Forms\Contracts\HasForms;
 use Filament\Tables\Columns\TextColumn;
@@ -20,17 +28,68 @@ class ProdOrderStepActual extends Component implements HasForms, HasTable
     use InteractsWithTable;
     use InteractsWithForms;
 
-    public ProdOrder $prodOrder;
+    public ProdOrderStep $step;
 
     public function table(Table $table): Table
     {
         return $table
             ->heading('Actual materials')
+            ->headerActions([
+                Action::make('add')
+                    ->label('Add material')
+                    ->hidden(fn() => $this->step->prodOrder->status == OrderStatus::Completed || $this->step->prodOrder->status == OrderStatus::Approved)
+                    ->form([
+                        Grid::make()->schema([
+                            Select::make('product_id')
+                                ->label('Product')
+                                ->native(false)
+                                ->relationship('product', 'name')
+                                ->searchable()
+                                ->reactive()
+                                ->required(),
+
+                            TextInput::make('quantity')
+                                ->label('Quantity')
+                                ->suffix(function ($get) {
+                                    /** @var Product|null $product */
+                                    $product = $get('product_id') ? Product::query()->find($get('product_id')) : null;
+                                    if ($product?->measure_unit) {
+                                        return $product->measure_unit->getLabel();
+                                    }
+                                    return null;
+                                })
+                                ->required(),
+                        ])
+                    ])
+                    ->action(function($data) {
+                        try {
+                            app(ProdOrderService::class)->createActualItem(
+                                $this->step,
+                                $data['product_id'],
+                                $data['quantity']
+                            );
+
+                            Notification::make()
+                                ->title('Success')
+                                ->body('Material added successfully')
+                                ->success()
+                                ->send();
+
+                        } catch (\Throwable $e) {
+                            Notification::make()
+                                ->title('Error')
+                                ->body($e->getMessage())
+                                ->danger()
+                                ->send();
+                        }
+                    })
+                    ->icon('heroicon-o-plus'),
+            ])
             ->paginated(false)
             ->query(
                 ProdOrderStepProduct::query()
                     ->with(['product'])
-                    ->where('prod_order_step_id', $this->prodOrder->current_step_id)
+                    ->where('prod_order_step_id', $this->step->id)
                     ->where('type', StepProductType::Actual)
             )
             ->columns([

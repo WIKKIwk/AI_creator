@@ -2,25 +2,24 @@
 
 namespace App\Livewire;
 
+use Livewire\Component;
+use Illuminate\View\View;
+use Filament\Tables\Table;
+use App\Models\ProdOrderStep;
 use App\Enums\StepProductType;
-use App\Models\ProdOrder;
 use App\Models\ProdOrderStepProduct;
-use App\Models\Product;
-use Filament\Forms\Concerns\InteractsWithForms;
 use Filament\Forms\Contracts\HasForms;
 use Filament\Tables\Columns\TextColumn;
-use Filament\Tables\Concerns\InteractsWithTable;
 use Filament\Tables\Contracts\HasTable;
-use Filament\Tables\Table;
-use Illuminate\View\View;
-use Livewire\Component;
+use Filament\Forms\Concerns\InteractsWithForms;
+use Filament\Tables\Concerns\InteractsWithTable;
 
 class ProdOrderStepRequired extends Component implements HasForms, HasTable
 {
     use InteractsWithTable;
     use InteractsWithForms;
 
-    public ProdOrder $prodOrder;
+    public ProdOrderStep $step;
 
     public function table(Table $table): Table
     {
@@ -30,13 +29,13 @@ class ProdOrderStepRequired extends Component implements HasForms, HasTable
             ->query(
                 ProdOrderStepProduct::query()
                     ->with(['product'])
-                    ->where('prod_order_step_id', $this->prodOrder->current_step_id)
+                    ->where('prod_order_step_id', $this->step->id)
                     ->where('type', StepProductType::Required)
             )
             ->columns([
                 TextColumn::make('product.name'),
                 TextColumn::make('quantity')
-                    ->formatStateUsing(function (ProdOrderStepProduct $record) {
+                    ->formatStateUsing(function(ProdOrderStepProduct $record) {
                         return $record->quantity . ' ' . $record->product->measure_unit->getLabel();
                     }),
             ])

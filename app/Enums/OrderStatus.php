@@ -10,7 +10,8 @@ enum OrderStatus: int implements HasColor, HasLabel
     case Pending = 1;
     case Processing = 2;
     case Completed = 3;
-    case Cancelled = 4;
+    case Approved = 4;
+    case Cancelled = 5;
 
     public function getLabel(): string
     {
@@ -18,6 +19,7 @@ enum OrderStatus: int implements HasColor, HasLabel
             self::Pending => 'Pending',
             self::Processing => 'Processing',
             self::Completed => 'Completed',
+            self::Approved => 'Approved',
             self::Cancelled => 'Cancelled',
         };
     }
@@ -25,10 +27,10 @@ enum OrderStatus: int implements HasColor, HasLabel
     public function getColor(): string|array|null
     {
         return match ($this) {
-            self::Pending => 'gray',
-            self::Processing => 'info',
-            self::Completed => 'success',
-            self::Cancelled => 'danger',
+            self::Pending                   => 'gray',
+            self::Processing                => 'info',
+            self::Completed, self::Approved => 'success',
+            self::Cancelled                 => 'danger',
         };
     }
 }

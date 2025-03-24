@@ -17,7 +17,7 @@ class WorkStationResource extends Resource
 {
     protected static ?string $model = WorkStation::class;
     protected static ?string $navigationGroup = 'Manage';
-    protected static ?int $navigationSort = 4;
+    protected static ?int $navigationSort = 8;
     protected static ?string $navigationIcon = 'heroicon-o-rectangle-stack';
 
     public static function form(Form $form): Form

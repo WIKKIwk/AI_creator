@@ -1,5 +1,5 @@
-@livewire('prod-order-step-required', ['prodOrder' => $this->prodOrder])
+@livewire('prod-order-step-required', ['step' => $step])
 <br/>
-@livewire('prod-order-step-expected', ['prodOrder' => $this->prodOrder])
+@livewire('prod-order-step-expected', ['step' => $step])
 <br/>
-@livewire('prod-order-step-actual', ['prodOrder' => $this->prodOrder])
+@livewire('prod-order-step-actual', ['step' => $step])

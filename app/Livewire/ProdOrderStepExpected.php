@@ -20,7 +20,7 @@ class ProdOrderStepExpected extends Component implements HasForms, HasTable
     use InteractsWithTable;
     use InteractsWithForms;
 
-    public ProdOrder $prodOrder;
+    public ProdOrderStep $step;
 
     public function table(Table $table): Table
     {
@@ -30,7 +30,7 @@ class ProdOrderStepExpected extends Component implements HasForms, HasTable
             ->query(
                 ProdOrderStepProduct::query()
                     ->with(['product'])
-                    ->where('prod_order_step_id', $this->prodOrder->current_step_id)
+                    ->where('prod_order_step_id', $this->step->id)
                     ->where('type', StepProductType::Expected)
             )
             ->columns([

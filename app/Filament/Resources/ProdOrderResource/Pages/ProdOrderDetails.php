@@ -3,6 +3,7 @@
 namespace App\Filament\Resources\ProdOrderResource\Pages;
 
 use App\Enums\OrderStatus;
+use Filament\Forms\Components\Tabs;
 use App\Filament\Resources\ProdOrderResource;
 use App\Models\ProdOrder;
 use App\Services\ProdOrderService;
@@ -43,53 +44,66 @@ class ProdOrderDetails extends Page
 
     public function form(Form $form): Form
     {
+        $isViewMode = $this->prodOrder->status == OrderStatus::Completed || $this->prodOrder->status == OrderStatus::Approved;
+
         $steps = [];
         foreach ($this->prodOrder->steps as $step) {
-            $steps[] = Wizard\Step::make($step->workStation->name)
-                ->schema([
-                    Grid::make(1)->schema([
-                        Placeholder::make('Order Preview')
-                            ->label('')
-                            ->content(
-                                fn($record) => view(
-                                    'filament.resources.prod-order-resource.pages.prod-order-step',
-                                    ['order' => $record]
-                                )
-                            ),
-                    ]),
-                ])
-                ->afterValidation(function ($record) {
-                    try {
-                        app(ProdOrderService::class)->next($this->prodOrder);
 
-                        Notification::make()
-                            ->title('Success')
-                            ->body('Order has been moved to the next step.')
-                            ->success()
-                            ->send();
-                    } catch (\Exception $e) {
-                        Notification::make()
-                            ->title('Error')
-                            ->body('An error occurred while completing the order.')
-                            ->danger()
-                            ->send();
-                    }
-                });
+            if ($isViewMode) {
+                $steps[] = Tabs\Tab::make($step->workStation->name)
+                    ->schema([
+                        Grid::make(1)->schema([
+                            Placeholder::make('Order Preview')
+                                ->label('')
+                                ->content(
+                                    fn($record) => view(
+                                        'filament.resources.prod-order-resource.pages.prod-order-step',
+                                        ['step' => $step]
+                                    )
+                                ),
+                        ]),
+                    ]);
+            } else {
+                $steps[] = Wizard\Step::make($step->workStation->name)
+                    ->schema([
+                        Grid::make(1)->schema([
+                            Placeholder::make('Order Preview')
+                                ->label('')
+                                ->content(
+                                    fn($record) => view(
+                                        'filament.resources.prod-order-resource.pages.prod-order-step',
+                                        ['step' => $step]
+                                    )
+                                ),
+                        ]),
+                    ])
+                    ->afterValidation(function ($record) {
+                        try {
+                            app(ProdOrderService::class)->next($this->prodOrder);
+
+                            Notification::make()
+                                ->title('Success')
+                                ->body('Order has been moved to the next step.')
+                                ->success()
+                                ->send();
+                        } catch (\Exception $e) {
+                            Notification::make()
+                                ->title('Error')
+                                ->body($e->getMessage())
+                                ->danger()
+                                ->send();
+                        }
+                    });
+            }
+
         }
 
-        if ($this->prodOrder->status == OrderStatus::Completed) {
-            $tabs[] = Tab::make('Order Details')
+        if ($isViewMode) {
+            return $form
                 ->schema([
-                    Grid::make(1)->schema([
-                        Placeholder::make('Order Preview')
-                            ->label('')
-                            ->content(
-                                fn($record) => view(
-                                    'filament.resources.prod-order-resource.pages.prod-order-step',
-                                    ['order' => $record]
-                                )
-                            ),
-                    ]),
+                    Tabs::make()
+                        ->activeTab($this->prodOrder->currentStep->sequence)
+                        ->schema($steps),
                 ]);
         }
 
@@ -110,7 +124,29 @@ class ProdOrderDetails extends Page
         );
     }
 
-    public function submit()
+    public function approve(): void
+    {
+        try {
+            app(ProdOrderService::class)->approve($this->prodOrder);
+
+            // back to index page
+            $this->redirect(ProdOrderResource::getUrl('index'));
+
+            Notification::make()
+                ->title('Success')
+                ->body('Order has been moved to the next step.')
+                ->success()
+                ->send();
+        } catch (\Exception $e) {
+            Notification::make()
+                ->title('Error')
+                ->body($e->getMessage())
+                ->danger()
+                ->send();
+        }
+    }
+
+    public function submit(): void
     {
         try {
             app(ProdOrderService::class)->next($this->prodOrder);
@@ -123,7 +159,7 @@ class ProdOrderDetails extends Page
         } catch (\Exception $e) {
             Notification::make()
                 ->title('Error')
-                ->body('An error occurred while completing the order.')
+                ->body($e->getMessage())
                 ->danger()
                 ->send();
         }

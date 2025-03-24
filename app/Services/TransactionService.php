@@ -115,7 +115,7 @@ class TransactionService
         $miniInventory = $this->inventoryService->getMiniInventory($productId, $workStationId);
 
         if ($miniInventory->quantity < $quantity) {
-            throw new Exception('Insufficient quantity');
+            throw new Exception("Insufficient quantity. Product: " . $miniInventory->product->name . ". Actual quantity: " . $miniInventory->quantity);
         }
 
         $miniInventory->quantity -= $quantity;
