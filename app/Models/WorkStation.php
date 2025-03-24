@@ -18,6 +18,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
  * @property ProductCategory $productCategory
  * @property Organization $organization
  * @property Collection<PerformanceRate> $performanceRates
+ * @property Collection<MiniInventory> $miniInventories
  */
 class WorkStation extends Model
 {
@@ -38,5 +39,10 @@ class WorkStation extends Model
     public function performanceRates(): HasMany
     {
         return $this->hasMany(PerformanceRate::class);
+    }
+
+    public function miniInventories(): HasMany
+    {
+        return $this->hasMany(MiniInventory::class);
     }
 }

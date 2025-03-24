@@ -14,6 +14,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * @property int $id
  * @property int $product_id
  * @property int $warehouse_id
+ * @property int $work_station_id
  * @property int $storage_location_id
  * @property float $quantity
  * @property float $cost
@@ -23,6 +24,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  *
  * @property-read Product $product
  * @property-read Warehouse $warehouse
+ * @property-read WorkStation $workStation
  * @property-read StorageLocation $storage_location
  *
  */
@@ -45,6 +47,11 @@ class InventoryTransaction extends Model
     public function warehouse(): BelongsTo
     {
         return $this->belongsTo(Warehouse::class);
+    }
+
+    public function workStation(): BelongsTo
+    {
+        return $this->belongsTo(WorkStation::class);
     }
 
     public function storageLocation(): BelongsTo

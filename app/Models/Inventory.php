@@ -39,7 +39,7 @@ class Inventory extends Model
 
     public function items(): HasMany
     {
-        return $this->hasMany(InventoryItem::class);
+        return $this->hasMany(InventoryItem::class)->orderBy('created_at');
     }
 
     public function getQuantityAttribute(): int

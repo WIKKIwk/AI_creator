@@ -80,7 +80,7 @@ class WorkStationResource extends Resource
     public static function getRelations(): array
     {
         return [
-            //
+            RelationManagers\MiniInventoriesRelationManager::class
         ];
     }
 

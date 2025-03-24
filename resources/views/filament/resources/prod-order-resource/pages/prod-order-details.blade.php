@@ -1,7 +1,7 @@
 <x-filament-panels::page>
 
-    <?php
-
-    ?>
+    <form wire:submit.prevent="submit">
+        {{ $this->form }}
+    </form>
 
 </x-filament-panels::page>

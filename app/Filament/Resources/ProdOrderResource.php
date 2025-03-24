@@ -6,8 +6,10 @@ use App\Enums\OrderStatus;
 use App\Filament\Resources\ProdOrderResource\Pages;
 use App\Filament\Resources\ProdOrderResource\RelationManagers;
 use App\Models\ProdOrder;
+use App\Services\ProdOrderService;
 use Filament\Forms;
 use Filament\Forms\Form;
+use Filament\Notifications\Notification;
 use Filament\Resources\Resource;
 use Filament\Tables;
 use Filament\Tables\Table;
@@ -22,6 +24,11 @@ class ProdOrderResource extends Resource
     {
         return $form
             ->schema([
+                Forms\Components\Select::make('warehouse_id')
+                    ->native(false)
+                    ->searchable()
+                    ->relationship('warehouse', 'name')
+                    ->required(),
                 Forms\Components\Select::make('product_id')
                     ->native(false)
                     ->searchable()
@@ -63,11 +70,12 @@ class ProdOrderResource extends Resource
     {
         return $table
             ->modifyQueryUsing(function ($query) {
-                $query->with(['product', 'agent']);
+                $query->with(['product', 'agent', 'warehouse']);
             })
             ->columns([
+                Tables\Columns\TextColumn::make('warehouse.name')
+                    ->sortable(),
                 Tables\Columns\TextColumn::make('product.name')
-                    ->numeric()
                     ->sortable(),
                 Tables\Columns\TextColumn::make('agent.name')
                     ->numeric()
@@ -103,12 +111,21 @@ class ProdOrderResource extends Resource
                 Tables\Actions\Action::make('startProduction')
                     ->label('Start')
                     ->hidden(fn($record) => $record->status != OrderStatus::Pending)
-                    ->action(function($record) {
-                        $record->startProduction();
+                    ->action(function ($record) {
+                        try {
+                            app(ProdOrderService::class)->start($record);
+                        } catch (\Exception $e) {
+                            Notification::make()
+                                ->title('Error')
+                                ->body($e->getMessage())
+                                ->danger()
+                                ->send();
+                        }
                     })
                     ->requiresConfirmation(),
                 Tables\Actions\Action::make('details')
                     ->label('Details')
+                    ->hidden(fn($record) => $record->status == OrderStatus::Pending)
                     ->url(fn($record) => ProdOrderResource::getUrl('details', ['record' => $record]))
                     ->requiresConfirmation(),
                 Tables\Actions\EditAction::make(),

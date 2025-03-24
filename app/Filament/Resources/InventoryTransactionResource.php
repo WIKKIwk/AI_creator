@@ -59,6 +59,9 @@ class InventoryTransactionResource extends Resource
     public static function table(Table $table): Table
     {
         return $table
+            ->modifyQueryUsing(function ($query) {
+                $query->with(['product', 'storageLocation', 'workStation', 'warehouse']);
+            })
             ->defaultSort('created_at', 'desc')
             ->columns([
                 Tables\Columns\TextColumn::make('type')
@@ -74,6 +77,9 @@ class InventoryTransactionResource extends Resource
                     ->numeric()
                     ->sortable(),
                 Tables\Columns\TextColumn::make('storageLocation.name')
+                    ->numeric()
+                    ->sortable(),
+                Tables\Columns\TextColumn::make('workStation.name')
                     ->numeric()
                     ->sortable(),
                 Tables\Columns\TextColumn::make('created_at')

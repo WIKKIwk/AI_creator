@@ -14,6 +14,9 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * @property float $quantity
  * @property float $unit_cost
  * @property InventoryStatus $status
+ *
+ * @property Product $product
+ * @property WorkStation $workStation
  */
 class MiniInventory extends Model
 {
