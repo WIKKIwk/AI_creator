@@ -2,21 +2,43 @@
 
 namespace App\Services;
 
-use App\Models\User;
-use App\Services\Handler\HandlerFactory;
 use Exception;
 use GuzzleHttp\Client;
-use GuzzleHttp\Exception\GuzzleException;
+use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\Http;
-use Illuminate\Support\Facades\Log;
+use GuzzleHttp\Exception\GuzzleException;
 
 class TelegramService
 {
+    public static function getInlineKeyboard(array $data): array
+    {
+        return [
+            'inline_keyboard' => $data,
+            'resize_keyboard' => true,
+            'one_time_keyboard' => true,
+        ];
+    }
+
+    public static function getKeyboard(array $array): array
+    {
+        return [
+            'keyboard' => $array,
+            'resize_keyboard' => true,
+            'one_time_keyboard' => true,
+        ];
+    }
+
+
     /**
      * @throws GuzzleException
+     * @throws Exception
      */
     public function sendRequest(string $method, array $params = []): array
     {
+        if (!env('TELEGRAM_BOT_TOKEN')) {
+            throw new Exception('TELEGRAM_BOT_TOKEN is not set');
+        }
+
         $client = new Client();
 
         $requestUrl = 'https://api.telegram.org/bot' . env('TELEGRAM_BOT_TOKEN') . '/' . $method;
@@ -33,19 +55,22 @@ class TelegramService
         }
     }
 
+    /**
+     * @throws Exception
+     */
     public static function sendMessage(string $username, string $message, $params = []): void
     {
-        // Send message to Telegram
-        try {
-            $resp = Http::post(
-                'https://api.telegram.org/bot' . env('TELEGRAM_BOT_TOKEN') . '/sendMessage',
-                array_merge([
-                    'chat_id' => $username,
-                    'text' => $message,
-                ], $params)
-            );
-        } catch (\Throwable $e) {
-            Log::channel('telegram')->error($e->getMessage());
+        $resp = Http::post(
+            'https://api.telegram.org/bot' . env('TELEGRAM_BOT_TOKEN') . '/sendMessage',
+            array_merge([
+                'chat_id' => $username,
+                'text' => $message,
+            ], $params)
+        );
+
+        $data = $resp->json();
+        if (Arr::get($data, 'ok') !== true) {
+            throw new Exception('Telegram API error: ' . Arr::get($data, 'description'));
         }
     }
 }

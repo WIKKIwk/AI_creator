@@ -2,6 +2,7 @@
 
 namespace App\Console\Commands;
 
+use Throwable;
 use App\Models\User;
 use App\Services\Handler\HandlerFactory;
 use App\Services\TelegramService;
@@ -81,9 +82,7 @@ class BotCommand extends Command
                 $handlerByRole = HandlerFactory::make($user);
                 $handlerByRole->handle($msg);
 
-            } catch (GuzzleException $e) {
-                $this->error($e->getMessage());
-            } catch (Exception $e) {
+            } catch (Throwable $e) {
                 $this->error($e->getMessage());
             }
         }
