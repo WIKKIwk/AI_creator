@@ -3,11 +3,12 @@
 namespace App\Models;
 
 use App\Enums\RoleType;
+use Exception;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Foundation\Auth\User as Authenticatable;
+use Illuminate\Notifications\Notifiable;
 use Illuminate\Support\Carbon;
 use Laravel\Sanctum\HasApiTokens;
-use Illuminate\Notifications\Notifiable;
-use Illuminate\Foundation\Auth\User as Authenticatable;
-use Illuminate\Database\Eloquent\Factories\HasFactory;
 
 /**
  *
@@ -18,6 +19,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
  * @property RoleType $role
  * @property Carbon|null $email_verified_at
  * @property mixed $password
+ * @property mixed $chat_id
  * @property string|null $remember_token
  * @property Carbon|null $created_at
  * @property Carbon|null $updated_at
@@ -38,6 +40,7 @@ class User extends Authenticatable
         'country_id',
         'status',
         'role',
+        'chat_id'
     ];
 
     /**
@@ -60,4 +63,17 @@ class User extends Authenticatable
         'password' => 'hashed',
         'role' => RoleType::class,
     ];
+
+    /**
+     * @throws Exception
+     */
+    public static function getFromChatId(int $chatId): self
+    {
+        /** @var User $user */
+        $user = self::query()->where('chat_id', $chatId)->first();
+        if (!$user) {
+            throw new Exception("User not found by chat_id: $chatId");
+        }
+        return $user;
+    }
 }

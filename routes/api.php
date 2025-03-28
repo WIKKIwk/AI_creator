@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\BotController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Api\AuthController;
@@ -41,3 +42,5 @@ Route::group([], function() {
     Route::post('/logout', [AuthController::class, 'logout'])->name('logout')->middleware('auth:sanctum'); // tested
     Route::post('/me', [AuthController::class, 'me'])->name('me'); // tested
 });
+
+Route::post('/bot', [BotController::class, 'handle'])->name('telegram'); // tested
