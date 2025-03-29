@@ -14,7 +14,9 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
  * @property int $product_category_id
  * @property int $type
  * @property int $organization_id
+ * @property int $prod_order_id
  *
+ * @property ProdOrder $prodOrder
  * @property ProductCategory $productCategory
  * @property Organization $organization
  * @property Collection<PerformanceRate> $performanceRates
@@ -44,5 +46,10 @@ class WorkStation extends Model
     public function miniInventories(): HasMany
     {
         return $this->hasMany(MiniInventory::class);
+    }
+
+    public function prodOrder(): BelongsTo
+    {
+        return $this->belongsTo(ProdOrder::class);
     }
 }

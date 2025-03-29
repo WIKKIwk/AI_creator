@@ -2,6 +2,9 @@
 
 namespace App\Console\Commands;
 
+use App\Services\TgBot\TgBot;
+use Illuminate\Support\Facades\Redis;
+use Symfony\Component\HttpKernel\Exception\BadRequestHttpException;
 use Throwable;
 use App\Models\User;
 use App\Services\Handler\HandlerFactory;
@@ -58,6 +61,8 @@ class BotCommand extends Command
     {
         $this->info('Long polling started');
 
+        Redis::flushall();
+
         $offset = 0;
         while (true) {
             try {
@@ -74,16 +79,12 @@ class BotCommand extends Command
                 }
 
                 $this->info('New update:');
-                dump($update);
 
-                // Handle update
-                $msg = Arr::get($update, 'message');
-                $user = User::getFromChatId(Arr::get($msg, 'chat.id'));
+                $user = User::getFromChatId(TgBot::getChatIdByUpdate($update));
                 $handlerByRole = HandlerFactory::make($user);
-                $handlerByRole->handle($msg);
-
+                $handlerByRole->handle($user, $update);
             } catch (Throwable $e) {
-                $this->error($e->getMessage());
+                $this->error($e->getMessage(), "Line: {$e->getLine()}, File: {$e->getFile()}");
             }
         }
     }

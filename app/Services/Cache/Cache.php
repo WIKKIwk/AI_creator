@@ -10,5 +10,6 @@ interface Cache
 
     public function put($key, $value, $ttl = null): void;
 
+    public function forget($key): void;
     public function has($key): bool;
 }

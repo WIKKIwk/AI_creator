@@ -21,6 +21,11 @@ class RedisCache implements Cache
         Redis::set($key, $value, $ttl);
     }
 
+    public function forget($key): void
+    {
+        Redis::del($key);
+    }
+
     public function has($key): bool
     {
         return Redis::exists($key);
