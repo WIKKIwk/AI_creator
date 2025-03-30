@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources;
 
+use App\Enums\RoleType;
 use App\Enums\StepProductType;
 use App\Filament\Resources\ProdTemplateResource\Pages;
 use App\Filament\Resources\ProdTemplateResource\RelationManagers;
@@ -18,6 +19,13 @@ class ProdTemplateResource extends Resource
     protected static ?string $model = ProdTemplate::class;
 
     protected static ?string $navigationIcon = 'heroicon-o-rectangle-stack';
+
+    public static function canAccess(): bool
+    {
+        return in_array(auth()->user()->role, [
+            RoleType::ADMIN,
+        ]);
+    }
 
     public static function form(Form $form): Form
     {

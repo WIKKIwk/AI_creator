@@ -22,6 +22,7 @@ use Illuminate\Database\Eloquent\Relations\HasOne;
  * @property int $total_cost
  * @property int $deadline
  * @property int $current_step_id
+ * @property bool $can_produce
  * @property string $created_at
  * @property string $updated_at
  *

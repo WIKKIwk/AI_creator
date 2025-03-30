@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources;
 
+use App\Enums\RoleType;
 use App\Filament\Resources\ProductCategoryResource\Pages;
 use App\Filament\Resources\ProductCategoryResource\RelationManagers;
 use App\Models\ProductCategory;
@@ -18,6 +19,13 @@ class ProductCategoryResource extends Resource
     protected static ?string $model = ProductCategory::class;
 
     protected static ?string $navigationIcon = 'heroicon-o-rectangle-stack';
+
+    public static function canAccess(): bool
+    {
+        return in_array(auth()->user()->role, [
+            RoleType::ADMIN,
+        ]);
+    }
 
     public static function form(Form $form): Form
     {

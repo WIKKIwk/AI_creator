@@ -3,6 +3,7 @@
 namespace App\Filament\Resources;
 
 use App\Enums\OrderStatus;
+use App\Enums\RoleType;
 use App\Filament\Resources\ProdOrderResource\Pages;
 use App\Filament\Resources\ProdOrderResource\RelationManagers;
 use App\Models\ProdOrder;
@@ -19,6 +20,14 @@ class ProdOrderResource extends Resource
     protected static ?string $model = ProdOrder::class;
 
     protected static ?string $navigationIcon = 'heroicon-o-rectangle-stack';
+
+    public static function canAccess(): bool
+    {
+        return in_array(auth()->user()->role, [
+            RoleType::ADMIN,
+            RoleType::PLANNING_MANAGER,
+        ]);
+    }
 
     public static function form(Form $form): Form
     {

@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources;
 
+use App\Enums\RoleType;
 use App\Filament\Resources\SupplierResource\Pages;
 use App\Filament\Resources\SupplierResource\RelationManagers;
 use App\Models\Supplier;
@@ -19,6 +20,13 @@ class SupplierResource extends Resource
     protected static ?string $navigationGroup = 'Manage';
     protected static ?int $navigationSort = 6;
     protected static ?string $navigationIcon = 'heroicon-o-rectangle-stack';
+
+    public static function canAccess(): bool
+    {
+        return in_array(auth()->user()->role, [
+            RoleType::ADMIN,
+        ]);
+    }
 
     public static function form(Form $form): Form
     {

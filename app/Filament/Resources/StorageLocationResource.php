@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources;
 
+use App\Enums\RoleType;
 use App\Filament\Resources\StorageLocationResource\Pages;
 use App\Filament\Resources\StorageLocationResource\RelationManagers;
 use App\Models\StorageLocation;
@@ -17,6 +18,13 @@ class StorageLocationResource extends Resource
     protected static ?string $navigationGroup = 'Warehouse';
     protected static ?int $navigationSort = 4;
     protected static ?string $navigationIcon = 'heroicon-o-rectangle-stack';
+
+    public static function canAccess(): bool
+    {
+        return in_array(auth()->user()->role, [
+            RoleType::ADMIN,
+        ]);
+    }
 
     public static function form(Form $form): Form
     {

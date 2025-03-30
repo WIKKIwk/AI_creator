@@ -200,10 +200,10 @@ HTML,
     {
         return TelegramService::getInlineKeyboard([
             [
-                ['text' => 'ℹ️ Add RM', 'callback_data' => 'addRawMaterial']
+                ['text' => '+ Add RM', 'callback_data' => 'addRawMaterial']
             ],
             [
-                ['text' => '📞 Remove RM', 'callback_data' => 'remove_rm']
+                ['text' => '- Remove RM', 'callback_data' => 'remove_rm']
             ]
         ]);
     }

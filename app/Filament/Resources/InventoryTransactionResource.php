@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources;
 
+use App\Enums\RoleType;
 use App\Enums\TransactionType;
 use App\Filament\Resources\InventoryTransactionResource\Pages;
 use App\Filament\Resources\InventoryTransactionResource\RelationManagers;
@@ -54,6 +55,13 @@ class InventoryTransactionResource extends Resource
                     ->relationship('warehouse', 'name')
                     ->required(),
             ]);
+    }
+
+    public static function canAccess(): bool
+    {
+        return in_array(auth()->user()->role, [
+            RoleType::ADMIN,
+        ]);
     }
 
     public static function table(Table $table): Table

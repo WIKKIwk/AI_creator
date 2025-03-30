@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources;
 
+use App\Enums\RoleType;
 use Filament\Forms;
 use Filament\Tables;
 use App\Models\Agent;
@@ -17,6 +18,13 @@ class AgentResource extends Resource
     protected static ?string $navigationGroup = 'Manage';
     protected static ?int $navigationSort = 5;
     protected static ?string $navigationIcon = 'heroicon-o-rectangle-stack';
+
+    public static function canAccess(): bool
+    {
+        return in_array(auth()->user()->role, [
+            RoleType::ADMIN,
+        ]);
+    }
 
     public static function form(Form $form): Form
     {

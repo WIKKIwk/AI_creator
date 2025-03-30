@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources;
 
+use App\Enums\RoleType;
 use App\Filament\Resources\InventoryResource\Pages;
 use App\Filament\Resources\InventoryResource\RelationManagers;
 use App\Models\Inventory;
@@ -20,6 +21,13 @@ class InventoryResource extends Resource
     protected static ?string $navigationGroup = 'Warehouse';
     protected static ?int $navigationSort = 1;
     protected static ?string $navigationIcon = 'heroicon-o-rectangle-stack';
+
+    public static function canAccess(): bool
+    {
+        return in_array(auth()->user()->role, [
+            RoleType::ADMIN,
+        ]);
+    }
 
     public static function form(Form $form): Form
     {
