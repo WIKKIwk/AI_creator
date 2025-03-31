@@ -26,6 +26,7 @@ class InventoryResource extends Resource
     {
         return in_array(auth()->user()->role, [
             RoleType::ADMIN,
+            RoleType::PLANNING_MANAGER,
         ]);
     }
 

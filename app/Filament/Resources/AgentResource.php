@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources;
 
+use App\Enums\PartnerType;
 use App\Enums\RoleType;
 use Filament\Forms;
 use Filament\Tables;
@@ -33,9 +34,9 @@ class AgentResource extends Resource
                 Forms\Components\TextInput::make('name')
                     ->required()
                     ->maxLength(255),
-                Forms\Components\TextInput::make('type')
-                    ->required()
-                    ->maxLength(255),
+                Forms\Components\Select::make('type')
+                    ->options(PartnerType::class)
+                    ->required(),
                 Forms\Components\TextInput::make('phone')
                     ->tel()
                     ->maxLength(255),
@@ -49,6 +50,7 @@ class AgentResource extends Resource
                 Tables\Columns\TextColumn::make('name')
                     ->searchable(),
                 Tables\Columns\TextColumn::make('type')
+                    ->badge()
                     ->searchable(),
                 Tables\Columns\TextColumn::make('phone')
                     ->searchable(),

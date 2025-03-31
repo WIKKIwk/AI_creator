@@ -13,7 +13,20 @@ return new class extends Migration
     {
         Schema::create('supply_orders', function (Blueprint $table) {
             $table->id();
-            $table->string('reference');
+            $table->bigInteger('supplier_id')->nullable()->unsigned();
+            $table->foreign('supplier_id')->references('id')->on('suppliers');
+
+            $table->bigInteger('product_id')->unsigned();
+            $table->foreign('product_id')->references('id')->on('products');
+
+            $table->integer('status');
+
+            $table->double('quantity');
+            $table->double('total_price')->nullable();
+            $table->double('unit_price')->nullable();
+
+            $table->bigInteger('created_by')->unsigned();
+            $table->foreign('created_by')->references('id')->on('users');
             $table->timestamps();
         });
     }

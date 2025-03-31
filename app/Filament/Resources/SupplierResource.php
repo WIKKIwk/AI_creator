@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources;
 
+use App\Enums\PartnerType;
 use App\Enums\RoleType;
 use App\Filament\Resources\SupplierResource\Pages;
 use App\Filament\Resources\SupplierResource\RelationManagers;
@@ -11,8 +12,6 @@ use Filament\Forms\Form;
 use Filament\Resources\Resource;
 use Filament\Tables;
 use Filament\Tables\Table;
-use Illuminate\Database\Eloquent\Builder;
-use Illuminate\Database\Eloquent\SoftDeletingScope;
 
 class SupplierResource extends Resource
 {
@@ -25,6 +24,7 @@ class SupplierResource extends Resource
     {
         return in_array(auth()->user()->role, [
             RoleType::ADMIN,
+//            RoleType::PLANNING_MANAGER,
         ]);
     }
 
@@ -32,15 +32,16 @@ class SupplierResource extends Resource
     {
         return $form
             ->schema([
-                Forms\Components\TextInput::make('name')
-                    ->required()
-                    ->maxLength(255),
-                Forms\Components\TextInput::make('type')
-                    ->required()
-                    ->maxLength(255),
-                Forms\Components\TextInput::make('phone')
-                    ->tel()
-                    ->maxLength(255),
+                Forms\Components\Grid::make(3)->schema([
+                    Forms\Components\TextInput::make('name')
+                        ->required()
+                        ->maxLength(255),
+                    Forms\Components\Select::make('type')
+                        ->options(PartnerType::class),
+                    Forms\Components\TextInput::make('phone')
+                        ->tel()
+                        ->maxLength(255),
+                ])
             ]);
     }
 
@@ -51,6 +52,7 @@ class SupplierResource extends Resource
                 Tables\Columns\TextColumn::make('name')
                     ->searchable(),
                 Tables\Columns\TextColumn::make('type')
+                    ->badge()
                     ->searchable(),
                 Tables\Columns\TextColumn::make('phone')
                     ->searchable(),
@@ -81,6 +83,14 @@ class SupplierResource extends Resource
     {
         return [
             'index' => Pages\ManageSuppliers::route('/'),
+            'edit' => Pages\EditSupplier::route('/{record}/edit'),
+        ];
+    }
+
+    public static function getRelations(): array
+    {
+        return [
+            RelationManagers\ProductsRelationManager::class,
         ];
     }
 }

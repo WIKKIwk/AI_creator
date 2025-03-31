@@ -3,8 +3,9 @@
 namespace App\Enums;
 
 use Filament\Support\Contracts\HasColor;
+use Filament\Support\Contracts\HasLabel;
 
-enum PartnerType: int implements HasColor
+enum PartnerType: int implements HasColor, HasLabel
 {
     case OnlyOrder = 1;
     case Catalog = 2;

@@ -2,7 +2,6 @@
 
 namespace App\Models;
 
-use App\Enums\OrderStatus;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -11,29 +10,20 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * @property int $id
  * @property int $supplier_id
  * @property int $product_id
- * @property OrderStatus $status
- * @property int $quantity
- * @property int $total_price
- * @property int $warehouse_id
  * @property int $unit_price
- * @property int $created_by
- * @property int $created_at
- * @property int $updated_at
+ * @property int $currency
+ * @property int $type
+ * @property string $created_at
+ * @property string $updated_at
  *
  * @property Supplier $supplier
- * @property Warehouse $warehouse
  * @property Product $product
- * @property User $createdBy
  */
-class SupplyOrder extends Model
+class SupplierProduct extends Model
 {
     use HasFactory;
 
     protected $guarded = ['id'];
-
-    protected $casts = [
-        'status' => OrderStatus::class,
-    ];
 
     public function supplier(): BelongsTo
     {
@@ -43,15 +33,5 @@ class SupplyOrder extends Model
     public function product(): BelongsTo
     {
         return $this->belongsTo(Product::class);
-    }
-
-    public function createdBy(): BelongsTo
-    {
-        return $this->belongsTo(User::class, 'created_by');
-    }
-
-    public function warehouse(): BelongsTo
-    {
-        return $this->belongsTo(Warehouse::class);
     }
 }
