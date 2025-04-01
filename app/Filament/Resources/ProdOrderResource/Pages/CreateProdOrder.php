@@ -13,6 +13,7 @@ class CreateProdOrder extends CreateRecord
     protected function mutateFormDataBeforeCreate(array $data): array
     {
         $data['status'] = OrderStatus::Pending;
+        $data['can_produce'] = false;
 
         return parent::mutateFormDataBeforeCreate($data);
     }

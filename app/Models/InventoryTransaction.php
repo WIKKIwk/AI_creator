@@ -15,6 +15,8 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * @property int $product_id
  * @property int $warehouse_id
  * @property int $work_station_id
+ * @property int $supplier_id
+ * @property int $agent_id
  * @property int $storage_location_id
  * @property float $quantity
  * @property float $cost
@@ -22,6 +24,9 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * @property Carbon $created_at
  * @property Carbon $updated_at
  *
+ * Relationships
+ * @property-read Supplier $supplier
+ * @property-read Agent $agent
  * @property-read Product $product
  * @property-read Warehouse $warehouse
  * @property-read WorkStation $workStation
@@ -38,6 +43,16 @@ class InventoryTransaction extends Model
     protected $casts = [
         'type' => TransactionType::class,
     ];
+
+    public function supplier(): BelongsTo
+    {
+        return $this->belongsTo(Supplier::class);
+    }
+
+    public function agent(): BelongsTo
+    {
+        return $this->belongsTo(Agent::class);
+    }
 
     public function product(): BelongsTo
     {

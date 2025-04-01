@@ -8,6 +8,7 @@ use App\Filament\Resources\SupplyOrderResource\Pages;
 use App\Filament\Resources\SupplyOrderResource\RelationManagers;
 use App\Models\Product;
 use App\Models\Supplier;
+use App\Models\SupplierProduct;
 use App\Models\SupplyOrder;
 use App\Services\SupplyOrderService;
 use Filament\Forms;
@@ -44,6 +45,11 @@ class SupplyOrderResource extends Resource
     {
         return $form
             ->schema([
+                Forms\Components\Select::make('warehouse_id')
+                    ->native(false)
+                    ->relationship('warehouse', 'name')
+                    ->reactive()
+                    ->required(),
                 Forms\Components\Select::make('product_id')
                     ->native(false)
                     ->searchable()
@@ -62,10 +68,30 @@ class SupplyOrderResource extends Resource
                     ->required()
                     ->numeric(),
                 Forms\Components\Select::make('supplier_id')
-                    ->options(fn() => Supplier::pluck('name', 'id')->toArray()),
+                    ->native(false)
+                    ->relationship('supplier', 'name')
+                    ->afterStateUpdated(function ($get, $set) {
+                        $supplierProduct = self::getSupplierProduct($get('supplier_id'), $get('product_id'));
+                        if ($supplierProduct) {
+                            $set('unit_price', $supplierProduct->unit_price);
+                            $set('total_price', $supplierProduct->unit_price * $get('quantity'));
+                        } else {
+                            $set('unit_price', null);
+                            $set('total_price', null);
+                        }
+                    })
+                    ->reactive(),
+
                 Forms\Components\TextInput::make('total_price')
+                    ->prefix(function ($get) {
+                        $supplierProduct = self::getSupplierProduct($get('supplier_id'), $get('product_id'));
+                        return $supplierProduct?->currency->getLabel();
+                    })
+                    ->readOnly()
                     ->numeric(),
+
                 Forms\Components\TextInput::make('unit_price')
+                    ->readOnly()
                     ->numeric(),
 //                Forms\Components\TextInput::make('created_by')
 //                    ->required()
@@ -73,13 +99,27 @@ class SupplyOrderResource extends Resource
             ]);
     }
 
+    protected static function getSupplierProduct($supplierId, $productId): ?SupplierProduct
+    {
+        /** @var SupplierProduct $supplierProduct */
+        $supplierProduct = SupplierProduct::query()
+            ->where('supplier_id', $supplierId)
+            ->where('product_id', $productId)
+            ->first();
+
+        return $supplierProduct;
+    }
+
     public static function table(Table $table): Table
     {
         return $table
             ->modifyQueryUsing(function (Builder $query) {
-                $query->with(['product', 'supplier', 'createdBy']);
+                $query->with(['warehouse', 'product', 'supplier', 'createdBy']);
             })
             ->columns([
+                Tables\Columns\TextColumn::make('warehouse.name')
+                    ->numeric()
+                    ->sortable(),
                 Tables\Columns\TextColumn::make('product.name')
                     ->numeric()
                     ->sortable(),
@@ -114,9 +154,11 @@ class SupplyOrderResource extends Resource
             ->filters([
                 //
             ])
+            ->recordUrl(fn($record) => $record->status == OrderStatus::Completed ? null : $record->editUrl())
             ->actions([
                 Tables\Actions\Action::make('complete')
                     ->label('Complete')
+                    ->hidden(fn($record) => $record->status == OrderStatus::Completed)
                     ->requiresConfirmation()
                     ->action(function (SupplyOrder $supplyOrder) {
                         try {
@@ -129,7 +171,8 @@ class SupplyOrderResource extends Resource
                                 ->send();
                         }
                     }),
-                Tables\Actions\EditAction::make(),
+                Tables\Actions\EditAction::make()
+                    ->hidden(fn($record) => $record->status == OrderStatus::Completed),
             ])
             ->bulkActions([
                 Tables\Actions\BulkActionGroup::make([

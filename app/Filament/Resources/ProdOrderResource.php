@@ -54,6 +54,9 @@ class ProdOrderResource extends Resource
                 Forms\Components\TextInput::make('offer_price')
                     ->required()
                     ->numeric(),
+                Forms\Components\Toggle::make('can_produce')
+                    ->visible(fn($record) => $record?->status == OrderStatus::Pending)
+                    ->inline(false),
 
                 Forms\Components\Grid::make(3)->schema([
                     Forms\Components\TextInput::make('status')
@@ -65,13 +68,11 @@ class ProdOrderResource extends Resource
                     Forms\Components\TextInput::make('total_cost')
                         ->label('Expected total Cost')
                         ->hidden(fn($record) => !$record?->id)
-                        ->disabled()
-                        ->required(),
+                        ->disabled(),
                     Forms\Components\TextInput::make('deadline')
                         ->label('Expected deadline')
                         ->hidden(fn($record) => !$record?->id)
-                        ->disabled()
-                        ->required(),
+                        ->disabled(),
                 ])
             ]);
     }
@@ -98,6 +99,9 @@ class ProdOrderResource extends Resource
                     ->sortable(),
                 Tables\Columns\TextColumn::make('status')
                     ->badge()
+                    ->sortable(),
+                Tables\Columns\IconColumn::make('can_produce')
+                    ->boolean()
                     ->sortable(),
                 /*Tables\Columns\TextColumn::make('total_cost')
                     ->numeric()

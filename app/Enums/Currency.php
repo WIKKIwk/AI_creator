@@ -9,4 +9,15 @@ enum Currency: string
     case EUR = 'EUR';
     case RUB = 'RUB';
     case KZT = 'KZT';
+
+    public function getLabel(): string
+    {
+        return match ($this) {
+            self::UZS => 'so\'m',
+            self::USD => '$',
+            self::EUR => '€',
+            self::RUB => '₽',
+            self::KZT => '₸',
+        };
+    }
 }

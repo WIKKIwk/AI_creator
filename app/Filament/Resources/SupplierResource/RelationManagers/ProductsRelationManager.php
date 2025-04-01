@@ -41,7 +41,7 @@ class ProductsRelationManager extends RelationManager
                 Tables\Columns\TextColumn::make('product.name')
                     ->searchable(),
                 Tables\Columns\TextColumn::make('unit_price')
-                    ->formatStateUsing(fn ($record) => $record->unit_price . ' ' . $record->currency)
+                    ->formatStateUsing(fn ($record) => $record->unit_price . ' ' . $record->currency?->getLabel())
                     ->sortable(),
             ])
             ->filters([
