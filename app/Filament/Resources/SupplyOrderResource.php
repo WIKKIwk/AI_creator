@@ -156,7 +156,7 @@ class SupplyOrderResource extends Resource
             ->filters([
                 //
             ])
-            ->recordUrl(fn($record) => $record->status == OrderStatus::Completed ? null : $record->editUrl())
+            ->recordUrl(fn($record) => null)
             ->actions([
                 Tables\Actions\Action::make('complete')
                     ->label('Complete')
