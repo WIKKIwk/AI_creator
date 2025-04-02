@@ -117,26 +117,28 @@ class SupplyOrderResource extends Resource
                 $query->with(['warehouse', 'product', 'supplier', 'createdBy']);
             })
             ->columns([
+                Tables\Columns\TextColumn::make('status')
+                    ->badge()
+                    ->sortable(),
                 Tables\Columns\TextColumn::make('warehouse.name')
                     ->numeric()
                     ->sortable(),
                 Tables\Columns\TextColumn::make('product.name')
                     ->numeric()
                     ->sortable(),
-                Tables\Columns\TextColumn::make('status')
-                    ->badge()
+                Tables\Columns\TextColumn::make('supplier.name')
+                    ->numeric()
                     ->sortable(),
                 Tables\Columns\TextColumn::make('quantity')
                     ->numeric()
                     ->sortable(),
-                Tables\Columns\TextColumn::make('supplier.name')
+                Tables\Columns\TextColumn::make('unit_price')
                     ->numeric()
+//                    ->formatStateUsing(fn($record, $state) => $state . ' ' . $record->currency->getLabel())
                     ->sortable(),
                 Tables\Columns\TextColumn::make('total_price')
                     ->numeric()
-                    ->sortable(),
-                Tables\Columns\TextColumn::make('unit_price')
-                    ->numeric()
+//                    ->formatStateUsing(fn($record, $state) => $state . ' ' . $record->currency->getLabel())
                     ->sortable(),
                 Tables\Columns\TextColumn::make('createdBy.name')
                     ->numeric()
@@ -158,7 +160,7 @@ class SupplyOrderResource extends Resource
             ->actions([
                 Tables\Actions\Action::make('complete')
                     ->label('Complete')
-                    ->hidden(fn($record) => $record->status == OrderStatus::Completed)
+                    ->hidden(fn($record) => $record->status == OrderStatus::Completed && self::canAction())
                     ->requiresConfirmation()
                     ->action(function (SupplyOrder $supplyOrder) {
                         try {
