@@ -71,41 +71,6 @@ class ProdTemplateResource extends Resource
                                 ->required(),
                         ]),
 
-                        Forms\Components\Repeater::make('expectedItems')
-                            ->columnSpanFull()
-                            ->relationship('expectedItems')
-                            ->addActionAlignment('end')
-                            ->schema([
-                                Forms\Components\Hidden::make('type'),
-                                Forms\Components\Grid::make()->schema([
-                                    Forms\Components\Select::make('product_id')
-                                        ->label('Result product')
-                                        ->relationship('product', 'name')
-                                        ->searchable()
-                                        ->preload()
-                                        ->reactive()
-                                        ->required(),
-                                    Forms\Components\TextInput::make('quantity')
-                                        ->label('Quantity')
-                                        ->numeric()
-                                        ->suffix(function ($get) {
-                                            /** @var Product|null $product */
-                                            $product = $get('product_id') ? Product::query()->find(
-                                                $get('product_id')
-                                            ) : null;
-                                            if ($product?->measure_unit) {
-                                                return $product->measure_unit->getLabel();
-                                            }
-                                            return null;
-                                        })
-                                        ->required(),
-                                ]),
-                            ])
-                            ->mutateRelationshipDataBeforeCreateUsing(function ($data) {
-                                $data['type'] = StepProductType::Expected;
-                                return $data;
-                            }),
-
                         Forms\Components\Repeater::make('requiredItems')
                             ->columnSpanFull()
                             ->relationship('requiredItems')
@@ -138,6 +103,41 @@ class ProdTemplateResource extends Resource
                             ])
                             ->mutateRelationshipDataBeforeCreateUsing(function ($data) {
                                 $data['type'] = StepProductType::Required;
+                                return $data;
+                            }),
+
+                        Forms\Components\Repeater::make('expectedItems')
+                            ->columnSpanFull()
+                            ->relationship('expectedItems')
+                            ->addActionAlignment('end')
+                            ->schema([
+                                Forms\Components\Hidden::make('type'),
+                                Forms\Components\Grid::make()->schema([
+                                    Forms\Components\Select::make('product_id')
+                                        ->label('Result product')
+                                        ->relationship('product', 'name')
+                                        ->searchable()
+                                        ->preload()
+                                        ->reactive()
+                                        ->required(),
+                                    Forms\Components\TextInput::make('quantity')
+                                        ->label('Quantity')
+                                        ->numeric()
+                                        ->suffix(function ($get) {
+                                            /** @var Product|null $product */
+                                            $product = $get('product_id') ? Product::query()->find(
+                                                $get('product_id')
+                                            ) : null;
+                                            if ($product?->measure_unit) {
+                                                return $product->measure_unit->getLabel();
+                                            }
+                                            return null;
+                                        })
+                                        ->required(),
+                                ]),
+                            ])
+                            ->mutateRelationshipDataBeforeCreateUsing(function ($data) {
+                                $data['type'] = StepProductType::Expected;
                                 return $data;
                             }),
                     ]),

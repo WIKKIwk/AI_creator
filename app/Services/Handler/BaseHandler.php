@@ -17,14 +17,16 @@ class BaseHandler implements HandlerInterface
     {
     }
 
-    public function validateUser(User $user): void
+    public function validateUser(User $user): bool
     {
-        //
+        return false;
     }
 
     public function handle(User $user, array $update): void
     {
-        $this->validateUser($user);
+        if (!$this->validateUser($user)) {
+            return;
+        }
 
         $this->user = $user;
         $this->tgBot->setUpdate($update);

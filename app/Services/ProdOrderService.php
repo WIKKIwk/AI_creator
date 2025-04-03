@@ -12,6 +12,7 @@ use App\Models\ProdOrderStep;
 use App\Models\ProdTemplate;
 use App\Models\SupplyOrder;
 use Exception;
+use App\Models\ProdOrderStepProduct;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
@@ -210,11 +211,22 @@ class ProdOrderService
             $prodOrderStep->work_station_id
         );
 
-        $prodOrderStep->productItems()->create([
-            'product_id' => $productId,
-            'quantity' => $takenQuantity,
-            'type' => StepProductType::Actual,
-        ]);
+        /** @var ProdOrderStepProduct $existingStepItem */
+        $existingStepItem = $prodOrderStep->productItems()
+            ->where('product_id', $productId)
+            ->where('type', StepProductType::Actual)
+            ->first();
+
+        if ($existingStepItem) {
+            $existingStepItem->quantity += $takenQuantity;
+            $existingStepItem->save();
+        } else {
+            $prodOrderStep->productItems()->create([
+                'product_id' => $productId,
+                'quantity' => $takenQuantity,
+                'type' => StepProductType::Actual,
+            ]);
+        }
     }
 
     public function calculateDeadline(ProdTemplate $prodTemplate): ?Carbon

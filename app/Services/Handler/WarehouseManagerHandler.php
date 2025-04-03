@@ -36,15 +36,17 @@ HTML,
     /**
      * @throws GuzzleException
      */
-    public function validateUser(User $user): void
+    public function validateUser(User $user): bool
     {
         if (!$user->work_station_id) {
             $this->tgBot->sendMsg([
                 'chat_id' => $user->chat_id,
                 'text' => "You are not assigned to any work station. Please contact your manager.",
             ]);
-            throw new Exception("User is not assigned to any work station.");
+            return false;
         }
+
+        return true;
     }
 
     public function handleStart(): void
