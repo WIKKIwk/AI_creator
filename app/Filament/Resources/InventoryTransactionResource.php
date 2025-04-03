@@ -111,7 +111,7 @@ class InventoryTransactionResource extends Resource
             ])
             ->bulkActions([
                 Tables\Actions\BulkActionGroup::make([
-//                    Tables\Actions\DeleteBulkAction::make(),
+                    Tables\Actions\DeleteBulkAction::make(),
                 ]),
             ]);
     }
@@ -121,10 +121,10 @@ class InventoryTransactionResource extends Resource
         return false;
     }
 
-    public static function canCreate(): bool
-    {
-        return false;
-    }
+//    public static function canCreate(): bool
+//    {
+//        return false;
+//    }
 
     public static function canDelete(Model $record): bool
     {

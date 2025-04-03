@@ -3,8 +3,10 @@
 namespace App\Services;
 
 use App\Enums\TransactionType;
+use App\Models\InventoryItem;
 use App\Models\InventoryTransaction;
 use Exception;
+use Illuminate\Database\Eloquent\Collection;
 
 class TransactionService
 {
@@ -13,41 +15,49 @@ class TransactionService
     ) {
     }
 
-    public function addStockByTransaction(InventoryTransaction $transaction): void
-    {
-        $inventory = $this->inventoryService->getInventory($transaction->product_id, $transaction->warehouse_id);
-        $properInventoryItem = $this->inventoryService->getInventoryItem($inventory, $transaction->storage_location_id);
-
-        if ($transaction->cost) {
-            $totalCost = $inventory->items->sum('quantity') * $inventory->unit_cost + $transaction->cost;
-            $totalQuantity = $inventory->items->sum('quantity') + $transaction->quantity;
+    /**
+     * @throws Exception
+     */
+    public function addStock(
+        $productId,
+        $quantity,
+        $cost = null,
+        $warehouseId = null,
+        $storageLocationId = null,
+        $workStationId = null,
+        $withTransaction = true
+    ): void {
+        $inventory = $this->inventoryService->getInventory($productId, $warehouseId);
+        if ($cost) {
+            $totalCost = $inventory->items->sum('quantity') * $inventory->unit_cost + $cost;
+            $totalQuantity = $inventory->items->sum('quantity') + $quantity;
             $averageCost = $totalCost / $totalQuantity;
 
             $inventory->unit_cost = round($averageCost, 2);
             $inventory->save();
         }
 
-        $properInventoryItem->quantity += $transaction->quantity;
-        $properInventoryItem->save();
-    }
+        $inventoryItems = $this->inventoryService->getInventoryItems($inventory, $storageLocationId);
+        if ($inventoryItems->isEmpty()) {
+            throw new Exception('Insufficient stock');
+        }
 
-    public function addStock(
-        $productId,
-        $quantity,
-        $cost = null,
-        $warehouseId = null,
-        $workStationId = null,
-        $storageLocationId = null
-    ): void {
-        InventoryTransaction::query()->create([
-            'product_id' => $productId,
-            'quantity' => $quantity,
-            'cost' => $cost ?? 0,
-            'warehouse_id' => $warehouseId,
-            'work_station_id' => $workStationId,
-            'storage_location_id' => $storageLocationId,
-            'type' => TransactionType::In,
-        ]);
+        /** @var InventoryItem $inventoryItem */
+        $inventoryItem = $inventoryItems->first();
+        $inventoryItem->quantity += $quantity;
+        $inventoryItem->save();
+
+        if ($withTransaction) {
+            InventoryTransaction::query()->create([
+                'product_id' => $inventory->product_id,
+                'warehouse_id' => $inventory->warehouse_id,
+                'storage_location_id' => $inventoryItem->storage_location_id,
+                'work_station_id' => $workStationId,
+                'quantity' => $quantity,
+                'type' => TransactionType::In,
+                'cost' => $cost,
+            ]);
+        }
     }
 
     public function addMiniStock(
@@ -73,49 +83,14 @@ class TransactionService
     /**
      * @throws Exception
      */
-    public function removeStockByTransaction(InventoryTransaction $transaction): void
-    {
-        $inventory = $this->inventoryService->getInventory($transaction->product_id, $transaction->warehouse_id);
-        $properInventoryItem = $this->inventoryService->getInventoryItem($inventory, $transaction->storage_location_id);
-
-        if ($properInventoryItem->quantity < $transaction->quantity) {
-            throw new Exception("Insufficient quantity. Product: " . $inventory->product->name . ". Need quantity: " . $transaction->quantity);
-        }
-
-        $properInventoryItem->quantity -= $transaction->quantity;
-        $properInventoryItem->save();
-    }
-
-    /**
-     * @throws Exception
-     */
-    public function removeStock(
-        $productId,
-        $quantity,
-        $warehouseId = null,
-        $workStationId = null,
-        $storageLocationId = null
-    ): void {
-        InventoryTransaction::query()->create([
-            'product_id' => $productId,
-            'quantity' => $quantity,
-            'cost' => 0,
-            'warehouse_id' => $warehouseId,
-            'work_station_id' => $workStationId,
-            'storage_location_id' => $storageLocationId,
-            'type' => TransactionType::Out,
-        ]);
-    }
-
-    /**
-     * @throws Exception
-     */
     public function removeMiniStock($productId, $quantity, $workStationId = null): void
     {
         $miniInventory = $this->inventoryService->getMiniInventory($productId, $workStationId);
 
         if ($miniInventory->quantity < $quantity) {
-            throw new Exception("Insufficient quantity. Product: " . $miniInventory->product->name . ". Actual quantity: " . $miniInventory->quantity);
+            throw new Exception(
+                "Insufficient quantity. Product: " . $miniInventory->product->name . ". Actual quantity: " . $miniInventory->quantity
+            );
         }
 
         $miniInventory->quantity -= $quantity;

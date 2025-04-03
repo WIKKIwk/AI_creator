@@ -38,6 +38,13 @@ class SupplyOrder extends Model
         'status' => OrderStatus::class,
     ];
 
+    protected static function booted(): void
+    {
+        static::creating(function ($model) {
+            $model->created_by = auth()->id();
+        });
+    }
+
     public function supplier(): BelongsTo
     {
         return $this->belongsTo(Supplier::class);

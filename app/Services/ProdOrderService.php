@@ -4,11 +4,15 @@ namespace App\Services;
 
 use App\Enums\OrderStatus;
 use App\Enums\StepProductType;
+use App\Enums\TransactionType;
 use App\Models\InventoryItem;
+use App\Models\InventoryTransaction;
 use App\Models\ProdOrder;
 use App\Models\ProdOrderStep;
 use App\Models\ProdTemplate;
+use App\Models\SupplyOrder;
 use Exception;
+use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Throwable;
@@ -16,8 +20,10 @@ use Throwable;
 class ProdOrderService
 {
     public function __construct(
-        protected TransactionService $transactionService
-    ) {}
+        protected TransactionService $transactionService,
+        protected InventoryService $inventoryService,
+    ) {
+    }
 
     /**
      * @throws Exception
@@ -158,18 +164,55 @@ class ProdOrderService
      */
     public function createActualItem(ProdOrderStep $prodOrderStep, $productId, $quantity): void
     {
-        $this->transactionService->removeStock(
+        $prodOrder = $prodOrderStep->prodOrder;
+
+        $inventory = $this->inventoryService->getInventory($productId, $prodOrder->warehouse_id);
+        /** @var Collection<InventoryItem> $inventoryItems */
+        $inventoryItems = $this->inventoryService->getInventoryItems($inventory);
+
+        $lackQuantity = $quantity;
+        foreach ($inventoryItems as $inventoryItem) {
+            if ($lackQuantity <= 0) {
+                break;
+            }
+
+            $quantityOut = min($inventoryItem->quantity, $lackQuantity);
+            $inventoryItem->quantity -= $quantityOut;
+            $lackQuantity -= $quantityOut;
+            $inventoryItem->save();
+
+            InventoryTransaction::query()->create([
+                'product_id' => $inventory->product_id,
+                'warehouse_id' => $inventory->warehouse_id,
+                'storage_location_id' => $inventoryItem->storage_location_id,
+                'work_station_id' => $prodOrderStep->work_station_id,
+                'quantity' => $quantityOut,
+                'type' => TransactionType::Out,
+                'cost' => $inventory->unit_cost,
+            ]);
+        }
+
+        if ($lackQuantity > 0) {
+            SupplyOrder::query()->create([
+                'warehouse_id' => $prodOrder->warehouse_id,
+                'product_id' => $productId,
+                'quantity' => $lackQuantity,
+                'status' => OrderStatus::Pending,
+            ]);
+        }
+
+        $takenQuantity = $quantity - $lackQuantity;
+
+        $this->transactionService->addMiniStock(
             $productId,
-            $quantity,
-            $prodOrderStep->prodOrder->warehouse_id,
+            $takenQuantity,
+            null,
             $prodOrderStep->work_station_id
         );
 
-        $this->transactionService->addMiniStock($productId, $quantity, null, $prodOrderStep->work_station_id);
-
         $prodOrderStep->productItems()->create([
             'product_id' => $productId,
-            'quantity' => $quantity,
+            'quantity' => $takenQuantity,
             'type' => StepProductType::Actual,
         ]);
     }

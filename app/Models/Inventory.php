@@ -13,6 +13,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
  * @property int $id
  * @property int $warehouse_id
  * @property int $product_id
+ * @property float $quantity
  * @property float $unit_cost
  * @property Carbon $created_at
  * @property Carbon $updated_at
@@ -39,7 +40,7 @@ class Inventory extends Model
 
     public function items(): HasMany
     {
-        return $this->hasMany(InventoryItem::class)->orderBy('created_at');
+        return $this->hasMany(InventoryItem::class);
     }
 
     public function getQuantityAttribute(): int

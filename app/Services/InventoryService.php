@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Models\Inventory;
 use App\Models\InventoryItem;
 use App\Models\MiniInventory;
+use Illuminate\Database\Eloquent\Collection;
 
 class InventoryService
 {
@@ -46,24 +47,30 @@ class InventoryService
         return $inventory;
     }
 
-    public function getInventoryItem(Inventory $inventory, $storageLocationId): InventoryItem
+    public function getInventoryItem(Inventory $inventory, $storageLocationId = null): InventoryItem
     {
-        $properInventoryItem = $inventory->items->first(function ($item) use ($storageLocationId) {
-            $hasQuantity = $item->quantity > 0;
-            if ($storageLocationId) {
-                return $item->storage_location_id === $storageLocationId && $hasQuantity;
-            }
-            return $hasQuantity;
-        });
+        /** @var InventoryItem $inventoryItem */
+        $inventoryItem = $inventory->items()
+            ->where('quantity', '>', 0)
+            ->where('storage_location_id', $storageLocationId)
+            ->orWhereNot('storage_location_id', $storageLocationId)
+            ->orderByRaw("CASE WHEN storage_location_id = ? THEN 0 WHEN storage_location_id IS NULL THEN 1 ELSE 2 END", [$storageLocationId])
+            ->orderBy('created_at')
+            ->first();
 
-        if (!$properInventoryItem) {
-            $properInventoryItem = new InventoryItem([
-                'inventory_id' => $inventory->id,
-                'quantity' => 0,
-                'storage_location_id' => $storageLocationId,
-            ]);
-        }
+        return $inventoryItem;
+    }
 
-        return $properInventoryItem;
+    public function getInventoryItems(Inventory $inventory, $storageLocationId = null): Collection
+    {
+        return $inventory->items()
+            ->where('quantity', '>', 0)
+            ->where(function($query) use ($storageLocationId) {
+                $query->where('storage_location_id', $storageLocationId)
+                    ->orWhereNot('storage_location_id', $storageLocationId);
+            })
+            ->orderByRaw("CASE WHEN storage_location_id = ? THEN 0 WHEN storage_location_id IS NULL THEN 1 ELSE 2 END", [$storageLocationId])
+            ->orderBy('created_at')
+            ->get();
     }
 }

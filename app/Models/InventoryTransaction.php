@@ -18,6 +18,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * @property int $supplier_id
  * @property int $agent_id
  * @property int $storage_location_id
+ * @property int $prod_order_id
  * @property float $quantity
  * @property float $cost
  * @property TransactionType $type
@@ -26,6 +27,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  *
  * Relationships
  * @property-read Supplier $supplier
+ * @property-read ProdOrder $prodOrder
  * @property-read Agent $agent
  * @property-read Product $product
  * @property-read Warehouse $warehouse
@@ -33,7 +35,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * @property-read StorageLocation $storage_location
  *
  */
-#[ObservedBy(InventoryTransactionObserver::class)]
+//#[ObservedBy(InventoryTransactionObserver::class)]
 class InventoryTransaction extends Model
 {
     use HasFactory;
@@ -47,6 +49,11 @@ class InventoryTransaction extends Model
     public function supplier(): BelongsTo
     {
         return $this->belongsTo(Supplier::class);
+    }
+
+    public function prodOrder(): BelongsTo
+    {
+        return $this->belongsTo(ProdOrder::class);
     }
 
     public function agent(): BelongsTo
