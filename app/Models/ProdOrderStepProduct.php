@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Enums\ProdOrderProductStatus;
 use App\Enums\ProdOrderProductType;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -13,6 +14,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * @property int $product_id
  * @property float $quantity
  * @property ProdOrderProductType $type
+ * @property ProdOrderProductStatus $status
  * @property string $created_at
  * @property string $updated_at
  *
@@ -27,6 +29,7 @@ class ProdOrderStepProduct extends Model
 
     protected $casts = [
         'type' => ProdOrderProductType::class,
+        'status' => ProdOrderProductStatus::class,
     ];
 
     public function prodOrderStep(): BelongsTo

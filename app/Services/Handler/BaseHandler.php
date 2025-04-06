@@ -36,16 +36,19 @@ class BaseHandler implements HandlerInterface
         // 1️⃣ Handle commands
         if ($input === '/start') {
             $this->handleStart();
+            $this->tgBot->settlePromises();
             return;
         }
 
         if ($input === '/help') {
             $this->handleHelp();
+            $this->tgBot->settlePromises();
             return;
         }
 
         if ($cbData = Arr::get($update, 'callback_query.data')) {
             $this->handleCbQuery($cbData);
+            $this->tgBot->settlePromises();
             return;
         }
 

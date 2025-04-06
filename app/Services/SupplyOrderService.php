@@ -33,14 +33,12 @@ class SupplyOrderService
         try {
             DB::beginTransaction();
 
-            $transaction = InventoryTransaction::query()->create([
-                'type' => TransactionType::In,
-                'product_id' => $order->product_id,
-                'quantity' => $order->quantity,
-                'cost' => $order->total_price,
-                'warehouse_id' => $order->warehouse_id,
-                'supplier_id' => $order->supplier_id,
-            ]);
+            $this->transactionService->addStock(
+                $order->product_id,
+                $order->quantity,
+                $order->total_price,
+                $order->warehouse_id
+            );
 
             $order->status = OrderStatus::Completed;
             $order->save();

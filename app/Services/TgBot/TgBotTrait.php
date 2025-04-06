@@ -72,9 +72,14 @@ trait TgBotTrait
         ]));
     }
 
-    public function answerCbQuery(array $params): array
+    /**
+     * @throws GuzzleException
+     */
+    public function answerCbQuery(array $params = []): array
     {
-        return $this->sendRequest('answerCallbackQuery', $params);
+        return $this->sendRequest('answerCallbackQuery', array_merge([
+            'callback_query_id' => Arr::get($this->update, 'callback_query.id')
+        ], $params));
     }
 
     public function getChatId()

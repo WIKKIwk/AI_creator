@@ -44,7 +44,7 @@ class ProdOrderDetails extends Page
 
     public function form(Form $form): Form
     {
-        $isViewMode = $this->prodOrder->status == OrderStatus::Completed || $this->prodOrder->status == OrderStatus::Approved;
+        $isViewMode = true;//$this->prodOrder->status == OrderStatus::Completed || $this->prodOrder->status == OrderStatus::Approved;
 
         $steps = [];
         foreach ($this->prodOrder->steps as $step) {

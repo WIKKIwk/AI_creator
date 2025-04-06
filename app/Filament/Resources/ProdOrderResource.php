@@ -84,6 +84,7 @@ class ProdOrderResource extends Resource
                 $query->with(['product', 'agent', 'warehouse']);
             })
             ->columns([
+                Tables\Columns\TextColumn::make('id'),
                 Tables\Columns\TextColumn::make('warehouse.name')
                     ->sortable(),
                 Tables\Columns\TextColumn::make('product.name')

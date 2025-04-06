@@ -5,6 +5,7 @@ namespace App\Filament\Resources;
 use App\Enums\RoleType;
 use App\Filament\Resources\WorkStationResource\Pages;
 use App\Filament\Resources\WorkStationResource\RelationManagers;
+use App\Models\ProdOrder;
 use App\Models\WorkStation;
 use Filament\Forms;
 use Filament\Forms\Form;
@@ -12,6 +13,7 @@ use Filament\Resources\Resource;
 use Filament\Tables;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\SoftDeletingScope;
 
 class WorkStationResource extends Resource
@@ -40,6 +42,20 @@ class WorkStationResource extends Resource
                     ->required(),
                 Forms\Components\Select::make('product_category_id')
                     ->relationship('productCategory', 'name'),
+                Forms\Components\Select::make('prod_order_id')
+                    ->label('Current prod order')
+                    ->options(function ($record) {
+                        /** @var Collection<ProdOrder> $orders */
+                        $orders = ProdOrder::query()
+                            ->whereHas('currentStep', fn ($q) => $q->where('work_station_id', $record->id))
+                            ->get();
+
+                        $result = [];
+                        foreach ($orders as $order) {
+                            $result[$order->id] = $order->product->name . ' - ' . $order->warehouse->name . ' - ' . $order->quantity;
+                        }
+                        return $result;
+                    }),
 //                Forms\Components\TextInput::make('type')
 //                    ->numeric(),
             ]);
@@ -60,6 +76,11 @@ class WorkStationResource extends Resource
                 Tables\Columns\TextColumn::make('organization.name')
                     ->numeric()
                     ->sortable(),
+                Tables\Columns\TextColumn::make('prod_order_id')
+                    ->label('Current prod order')
+                    ->formatStateUsing(function ($state, $record) {
+                        return $record->prodOrder?->product->name . ' - ' . $record->prodOrder?->warehouse->name . ' - ' . $record->prodOrder?->quantity;
+                    }),
 //                Tables\Columns\TextColumn::make('type')
 //                    ->numeric()
 //                    ->sortable(),

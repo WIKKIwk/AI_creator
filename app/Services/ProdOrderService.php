@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Enums\OrderStatus;
+use App\Enums\ProdOrderProductStatus;
 use App\Enums\StepProductType;
 use App\Enums\TransactionType;
 use App\Models\InventoryItem;
@@ -89,6 +90,7 @@ class ProdOrderService
     {
         try {
             $currentStep = $prodOrder->currentStep;
+            $stepCompleted = $currentStep->status == ProdOrderProductStatus::Completed;
 
             /** @var ProdOrderStep $nextStep */
             $nextStep = $prodOrder->steps()
@@ -98,11 +100,13 @@ class ProdOrderService
             DB::beginTransaction();
 
             foreach ($currentStep->actualItems as $item) {
-                $this->transactionService->removeMiniStock(
-                    $item->product_id,
-                    $item->quantity,
-                    $currentStep->work_station_id
-                );
+                if (!$stepCompleted) {
+                    $this->transactionService->removeMiniStock(
+                        $item->product_id,
+                        $item->quantity,
+                        $currentStep->work_station_id
+                    );
+                }
             }
 
             foreach ($currentStep->expectedItems as $item) {
@@ -125,6 +129,8 @@ class ProdOrderService
             } else {
                 $prodOrder->status = OrderStatus::Completed;
             }
+
+            $currentStep->update(['status' => ProdOrderProductStatus::Completed]);
             $prodOrder->save();
 
             DB::commit();
@@ -173,6 +179,10 @@ class ProdOrderService
 
         $lackQuantity = $quantity;
         foreach ($inventoryItems as $inventoryItem) {
+            if ($inventoryItem->quantity <= 0) {
+                continue;
+            }
+
             if ($lackQuantity <= 0) {
                 break;
             }

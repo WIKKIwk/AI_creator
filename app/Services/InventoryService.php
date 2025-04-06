@@ -64,7 +64,6 @@ class InventoryService
     public function getInventoryItems(Inventory $inventory, $storageLocationId = null): Collection
     {
         return $inventory->items()
-            ->where('quantity', '>', 0)
             ->where(function($query) use ($storageLocationId) {
                 $query->where('storage_location_id', $storageLocationId)
                     ->orWhereNot('storage_location_id', $storageLocationId);

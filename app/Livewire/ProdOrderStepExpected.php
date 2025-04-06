@@ -2,6 +2,7 @@
 
 namespace App\Livewire;
 
+use App\Enums\ProdOrderProductStatus;
 use App\Enums\StepProductType;
 use App\Models\ProdOrder;
 use App\Models\ProdOrderStep;
@@ -39,6 +40,14 @@ class ProdOrderStepExpected extends Component implements HasForms, HasTable
                     ->formatStateUsing(function (ProdOrderStepProduct $record) {
                         return $record->quantity . ' ' . $record->product->measure_unit->getLabel();
                     }),
+                TextColumn::make('status')
+                    ->getStateUsing(function (ProdOrderStepProduct $record) {
+                        if (!$record->status) {
+                            return ProdOrderProductStatus::InProgress;
+                        }
+                        return $record->status;
+                    })
+                    ->badge(),
             ])
             ->filters([
                 // ...

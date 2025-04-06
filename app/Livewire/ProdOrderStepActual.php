@@ -34,57 +34,57 @@ class ProdOrderStepActual extends Component implements HasForms, HasTable
     {
         return $table
             ->heading('Actual materials')
-            ->headerActions([
-                Action::make('add')
-                    ->label('Add material')
-                    ->hidden(fn() => $this->step->prodOrder->status == OrderStatus::Completed || $this->step->prodOrder->status == OrderStatus::Approved)
-                    ->form([
-                        Grid::make()->schema([
-                            Select::make('product_id')
-                                ->label('Product')
-                                ->native(false)
-                                ->relationship('product', 'name')
-                                ->searchable()
-                                ->reactive()
-                                ->required(),
-
-                            TextInput::make('quantity')
-                                ->label('Quantity')
-                                ->suffix(function ($get) {
-                                    /** @var Product|null $product */
-                                    $product = $get('product_id') ? Product::query()->find($get('product_id')) : null;
-                                    if ($product?->measure_unit) {
-                                        return $product->measure_unit->getLabel();
-                                    }
-                                    return null;
-                                })
-                                ->required(),
-                        ])
-                    ])
-                    ->action(function($data) {
-                        try {
-                            app(ProdOrderService::class)->createActualItem(
-                                $this->step,
-                                $data['product_id'],
-                                $data['quantity']
-                            );
-
-                            Notification::make()
-                                ->title('Success')
-                                ->body('Material added successfully')
-                                ->success()
-                                ->send();
-
-                        } catch (\Throwable $e) {
-                            Notification::make()
-                                ->title('Error')
-                                ->body($e->getMessage())
-                                ->danger()
-                                ->send();
-                        }
-                    })
-                    ->icon('heroicon-o-plus'),
-            ])
+//            ->headerActions([
+//                Action::make('add')
+//                    ->label('Add material')
+//                    ->hidden(fn() => $this->step->prodOrder->status == OrderStatus::Completed || $this->step->prodOrder->status == OrderStatus::Approved)
+//                    ->form([
+//                        Grid::make()->schema([
+//                            Select::make('product_id')
+//                                ->label('Product')
+//                                ->native(false)
+//                                ->relationship('product', 'name')
+//                                ->searchable()
+//                                ->reactive()
+//                                ->required(),
+//
+//                            TextInput::make('quantity')
+//                                ->label('Quantity')
+//                                ->suffix(function ($get) {
+//                                    /** @var Product|null $product */
+//                                    $product = $get('product_id') ? Product::query()->find($get('product_id')) : null;
+//                                    if ($product?->measure_unit) {
+//                                        return $product->measure_unit->getLabel();
+//                                    }
+//                                    return null;
+//                                })
+//                                ->required(),
+//                        ])
+//                    ])
+//                    ->action(function($data) {
+//                        try {
+//                            app(ProdOrderService::class)->createActualItem(
+//                                $this->step,
+//                                $data['product_id'],
+//                                $data['quantity']
+//                            );
+//
+//                            Notification::make()
+//                                ->title('Success')
+//                                ->body('Material added successfully')
+//                                ->success()
+//                                ->send();
+//
+//                        } catch (\Throwable $e) {
+//                            Notification::make()
+//                                ->title('Error')
+//                                ->body($e->getMessage())
+//                                ->danger()
+//                                ->send();
+//                        }
+//                    })
+//                    ->icon('heroicon-o-plus'),
+//            ])
             ->paginated(false)
             ->query(
                 ProdOrderStepProduct::query()
@@ -98,6 +98,7 @@ class ProdOrderStepActual extends Component implements HasForms, HasTable
                     ->formatStateUsing(function (ProdOrderStepProduct $record) {
                         return $record->quantity . ' ' . $record->product->measure_unit->getLabel();
                     }),
+//                TextColumn::make('status')->badge(),
             ])
             ->filters([
                 // ...
