@@ -6,29 +6,21 @@ use App\Filament\Resources\ProdOrderResource;
 use App\Models\ProdOrder;
 use App\Services\ProdOrderService;
 use Filament\Actions\Action;
-use Filament\Forms\Components\Grid;
-use Filament\Forms\Components\Placeholder;
 use Filament\Forms\Components\Tabs;
-use Filament\Forms\Components\Tabs\Tab;
-use Filament\Forms\Concerns\InteractsWithForms;
-use Filament\Forms\Contracts\HasForms;
-use Filament\Forms\Form;
+use Filament\Forms\Components\View as ViewField;
 use Filament\Notifications\Notification;
-use Filament\Pages\Concerns\InteractsWithFormActions;
 use Filament\Resources\Pages\Page;
-use Illuminate\Contracts\View\View;
 
 class ProdOrderDetails extends Page
 {
     protected static ?string $title = 'Details';
     protected static string $resource = ProdOrderResource::class;
-
     protected static string $view = 'filament.resources.prod-order-resource.pages.prod-order-details';
 
     public ProdOrder $prodOrder;
     public $record;
 
-    public function render(): View
+    public function mount(): void
     {
         /** @var ProdOrder|null $prodOrder */
         $prodOrder = ProdOrder::query()->find($this->record);
@@ -38,47 +30,44 @@ class ProdOrderDetails extends Page
 
         $this->prodOrder = $prodOrder;
 
-        return parent::render();
+        $this->form->fill();
     }
 
-    public function form(Form $form): Form
+    protected function getFormSchema(): array
     {
-        $steps = [];
+        $tabs = [];
         foreach ($this->prodOrder->steps as $step) {
-            $steps[] = Tabs\Tab::make($step->workStation->name)
+            $tabs[] = Tabs\Tab::make($step->workStation->name)
                 ->schema([
-                    Placeholder::make('Order Preview')
-                        ->label('')
-                        ->content(
-                            fn($record) => view(
-                                'filament.resources.prod-order-resource.pages.prod-order-step',
-                                ['step' => $step]
-                            )
-                        ),
+                    ViewField::make("step_$step->id")
+                        ->view('filament.resources.prod-order-resource.pages.prod-order-step')
+                        ->viewData(['step' => $step]),
                 ]);
         }
 
-        return $form
-            ->schema([
-                Tabs::make()
-                    ->activeTab($this->prodOrder->currentStep->sequence)
-                    ->schema($steps),
-            ]);
+        return [
+            Tabs::make('Work Steps')
+                ->tabs($tabs)
+                ->persistTabInQueryString()
+                ->columnSpanFull(),
+        ];
     }
 
-    protected function getActions(): array
+    public function confirmAction(): void
+    {
+        $this->notify('success', 'Action confirmed!');
+    }
+
+    protected function getHeaderActions(): array
     {
         return [
-            /*ProdOrderResource\Actions\CompleteStepAction::make('complete')
-                ->button()
-                ->label('Submit')
-                ->color('primary')
-                ->requiresConfirmation(),*/
-            Action::make('approve')
-                ->label('Approve')
-                ->color('success')
+            Action::make('confirmAction')
+                ->label('Next')
                 ->requiresConfirmation()
-                ->action(fn () => $this->submit()),
+                ->modalHeading('Are you sure?')
+                ->modalDescription('This action is final.')
+                ->color('primary')
+                ->action(fn() => $this->submit()),
         ];
     }
 
