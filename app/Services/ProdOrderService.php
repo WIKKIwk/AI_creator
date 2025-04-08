@@ -122,6 +122,8 @@ class ProdOrderService
                     'quantity' => $item->quantity,
                     'type' => StepProductType::Actual,
                 ]);
+
+                $item->update(['status' => ProdOrderProductStatus::Completed]);
             }
 
             if ($nextStep) {

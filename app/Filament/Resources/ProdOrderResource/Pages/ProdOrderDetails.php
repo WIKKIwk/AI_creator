@@ -29,8 +29,6 @@ class ProdOrderDetails extends Page
         }
 
         $this->prodOrder = $prodOrder;
-
-        $this->form->fill();
     }
 
     protected function getFormSchema(): array
@@ -48,14 +46,10 @@ class ProdOrderDetails extends Page
         return [
             Tabs::make('Work Steps')
                 ->tabs($tabs)
+                ->activeTab($this->prodOrder->currentStep->sequence)
                 ->persistTabInQueryString()
                 ->columnSpanFull(),
         ];
-    }
-
-    public function confirmAction(): void
-    {
-        $this->notify('success', 'Action confirmed!');
     }
 
     protected function getHeaderActions(): array
