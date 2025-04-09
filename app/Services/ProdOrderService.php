@@ -100,16 +100,29 @@ class ProdOrderService
             DB::beginTransaction();
 
             foreach ($currentStep->actualItems as $item) {
-                if (!$stepCompleted) {
-                    $this->transactionService->removeMiniStock(
-                        $item->product_id,
-                        $item->quantity,
-                        $currentStep->work_station_id
-                    );
+                if ($stepCompleted) {
+                    continue;
                 }
+
+                $item->update(['status' => ProdOrderProductStatus::Completed]);
+
+                $this->transactionService->removeMiniStock(
+                    $item->product_id,
+                    $item->quantity,
+                    $currentStep->work_station_id
+                );
             }
 
             foreach ($currentStep->expectedItems as $item) {
+
+                $item->update(['status' => ProdOrderProductStatus::Completed]);
+
+                $this->transactionService->removeMiniStock(
+                    $item->product_id,
+                    $item->quantity,
+                    $currentStep->work_station_id
+                );
+
                 $this->transactionService->addMiniStock(
                     $item->product_id,
                     $item->quantity,
@@ -122,8 +135,6 @@ class ProdOrderService
                     'quantity' => $item->quantity,
                     'type' => StepProductType::Actual,
                 ]);
-
-                $item->update(['status' => ProdOrderProductStatus::Completed]);
             }
 
             if ($nextStep) {

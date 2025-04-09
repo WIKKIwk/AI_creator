@@ -83,7 +83,7 @@ class TransactionService
     /**
      * @throws Exception
      */
-    public function removeMiniStock($productId, $quantity, $workStationId = null): void
+    public function removeMiniStock($productId, $quantity, $workStationId): void
     {
         $miniInventory = $this->inventoryService->getMiniInventory($productId, $workStationId);
 

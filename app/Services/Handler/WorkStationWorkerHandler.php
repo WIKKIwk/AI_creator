@@ -215,7 +215,7 @@ HTML,
             $this->transactionService->removeMiniStock(
                 $actualItem->product_id,
                 $actualItem->quantity,
-                workStationId: $step->work_station_id
+                $step->work_station_id
             );
             $actualItem->update(['status' => ProdOrderProductStatus::Completed]);
         }
