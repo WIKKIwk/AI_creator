@@ -39,15 +39,7 @@ class ProdOrderStepExpected extends Component implements HasForms, HasTable
                 TextColumn::make('quantity')
                     ->formatStateUsing(function (ProdOrderStepProduct $record) {
                         return $record->quantity . ' ' . $record->product->measure_unit->getLabel();
-                    }),
-                TextColumn::make('status')
-                    ->getStateUsing(function (ProdOrderStepProduct $record) {
-                        if (!$record->status) {
-                            return ProdOrderProductStatus::InProgress;
-                        }
-                        return $record->status;
                     })
-                    ->badge(),
             ])
             ->filters([
                 // ...

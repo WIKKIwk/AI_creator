@@ -19,7 +19,7 @@ class ProductFactory extends Factory
             'type' => ProductType::RawMaterial,
             'name' => $this->faker->word(),
             'price' => $this->faker->randomFloat(2, 1, 100),
-            'measure_unit' => array_rand(MeasureUnit::cases(), 1),
+            'measure_unit' => MeasureUnit::LITER,
             'product_category_id' => ProductCategory::query()->first()->id,
         ];
     }

@@ -28,7 +28,7 @@ abstract class TestCase extends BaseTestCase
     {
         parent::setUp();
 
-        $this->agent = Agent::query()->create(['name' => 'test_agent']);
+        $this->agent = Agent::query()->create(['name' => 'test_agent', 'type' => 1]);
         $this->organization = Organization::query()->create(['name' => 'test_organization']);
         $this->productCategory = ProductCategory::factory()->create(['name' => 'test_category']);
 
@@ -39,7 +39,7 @@ abstract class TestCase extends BaseTestCase
     protected function createProduct(array $data = []): Product
     {
         return Product::factory()->create(array_merge([
-            'category_id' => $this->productCategory->id,
+            'product_category_id' => $this->productCategory->id,
         ], $data));
     }
 

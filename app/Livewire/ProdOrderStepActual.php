@@ -98,7 +98,6 @@ class ProdOrderStepActual extends Component implements HasForms, HasTable
                     ->formatStateUsing(function (ProdOrderStepProduct $record) {
                         return $record->quantity . ' ' . $record->product->measure_unit->getLabel();
                     }),
-//                TextColumn::make('status')->badge(),
             ])
             ->filters([
                 // ...

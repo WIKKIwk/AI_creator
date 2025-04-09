@@ -20,7 +20,6 @@ class WorkStationService
     public function completeWork(ProdOrderStep $prodOrderStep): void
     {
         foreach ($prodOrderStep->actualItems as $actualItem) {
-            $actualItem->update(['status' => ProdOrderProductStatus::Completed]);
             $this->transactionService->removeMiniStock(
                 $actualItem->product_id,
                 $actualItem->quantity,
@@ -29,7 +28,6 @@ class WorkStationService
         }
 
         foreach ($prodOrderStep->expectedItems as $expectedItem) {
-            $expectedItem->update(['status' => ProdOrderProductStatus::Completed]);
             $this->transactionService->addMiniStock(
                 $expectedItem->product_id,
                 $expectedItem->quantity,
