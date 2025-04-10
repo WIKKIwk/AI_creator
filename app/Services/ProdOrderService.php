@@ -37,11 +37,13 @@ class ProdOrderService
         try {
             DB::beginTransaction();
 
+            $firstStepId = null;
+            $isBlocked = false;
+
             $prodTemplate = $this->getTemplate($prodOrder->product_id);
             foreach ($prodTemplate->steps as $templateStep) {
                 /** @var ProdOrderStep $prodOrderStep */
                 $prodOrderStep = $prodOrder->steps()->create([
-                    'prod_template_step_id' => $templateStep->id,
                     'work_station_id' => $templateStep->work_station_id,
                     'sequence' => $templateStep->sequence,
                     'status' => OrderStatus::Pending,
@@ -63,17 +65,31 @@ class ProdOrderService
                     ]);
 
                     if ($prodOrderStep->sequence == 1) {
-                        $this->createActualItem(
+                        $firstStepId = $prodOrderStep->id;
+                        $lackQuantity = $this->createFirstActualItems(
                             $prodOrderStep,
                             $item->product_id,
                             $item->quantity * $prodOrder->quantity
                         );
+
+                        // If there's still lack of quantity, create SupplyOrder and Block the ProdOrder
+                        if ($lackQuantity > 0) {
+                            SupplyOrder::query()->create([
+                                'prod_order_id' => $prodOrder->id,
+                                'warehouse_id' => $prodOrder->warehouse_id,
+                                'product_id' => $item->product_id,
+                                'quantity' => $lackQuantity,
+                                'status' => OrderStatus::Pending,
+                                'created_by' => auth()->user()->id,
+                            ]);
+                            $isBlocked = true;
+                        }
                     }
                 }
             }
 
-            $prodOrder->status = OrderStatus::Processing;
-            $prodOrder->current_step_id = $prodOrder->firstStep->id;
+            $prodOrder->current_step_id = $firstStepId;
+            $prodOrder->status = $isBlocked ? OrderStatus::Blocked : OrderStatus::Processing;
             $prodOrder->save();
 
             DB::commit();
@@ -181,14 +197,15 @@ class ProdOrderService
     /**
      * @throws Exception
      */
-    public function createActualItem(ProdOrderStep $prodOrderStep, $productId, $quantity): void
+    public function createFirstActualItems(ProdOrderStep $prodOrderStep, $productId, $quantity): int
     {
         $prodOrder = $prodOrderStep->prodOrder;
 
-        $inventory = $this->inventoryService->getInventory($productId, $prodOrder->warehouse_id);
         /** @var Collection<InventoryItem> $inventoryItems */
+        $inventory = $this->inventoryService->getInventory($productId, $prodOrder->warehouse_id);
         $inventoryItems = $this->inventoryService->getInventoryItems($inventory);
 
+        // Remove items from Stock
         $lackQuantity = $quantity;
         foreach ($inventoryItems as $inventoryItem) {
             if ($inventoryItem->quantity <= 0) {
@@ -215,39 +232,24 @@ class ProdOrderService
             ]);
         }
 
-        if ($lackQuantity > 0) {
-            SupplyOrder::query()->create([
-                'warehouse_id' => $prodOrder->warehouse_id,
-                'product_id' => $productId,
-                'quantity' => $lackQuantity,
-                'status' => OrderStatus::Pending,
-            ]);
-        }
-
+        // Create ProdOrderStepProducts and add to WorkStation's mini Stock
         $takenQuantity = $quantity - $lackQuantity;
 
-        $this->transactionService->addMiniStock(
-            $productId,
-            $takenQuantity,
-            $prodOrderStep->work_station_id
-        );
+        if ($takenQuantity > 0) {
+            $this->transactionService->addMiniStock(
+                $productId,
+                $takenQuantity,
+                $prodOrderStep->work_station_id
+            );
 
-        /** @var ProdOrderStepProduct $existingStepItem */
-        $existingStepItem = $prodOrderStep->productItems()
-            ->where('product_id', $productId)
-            ->where('type', StepProductType::Actual)
-            ->first();
-
-        if ($existingStepItem) {
-            $existingStepItem->quantity += $takenQuantity;
-            $existingStepItem->save();
-        } else {
             $prodOrderStep->productItems()->create([
                 'product_id' => $productId,
                 'quantity' => $takenQuantity,
                 'type' => StepProductType::Actual,
             ]);
         }
+
+        return $lackQuantity;
     }
 
     public function calculateDeadline(ProdTemplate $prodTemplate): ?Carbon
