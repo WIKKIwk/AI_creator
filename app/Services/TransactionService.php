@@ -63,8 +63,8 @@ class TransactionService
     public function addMiniStock(
         $productId,
         $quantity,
-        $cost = null,
-        $workStationId = null
+        $workStationId = null,
+        $cost = null
     ): void {
         $miniInventory = $this->inventoryService->getMiniInventory($productId, $workStationId);
 

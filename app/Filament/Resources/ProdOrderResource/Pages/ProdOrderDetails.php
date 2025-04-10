@@ -19,6 +19,7 @@ class ProdOrderDetails extends Page
 
     public ProdOrder $prodOrder;
     public $record;
+    public int $activeTab;
 
     public function mount(): void
     {
@@ -29,6 +30,7 @@ class ProdOrderDetails extends Page
         }
 
         $this->prodOrder = $prodOrder;
+        $this->activeTab = $prodOrder->currentStep->sequence;
     }
 
     protected function getFormSchema(): array
@@ -46,7 +48,7 @@ class ProdOrderDetails extends Page
         return [
             Tabs::make('Work Steps')
                 ->tabs($tabs)
-                ->activeTab($this->prodOrder->currentStep->sequence)
+                ->activeTab($this->activeTab)
                 ->persistTabInQueryString()
                 ->columnSpanFull(),
         ];

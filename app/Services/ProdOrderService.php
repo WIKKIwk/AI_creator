@@ -126,7 +126,6 @@ class ProdOrderService
                 $this->transactionService->addMiniStock(
                     $item->product_id,
                     $item->quantity,
-                    null,
                     $nextStep?->work_station_id ?? $currentStep->work_station_id
                 );
 
@@ -230,7 +229,6 @@ class ProdOrderService
         $this->transactionService->addMiniStock(
             $productId,
             $takenQuantity,
-            null,
             $prodOrderStep->work_station_id
         );
 

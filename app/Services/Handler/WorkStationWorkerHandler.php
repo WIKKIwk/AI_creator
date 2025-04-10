@@ -202,7 +202,7 @@ HTML,
             $this->transactionService->addMiniStock(
                 $expectedItem->product_id,
                 $expectedItem->quantity,
-                workStationId: $step->work_station_id
+                $step->work_station_id
             );
             $expectedItem->update(['status' => ProdOrderProductStatus::Completed]);
         }

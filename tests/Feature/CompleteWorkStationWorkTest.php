@@ -3,7 +3,10 @@
 namespace Tests\Feature;
 
 use App\Enums\OrderStatus;
+use App\Enums\ProdOrderProductStatus;
 use App\Enums\ProdOrderProductType;
+use App\Enums\StepProductType;
+use App\Models\MiniInventory;
 use App\Models\ProdOrder;
 use App\Models\ProdOrderStep;
 use App\Models\Product;
@@ -79,13 +82,62 @@ class CompleteWorkStationWorkTest extends TestCase
         $this->workStationService = app(WorkStationService::class);
     }
 
-    /**
-     * @throws Exception
-     */
-    public function test_complete_work(): void
+    public function test_complete_work_basic(): void
+    {
+        // Add 10 raw materials to mini inventory
+        $miniInventory = MiniInventory::query()->create([
+            'product_id' => $this->rawMaterial->id,
+            'quantity' => 10,
+            'unit_cost' => 1,
+            'work_station_id' => $this->workStationFirst->id
+        ]);
+
+        /** @var ProdOrderStep $firstStep */
+        $firstStep = $this->prodOrder->steps()->first();
+
+        $firstStep->actualItems()->create([
+            'product_id' => $this->rawMaterial->id,
+            'quantity' => 1,
+            'type' => StepProductType::Actual
+        ]);
+
+        $this->workStationService->completeWork($firstStep);
+
+        $this->assertDatabaseHas('prod_order_steps', [
+            'id' => $firstStep->id,
+            'status' => ProdOrderProductStatus::Completed
+        ]);
+        $this->assertDatabaseHas('mini_inventories', [
+            'id' => $miniInventory->id,
+            'quantity' => 9,
+        ]);
+        $this->assertDatabaseHas('mini_inventories', [
+            'product_id' => $this->semiFinishedMaterial->id,
+            'quantity' => 1,
+            'work_station_id' => $this->workStationFirst->id
+        ]);
+    }
+
+    public function test_complete_work_insufficient(): void
     {
         $this->expectException(Exception::class);
-        $this->expectExceptionMessage('Work station is not assigned to any production order');
+        $this->expectExceptionMessage('Insufficient quantity. Product: Raw Material. Actual quantity: 0');
+
+        /** @var ProdOrderStep $firstStep */
+        $firstStep = $this->prodOrder->steps()->first();
+        $firstStep->actualItems()->create([
+            'product_id' => $this->rawMaterial->id,
+            'quantity' => 1,
+            'type' => StepProductType::Actual
+        ]);
+
+        $this->workStationService->completeWork($firstStep);
+    }
+
+    public function test_complete_work_no_actual_items(): void
+    {
+        $this->expectException(Exception::class);
+        $this->expectExceptionMessage('No actual items found for this step.');
 
         /** @var ProdOrderStep $firstStep */
         $firstStep = $this->prodOrder->steps()->first();
