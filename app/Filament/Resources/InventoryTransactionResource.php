@@ -30,6 +30,7 @@ class InventoryTransactionResource extends Resource
                     ->native(false)
                     ->relationship('product', 'name')
                     ->reactive()
+                    ->preload()
                     ->required(),
                 Forms\Components\TextInput::make('quantity')
                     ->required()

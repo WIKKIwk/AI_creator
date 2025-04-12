@@ -12,16 +12,14 @@ use App\Models\Product;
 use App\Models\WorkStation;
 use App\Services\ProdOrderService;
 use App\Services\WorkStationService;
+use Exception;
 use Tests\TestCase;
 
 class ProdOrderStartTest extends TestCase
 {
+    use HasProdTemplate;
+
     protected ProdOrder $prodOrder;
-    protected Product $rawMaterial;
-    protected Product $semiFinishedMaterial;
-    protected Product $readyProduct;
-    protected WorkStation $workStationFirst;
-    protected WorkStation $workStationSecond;
     protected ProdOrderService $prodOrderService;
     protected WorkStationService $workStationService;
 
@@ -29,48 +27,7 @@ class ProdOrderStartTest extends TestCase
     {
         parent::setUp();
 
-        $this->workStationFirst = WorkStation::factory()->create(['name' => 'First Work Station']);
-        $this->workStationSecond = WorkStation::factory()->create(['name' => 'Second Work Station']);
-
-        $this->rawMaterial = $this->createProduct(['name' => 'Raw Material']);
-        $this->semiFinishedMaterial = $this->createProduct(['name' => 'Semi Finished Product']);
-        $this->readyProduct = $this->createProduct(['name' => 'Ready Product']);
-
-        /** @var ProdTemplate $prodTemplate */
-        $prodTemplate = ProdTemplate::query()->create([
-            'name' => 'Test Template',
-            'product_id' => $this->readyProduct->id,
-        ]);
-        /** @var ProdTemplateStep $stepFirstTemplate */
-        $stepFirstTemplate = $prodTemplate->steps()->create([
-            'sequence' => 1,
-            'work_station_id' => $this->workStationFirst->id
-        ]);
-        $stepFirstTemplate->productItems()->create([
-            'product_id' => $this->rawMaterial->id,
-            'quantity' => 1,
-            'type' => StepProductType::Required
-        ]);
-        $stepFirstTemplate->productItems()->create([
-            'product_id' => $this->semiFinishedMaterial->id,
-            'quantity' => 1,
-            'type' => StepProductType::Expected
-        ]);
-        /** @var ProdTemplateStep $stepSecondTemplate */
-        $stepSecondTemplate = $prodTemplate->steps()->create([
-            'sequence' => 2,
-            'work_station_id' => $this->workStationSecond->id
-        ]);
-        $stepSecondTemplate->productItems()->create([
-            'product_id' => $this->semiFinishedMaterial->id,
-            'quantity' => 1,
-            'type' => StepProductType::Required
-        ]);
-        $stepSecondTemplate->productItems()->create([
-            'product_id' => $this->readyProduct->id,
-            'quantity' => 1,
-            'type' => StepProductType::Expected
-        ]);
+        $this->createProdTemplate();
 
         /** @var ProdOrder $prodOrder */
         $prodOrder = ProdOrder::query()->create([
@@ -79,12 +36,24 @@ class ProdOrderStartTest extends TestCase
             'product_id' => $this->readyProduct->id,
             'quantity' => 3,
             'offer_price' => 100,
-            'status' => OrderStatus::Pending
+            'status' => OrderStatus::Pending,
+            'can_produce' => true,
         ]);
         $this->prodOrder = $prodOrder;
 
         $this->prodOrderService = app(ProdOrderService::class);
         $this->workStationService = app(WorkStationService::class);
+    }
+
+    public function test_start_prod_order_cannot_be_produced(): void
+    {
+        $this->actingAs($this->user);
+        $this->prodOrder->update(['can_produce' => false]);
+
+        $this->expectException(Exception::class);
+        $this->expectExceptionMessage('ProdOrder cannot be produced');
+
+        $this->prodOrderService->start($this->prodOrder);
     }
 
     public function test_start_prod_order_basic(): void

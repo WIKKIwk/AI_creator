@@ -13,6 +13,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * @property int $prod_order_step_id
  * @property int $product_id
  * @property float $quantity
+ * @property float $max_quantity
  * @property ProdOrderProductType $type
  * @property ProdOrderProductStatus $status
  * @property string $created_at

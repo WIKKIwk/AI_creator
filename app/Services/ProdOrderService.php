@@ -2,18 +2,19 @@
 
 namespace App\Services;
 
+use App\Enums\DurationUnit;
 use App\Enums\OrderStatus;
 use App\Enums\ProdOrderProductStatus;
 use App\Enums\StepProductType;
-use App\Enums\TransactionType;
 use App\Models\InventoryItem;
-use App\Models\InventoryTransaction;
+use App\Models\MiniInventory;
+use App\Models\PerformanceRate;
 use App\Models\ProdOrder;
 use App\Models\ProdOrderStep;
+use App\Models\ProdOrderStepProduct;
 use App\Models\ProdTemplate;
 use App\Models\SupplyOrder;
 use Exception;
-use App\Models\ProdOrderStepProduct;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
@@ -29,10 +30,12 @@ class ProdOrderService
 
     /**
      * @throws Exception
+     * TESTED
      */
     public function start(ProdOrder $prodOrder): void
     {
         $this->guardAlreadyStarted($prodOrder);
+        $this->guardCanBeProduced($prodOrder);
 
         try {
             DB::beginTransaction();
@@ -101,64 +104,188 @@ class ProdOrderService
 
     /**
      * @throws Exception
+     * TESTED
      */
-    public function next(ProdOrder $prodOrder): void
+    public function editMaterials(ProdOrderStep $prodOrderStep, $productId, $quantity): void
     {
         try {
-            $currentStep = $prodOrder->currentStep;
-            $stepCompleted = $currentStep->status == ProdOrderProductStatus::Completed;
-
-            /** @var ProdOrderStep $nextStep */
-            $nextStep = $prodOrder->steps()
-                ->where('sequence', '>', $currentStep->sequence)
-                ->first();
-
             DB::beginTransaction();
 
-            foreach ($currentStep->actualItems as $item) {
-                if ($stepCompleted) {
-                    continue;
+            $prodOrder = $prodOrderStep->prodOrder;
+
+            /** @var ProdOrderStepProduct $existingActualItem */
+            $existingActualItem = $prodOrderStep->productItems()
+                ->where('product_id', $productId)
+                ->where('type', StepProductType::Actual)
+                ->first();
+
+            /** @var MiniInventory $miniStock */
+            $miniStock = $prodOrderStep->workStation->miniInventories()
+                ->where('product_id', $productId)
+                ->first();
+
+            $diffQty = $quantity - $miniStock?->quantity;
+
+            if ($diffQty > 0) {
+                if (!$this->transactionService->checkStock($productId, $diffQty, $prodOrder->warehouse_id)) {
+                    throw new Exception('Insufficient stock');
                 }
 
-                $item->update(['status' => ProdOrderProductStatus::Completed]);
-
-                $this->transactionService->removeMiniStock(
-                    $item->product_id,
-                    $item->quantity,
-                    $currentStep->work_station_id
+                $this->transactionService->removeStock(
+                    $productId,
+                    $diffQty,
+                    $prodOrder->warehouse_id,
+                    $prodOrderStep->work_station_id
                 );
+
+                $this->transactionService->addMiniStock($productId, $diffQty, $prodOrderStep->work_station_id);
             }
 
-            foreach ($currentStep->expectedItems as $item) {
-
-                $item->update(['status' => ProdOrderProductStatus::Completed]);
-
-                $this->transactionService->removeMiniStock(
-                    $item->product_id,
-                    $item->quantity,
-                    $currentStep->work_station_id
-                );
-
-                $this->transactionService->addMiniStock(
-                    $item->product_id,
-                    $item->quantity,
-                    $nextStep?->work_station_id ?? $currentStep->work_station_id
-                );
-
-                $nextStep?->productItems()->create([
-                    'product_id' => $item->product_id,
-                    'quantity' => $item->quantity,
+            if ($existingActualItem) {
+                $existingActualItem->update([
+                    'quantity' => $quantity,
+                    'max_quantity' => $quantity,
+                ]);
+            } else {
+                $prodOrderStep->productItems()->create([
+                    'product_id' => $productId,
+                    'quantity' => $quantity,
+                    'max_quantity' => $quantity,
                     'type' => StepProductType::Actual,
                 ]);
             }
 
+            DB::commit();
+        } catch (Throwable $e) {
+            DB::rollBack();
+            throw new Exception($e->getMessage());
+        }
+    }
+
+    /**
+     * @throws Exception
+     * TESTED
+     */
+    public function completeWork(ProdOrderStep $prodOrderStep): void
+    {
+        try {
+            DB::beginTransaction();
+
+            /** @var Collection<ProdOrderStepProduct> $actualMaterials */
+            $actualMaterials = $prodOrderStep->actualItems()->get();
+            foreach ($actualMaterials as $actualMaterial) {
+                $this->transactionService->removeMiniStock(
+                    $actualMaterial->product_id,
+                    $actualMaterial->quantity,
+                    $prodOrderStep->work_station_id
+                );
+            }
+
+            /** @var Collection<ProdOrderStepProduct> $expectedMaterials */
+            $expectedMaterials = $prodOrderStep->expectedItems()->get();
+            foreach ($expectedMaterials as $expectedMaterial) {
+                $this->transactionService->addMiniStock(
+                    $expectedMaterial->product_id,
+                    $expectedMaterial->quantity,
+                    $prodOrderStep->work_station_id
+                );
+            }
+
+            $prodOrderStep->update(['status' => ProdOrderProductStatus::Completed]);
+
+            DB::commit();
+        } catch (Throwable $e) {
+            DB::rollBack();
+            throw new Exception($e->getMessage());
+        }
+    }
+
+    /**
+     * @throws Exception
+     * TESTED
+     */
+    public function next(ProdOrder $prodOrder): ?ProdOrderStep
+    {
+        $currentStep = $prodOrder->currentStep;
+        if ($currentStep->status != ProdOrderProductStatus::Completed) {
+            throw new Exception('Current step is not completed');
+        }
+
+        /** @var ProdOrderStep $nextStep */
+        $nextStep = $prodOrder->steps()
+            ->where('sequence', '>', $currentStep->sequence)
+            ->first();
+
+        try {
+            DB::beginTransaction();
+
             if ($nextStep) {
+                foreach ($currentStep->expectedItems as $item) {
+                    $this->transactionService->removeMiniStock(
+                        $item->product_id,
+                        $item->quantity,
+                        $currentStep->work_station_id
+                    );
+
+                    $this->transactionService->addMiniStock(
+                        $item->product_id,
+                        $item->quantity,
+                        $nextStep->work_station_id
+                    );
+
+                    $nextStep->productItems()->create([
+                        'product_id' => $item->product_id,
+                        'quantity' => $item->quantity,
+                        'type' => StepProductType::Actual,
+                    ]);
+                }
+
                 $prodOrder->current_step_id = $nextStep->id;
             } else {
                 $prodOrder->status = OrderStatus::Completed;
             }
 
-            $currentStep->update(['status' => ProdOrderProductStatus::Completed]);
+            $prodOrder->save();
+
+            DB::commit();
+            return $nextStep;
+        } catch (Throwable $e) {
+            DB::rollBack();
+            throw new Exception($e->getMessage());
+        }
+    }
+
+    /**
+     * @throws Exception
+     * TESTED
+     */
+    public function approve(ProdOrder $prodOrder): void
+    {
+        $lastStep = $prodOrder->lastStep;
+        if ($prodOrder->status != OrderStatus::Completed) {
+            throw new Exception('ProdOrder is not completed yet');
+        }
+
+        try {
+            DB::beginTransaction();
+
+            foreach ($lastStep->expectedItems as $expectedItem) {
+                $this->transactionService->removeMiniStock(
+                    $expectedItem->product_id,
+                    $expectedItem->quantity,
+                    $lastStep->work_station_id
+                );
+
+                $this->transactionService->addStock(
+                    $expectedItem->product_id,
+                    $expectedItem->quantity,
+                    0,
+                    $prodOrder->warehouse_id,
+                    workStationId: $lastStep->work_station_id,
+                );
+            }
+
+            $prodOrder->status = OrderStatus::Approved;
             $prodOrder->save();
 
             DB::commit();
@@ -170,67 +297,18 @@ class ProdOrderService
 
     /**
      * @throws Exception
-     */
-    public function approve(ProdOrder $prodOrder): void
-    {
-        try {
-            $this->transactionService->removeMiniStock(
-                $prodOrder->product_id,
-                $prodOrder->quantity,
-                $prodOrder->currentStep->work_station_id
-            );
-            $this->transactionService->addStock(
-                $prodOrder->product_id,
-                $prodOrder->quantity,
-                0,
-                $prodOrder->warehouse_id,
-                $prodOrder->currentStep->work_station_id
-            );
-
-            $prodOrder->status = OrderStatus::Approved;
-            $prodOrder->save();
-        } catch (Throwable $e) {
-            throw new Exception($e->getMessage());
-        }
-    }
-
-    /**
-     * @throws Exception
+     * TESTED
      */
     public function createFirstActualItems(ProdOrderStep $prodOrderStep, $productId, $quantity): int
     {
         $prodOrder = $prodOrderStep->prodOrder;
 
-        /** @var Collection<InventoryItem> $inventoryItems */
-        $inventory = $this->inventoryService->getInventory($productId, $prodOrder->warehouse_id);
-        $inventoryItems = $this->inventoryService->getInventoryItems($inventory);
-
-        // Remove items from Stock
-        $lackQuantity = $quantity;
-        foreach ($inventoryItems as $inventoryItem) {
-            if ($inventoryItem->quantity <= 0) {
-                continue;
-            }
-
-            if ($lackQuantity <= 0) {
-                break;
-            }
-
-            $quantityOut = min($inventoryItem->quantity, $lackQuantity);
-            $inventoryItem->quantity -= $quantityOut;
-            $lackQuantity -= $quantityOut;
-            $inventoryItem->save();
-
-            InventoryTransaction::query()->create([
-                'product_id' => $inventory->product_id,
-                'warehouse_id' => $inventory->warehouse_id,
-                'storage_location_id' => $inventoryItem->storage_location_id,
-                'work_station_id' => $prodOrderStep->work_station_id,
-                'quantity' => $quantityOut,
-                'type' => TransactionType::Out,
-                'cost' => $inventory->unit_cost,
-            ]);
-        }
+        $lackQuantity = $this->transactionService->removeStock(
+            $productId,
+            $quantity,
+            $prodOrder->warehouse_id,
+            $prodOrderStep->work_station_id
+        );
 
         // Create ProdOrderStepProducts and add to WorkStation's mini Stock
         $takenQuantity = $quantity - $lackQuantity;
@@ -252,17 +330,52 @@ class ProdOrderService
         return $lackQuantity;
     }
 
-    public function calculateDeadline(ProdTemplate $prodTemplate): ?Carbon
+    public function calculateDeadline($productId): ?float
     {
-        return Carbon::now();
+        /** @var ProdTemplate $prodTemplate */
+        $prodTemplate = ProdTemplate::query()->where('product_id', $productId)->first();
+
+        $totalDays = 0;
+        foreach ($prodTemplate->steps as $step) {
+            foreach ($step->expectedItems as $expectedItem) {
+                /** @var PerformanceRate $rate */
+                $rate = $step->workStation->performanceRates()
+                    ->where('product_id', $expectedItem->product_id)
+                    ->first();
+
+                if ($rate) {
+                    $quantityPerUnit = $rate->quantity / $rate->duration;
+
+                    $quantityPerDay = match ($rate->duration_unit) {
+                        DurationUnit::Hour => $quantityPerUnit * 12,
+                        DurationUnit::Day => $quantityPerUnit,
+                        DurationUnit::Week => $quantityPerUnit / 7,
+                        DurationUnit::Month => $quantityPerUnit / 30,
+                        DurationUnit::Year => $quantityPerUnit / 365,
+                    };
+
+                    $totalDays += ceil($expectedItem->quantity / $quantityPerDay);
+                }
+            }
+        }
+
+        return $totalDays;
     }
 
-    /**
-     * @throws Exception
-     */
-    public function calculateTotalCost(ProdTemplate $prodTemplate): ?float
+    public function calculateTotalCost($productId, $warehouseId): ?float
     {
+        /** @var ProdTemplate $prodTemplate */
+        $prodTemplate = ProdTemplate::query()->where('product_id', $productId)->first();
+
         $totalCost = 0;
+        foreach ($prodTemplate->steps as $step) {
+            foreach ($step->requiredItems as $requiredItem) {
+                $inventory = $this->inventoryService->getInventory($requiredItem->product_id, $warehouseId);
+                if ($inventory->unit_cost > 0) {
+                    $totalCost += $inventory->unit_cost * $requiredItem->quantity;
+                }
+            }
+        }
 
         return $totalCost;
     }
@@ -274,6 +387,16 @@ class ProdOrderService
     {
         if ($prodOrder->status == OrderStatus::Processing) {
             throw new Exception('Order is already in processing');
+        }
+    }
+
+    /**
+     * @throws Exception
+     */
+    public function guardCanBeProduced(ProdOrder $prodOrder): void
+    {
+        if (!$prodOrder->can_produce) {
+            throw new Exception('ProdOrder cannot be produced');
         }
     }
 

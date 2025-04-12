@@ -4,6 +4,7 @@ namespace App\Filament\Resources\ProdOrderResource\Pages;
 
 use App\Enums\OrderStatus;
 use App\Filament\Resources\ProdOrderResource;
+use App\Services\ProdOrderService;
 use Filament\Resources\Pages\CreateRecord;
 
 class CreateProdOrder extends CreateRecord
@@ -14,6 +15,9 @@ class CreateProdOrder extends CreateRecord
     {
         $data['status'] = OrderStatus::Pending;
         $data['can_produce'] = false;
+
+        $data['total_cost'] = app(ProdOrderService::class)->calculateTotalCost($data['product_id'], $data['warehouse_id']);
+        $data['deadline'] = app(ProdOrderService::class)->calculateDeadline($data['product_id']);
 
         return parent::mutateFormDataBeforeCreate($data);
     }

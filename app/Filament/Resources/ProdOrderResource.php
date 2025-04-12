@@ -43,6 +43,7 @@ class ProdOrderResource extends Resource
                     ->native(false)
                     ->searchable()
                     ->relationship('product', 'name')
+                    ->preload()
                     ->required(),
                 Forms\Components\Select::make('agent_id')
                     ->native(false)

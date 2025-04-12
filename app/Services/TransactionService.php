@@ -39,7 +39,12 @@ class TransactionService
 
         $inventoryItems = $this->inventoryService->getInventoryItems($inventory, $storageLocationId);
         if ($inventoryItems->isEmpty()) {
-            throw new Exception('Insufficient stock');
+            $newInventoryItem = InventoryItem::query()->create([
+                'inventory_id' => $inventory->id,
+                'storage_location_id' => $storageLocationId,
+                'quantity' => 0,
+            ]);
+            $inventoryItems->push($newInventoryItem);
         }
 
         /** @var InventoryItem $inventoryItem */
@@ -58,6 +63,53 @@ class TransactionService
                 'cost' => $cost,
             ]);
         }
+    }
+
+    public function checkStock($productId, $quantity, $warehouseId = null): bool {
+        /** @var Collection<InventoryItem> $inventoryItems */
+        $inventory = $this->inventoryService->getInventory($productId, $warehouseId);
+        return $inventory->quantity >= $quantity;
+    }
+
+    public function removeStock(
+        $productId,
+        $quantity,
+        $warehouseId = null,
+        $workStationId = null,
+        $storageLocationId = null
+    ): ?int {
+        /** @var Collection<InventoryItem> $inventoryItems */
+        $inventory = $this->inventoryService->getInventory($productId, $warehouseId);
+        $inventoryItems = $this->inventoryService->getInventoryItems($inventory, $storageLocationId);
+
+        // Remove items from Stock
+        $lackQuantity = $quantity;
+        foreach ($inventoryItems as $inventoryItem) {
+            if ($inventoryItem->quantity <= 0) {
+                continue;
+            }
+
+            if ($lackQuantity <= 0) {
+                break;
+            }
+
+            $quantityOut = min($inventoryItem->quantity, $lackQuantity);
+            $inventoryItem->quantity -= $quantityOut;
+            $lackQuantity -= $quantityOut;
+            $inventoryItem->save();
+
+            InventoryTransaction::query()->create([
+                'product_id' => $inventory->product_id,
+                'warehouse_id' => $inventory->warehouse_id,
+                'storage_location_id' => $inventoryItem->storage_location_id,
+                'work_station_id' => $workStationId,
+                'quantity' => $quantityOut,
+                'type' => TransactionType::Out,
+                'cost' => $inventory->unit_cost,
+            ]);
+        }
+
+        return $lackQuantity;
     }
 
     public function addMiniStock(

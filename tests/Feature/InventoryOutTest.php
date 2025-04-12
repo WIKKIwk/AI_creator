@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Enums\TransactionType;
 use App\Models\Inventory;
 use App\Models\InventoryItem;
 use App\Models\Product;
@@ -27,11 +28,6 @@ class InventoryOutTest extends TestCase
         ]);
     }
 
-    public function test_inventory_out_prod_order(): void
-    {
-
-    }
-
     public function test_inventory_out_basic(): void
     {
         /** @var Inventory $inventory */
@@ -55,13 +51,14 @@ class InventoryOutTest extends TestCase
         ]);
 
         // Test remove stock method
-//        $this->transactionService->removeStock(
-//            $this->product->id,
-//            6,
-//            $this->warehouse->id,
-//            $location_2->id,
-//        );
+        $this->transactionService->removeStock(
+            $this->product->id,
+            6,
+            $this->warehouse->id,
+            storageLocationId: $location_2->id,
+        );
 
+        // Check if the inventory item quantities are updated correctly
         $this->assertDatabaseHas('inventory_items', [
             'id' => $inventoryItem_1->id,
             'quantity' => 4,
@@ -69,6 +66,20 @@ class InventoryOutTest extends TestCase
         $this->assertDatabaseHas('inventory_items', [
             'id' => $inventoryItem_2->id,
             'quantity' => 0,
+        ]);
+
+        // Creates two transaction from two separate storages
+        $this->assertDatabaseHas('inventory_transactions', [
+            'product_id' => $this->product->id,
+            'quantity' => 5,
+            'type' => TransactionType::Out,
+            'storage_location_id' => $location_2->id,
+        ]);
+        $this->assertDatabaseHas('inventory_transactions', [
+            'product_id' => $this->product->id,
+            'quantity' => 1,
+            'type' => TransactionType::Out,
+            'storage_location_id' => $location_1->id,
         ]);
     }
 }

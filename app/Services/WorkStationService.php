@@ -17,25 +17,6 @@ class WorkStationService
     ) {
     }
 
-    public function useMaterial(ProdOrderStep $prodOrderStep, int $productId, int $quantity): void
-    {
-        /** @var ProdOrderStepProduct $existingUsedProduct */
-        $existingUsedProduct = $prodOrderStep->actualItems()
-            ->where('product_id', $productId)
-            ->first();
-
-        if ($existingUsedProduct) {
-            $existingUsedProduct->quantity = $quantity;
-            $existingUsedProduct->save();
-        } else {
-            $prodOrderStep->actualItems()->create([
-                'product_id' => $productId,
-                'quantity' => $quantity,
-                'type' => StepProductType::Actual
-            ]);
-        }
-    }
-
     /**
      * @throws Exception
      */

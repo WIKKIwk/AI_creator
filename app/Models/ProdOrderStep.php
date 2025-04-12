@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Enums\ProdOrderProductStatus;
 use App\Enums\StepProductType;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -14,7 +15,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
  * @property int $prod_order_id
  * @property int $work_station_id
  * @property int $sequence
- * @property int $status
+ * @property ProdOrderProductStatus $status
  * @property string $created_at
  * @property string $updated_at
  *
@@ -30,6 +31,10 @@ class ProdOrderStep extends Model
     use HasFactory;
 
     protected $guarded = ['id'];
+
+    protected $casts = [
+        'status' => ProdOrderProductStatus::class,
+    ];
 
     public function prodOrder(): BelongsTo
     {
@@ -48,16 +53,22 @@ class ProdOrderStep extends Model
 
     public function requiredItems(): HasMany
     {
-        return $this->hasMany(ProdOrderStepProduct::class)->where('type', StepProductType::Required);
+        return $this->hasMany(ProdOrderStepProduct::class)
+            ->where('type', StepProductType::Required)
+            ->orderBy('created_at');
     }
 
     public function expectedItems(): HasMany
     {
-        return $this->hasMany(ProdOrderStepProduct::class)->where('type', StepProductType::Expected);
+        return $this->hasMany(ProdOrderStepProduct::class)
+            ->where('type', StepProductType::Expected)
+            ->orderBy('created_at');
     }
 
     public function actualItems(): HasMany
     {
-        return $this->hasMany(ProdOrderStepProduct::class)->where('type', StepProductType::Actual);
+        return $this->hasMany(ProdOrderStepProduct::class)
+            ->where('type', StepProductType::Actual)
+            ->orderBy('created_at');
     }
 }

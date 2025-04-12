@@ -7,11 +7,12 @@ use App\Models\ProdOrderStep;
 use App\Models\ProdOrderStepProduct;
 use App\Models\User;
 use App\Services\Cache\Cache;
+use App\Services\ProdOrderService;
 use App\Services\TelegramService;
 use App\Services\TgBot\TgBot;
-use App\Services\TransactionService;
 use Exception;
 use GuzzleHttp\Exception\GuzzleException;
+use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Arr;
 
 class WorkStationWorkerHandler extends BaseHandler
@@ -22,6 +23,7 @@ class WorkStationWorkerHandler extends BaseHandler
     protected const states = [
         'main' => 'main',
         'completeMaterial' => 'completeMaterial',
+        'completeMaterialQty' => 'completeMaterialQty',
         'completeWork' => 'completeWork',
     ];
 
@@ -36,10 +38,19 @@ Required materials:
 Expected materials:
 <b>{expectedMaterials}</b>
 
+Actual materials:
+<b>{actualUsedMaterials}</b>
+
+Choose the actual material to complete:
+HTML,
+
+        'completeMaterialInput' => <<<HTML
+{errorMsg}
+
 Actual used materials:
 <b>{actualUsedMaterials}</b>
 
-Enter actual used quantity for <b>{actualMaterial}</b>:
+Input actual used quantity for <b>{product}</b>. Or choose another material to complete.:
 HTML,
 
         'completeWork' => <<<HTML
@@ -49,18 +60,21 @@ Production product: <b>{product}</b>
 Expected materials:
 <b>{expectedMaterials}</b>
 
+Actual used materials:
+<b>{actualUsedMaterials}</b>
+
 Are you sure you want to complete the work?
 HTML,
 
     ];
 
-    protected TransactionService $transactionService;
+    protected ProdOrderService $prodOrderService;
 
     public function __construct(TgBot $tgBot, Cache $cache)
     {
         parent::__construct($tgBot, $cache);
 
-        $this->transactionService = app(TransactionService::class);
+        $this->prodOrderService = app(ProdOrderService::class);
     }
 
     /**
@@ -94,9 +108,25 @@ HTML,
 
     /**
      * @throws GuzzleException
+     * @throws Exception
      */
     public function handleCbQuery($cbData): void
     {
+        if (preg_match('/^(.*)_(\d+)$/', $cbData, $matches)) {
+            $base = $matches[1];   // e.g., 'completeMaterial'
+            $id = (int)$matches[2]; // e.g., 98
+
+            $callback = $base . 'Callback';
+            if (method_exists($this, $callback)) {
+                call_user_func([$this, $callback], $id);
+            } else {
+                throw new Exception("Method '$callback' does not exist.");
+            }
+
+            return;
+        }
+
+
         if (method_exists($this, $cbData)) {
             call_user_func([$this, $cbData]);
         } else {
@@ -116,9 +146,8 @@ HTML,
     public function handleText(string $text): void
     {
         $activeState = $this->cache->get($this->getCacheKey('state'));
-        dump("Active state: $activeState");
 
-        if ($activeState === self::states['completeMaterial']) {
+        if ($activeState === self::states['completeMaterialQty']) {
             $this->completeMaterialText();
             return;
         }
@@ -132,6 +161,15 @@ HTML,
      */
     public function completeWork(): void
     {
+        $step = $this->getStep();
+        if ($step->status == ProdOrderProductStatus::Completed) {
+            $this->tgBot->answerCbQuery([
+                'text' => "Work is already completed.",
+                'reply_markup' => $this->getMainKb(),
+            ]);
+            return;
+        }
+
         $prodOrder = $this->user->workStation->prodOrder;
         if (!$prodOrder) {
             $this->tgBot->answerCbQuery([
@@ -156,6 +194,7 @@ HTML,
                 '{prodOrder}' => "ProdOrder-{$this->user->workStation->prodOrder->id}",
                 '{product}' => $prodOrder->product->name . " ({$prodOrder->quantity} {$prodOrder->product->measure_unit->getLabel()})",
                 '{expectedMaterials}' => $expectedMaterials,
+                '{actualUsedMaterials}' => $this->getActualMaterialsStr(),
             ]),
             'parse_mode' => 'HTML',
             'reply_markup' => TelegramService::getInlineKeyboard([
@@ -192,35 +231,8 @@ HTML,
     public function saveCompleteWork(): void
     {
         $step = $this->getStep();
-        $step->update(['status' => ProdOrderProductStatus::Completed]);
 
-        foreach ($step->expectedItems as $expectedItem) {
-            if ($expectedItem->status === ProdOrderProductStatus::Completed) {
-                continue;
-            }
-
-            $this->transactionService->addMiniStock(
-                $expectedItem->product_id,
-                $expectedItem->quantity,
-                $step->work_station_id
-            );
-            $expectedItem->update(['status' => ProdOrderProductStatus::Completed]);
-        }
-
-        foreach ($step->actualItems as $actualItem) {
-            if ($actualItem->status === ProdOrderProductStatus::Completed) {
-                continue;
-            }
-
-            $this->transactionService->removeMiniStock(
-                $actualItem->product_id,
-                $actualItem->quantity,
-                $step->work_station_id
-            );
-            $actualItem->update(['status' => ProdOrderProductStatus::Completed]);
-        }
-
-        $this->user->workStation->update(['prod_order_id' => null]);
+        $this->prodOrderService->completeWork($step);
 
         $this->tgBot->answerCbQuery([
             'text' => "Work completed successfully.",
@@ -235,6 +247,15 @@ HTML,
      */
     public function completeMaterial(): void
     {
+        $step = $this->getStep();
+        if ($step->status == ProdOrderProductStatus::Completed) {
+            $this->tgBot->answerCbQuery([
+                'text' => "Work is already completed.",
+                'reply_markup' => $this->getMainKb(),
+            ]);
+            return;
+        }
+
         $prodOrder = $this->user->workStation->prodOrder;
         if (!$prodOrder) {
             $this->tgBot->answerCbQuery([
@@ -248,51 +269,129 @@ HTML,
         $this->tgBot->answerCbQuery();
         $this->cache->put($this->getCacheKey('state'), self::states['completeMaterial']);
 
+        /** @var Collection<ProdOrderStepProduct> $actualMaterials */
+        $actualMaterials = $this->getStep()->actualItems()->get();
+        $buttons = [];
+        foreach ($actualMaterials as $actualMaterial) {
+            $buttons[][] = [
+                'text' => $actualMaterial->product->name,
+                'callback_data' => "completeMaterial_{$actualMaterial->id}",
+            ];
+        }
+
         $res = $this->tgBot->answerMsg([
-            'text' => strtr(
-                self::templates['completeMaterial'],
-                array_merge($this->getCompleteMaterialPlaceholders(), [
-                    '{actualMaterialInput}' => '-',
-                ])
-            ),
+            'text' => strtr(self::templates['completeMaterial'], $this->getCompleteMaterialPlaceholders()),
             'parse_mode' => 'HTML',
-            'reply_markup' => TelegramService::getInlineKeyboard([
-                [
-                    ['text' => '🚫 Cancel', 'callback_data' => 'cancelCompleteMaterial'],
-                    ['text' => '✅ Save', 'callback_data' => 'saveCompleteMaterial'],
-                ]
-            ])
+            'reply_markup' => TelegramService::getInlineKeyboard(
+                array_merge($buttons, [
+                    [
+                        ['text' => '🚫 Cancel', 'callback_data' => 'cancelCompleteMaterial']
+                    ]
+                ])
+            )
         ]);
         $msgId = Arr::get($res, 'result.message_id');
         $this->cache->put($this->getCacheKey('edit_msg_id'), $msgId);
     }
 
-    public function completeMaterialText(): void
+    public function completeMaterialCallback($id): void
     {
-        $input = $this->tgBot->getText();
-        $input = trim($input);
+        $this->cache->put($this->getCacheKey('actualMaterialId'), $id);
+        $this->cache->put($this->getCacheKey('state'), 'completeMaterialQty');
 
-        $actualMaterial = $this->getActualMaterial();
-
-        $this->cache->put(
-            $this->getCacheKey('completeMaterial'),
-            json_encode(["quantity_$actualMaterial->id" => $input])
-        );
+        $actualMaterial = $this->getActualMaterial($id);
 
         $this->tgBot->sendRequestAsync('editMessageText', [
             'chat_id' => $this->tgBot->chatId,
             'message_id' => $this->cache->get($this->getCacheKey('edit_msg_id')),
-            'text' => strtr(
-                self::templates['completeMaterial'],
-                $this->getCompleteMaterialPlaceholders()
-            ),
+            'text' => strtr(self::templates['completeMaterialInput'], [
+                '{errorMsg}' => '',
+                '{actualUsedMaterials}' => $this->getActualMaterialsStr(),
+                '{product}' => $actualMaterial->product->name,
+            ]),
             'parse_mode' => 'HTML',
-            'reply_markup' => TelegramService::getInlineKeyboard([
-                [
-                    ['text' => '🚫 Cancel', 'callback_data' => 'cancelCompleteMaterial'],
-                    ['text' => '✅ Save', 'callback_data' => 'saveCompleteMaterial'],
-                ]
-            ])
+            'reply_markup' => TelegramService::getInlineKeyboard(
+                array_merge($this->getActualMaterialButtons(), [
+                    [
+                        ['text' => '🚫 Cancel', 'callback_data' => 'cancelCompleteMaterial'],
+                        ['text' => '✅ Save', 'callback_data' => 'saveCompleteMaterial'],
+                    ]
+                ])
+            )
+        ]);
+    }
+
+    public function completeMaterialText(): void
+    {
+        $actualMaterial = $this->getActualMaterialFromCache();
+        $quantity = $this->tgBot->getText();
+
+        // check quantity is integer
+        if (!is_numeric($quantity) || $quantity <= 0) {
+            $this->tgBot->sendRequestAsync('editMessageText', [
+                'chat_id' => $this->tgBot->chatId,
+                'message_id' => $this->cache->get($this->getCacheKey('edit_msg_id')),
+                'text' => strtr(self::templates['completeMaterialInput'], [
+                    '{errorMsg}' => "<i>Invalid quantity. Please enter a valid number.</i>",
+                    '{actualUsedMaterials}' => $this->getActualMaterialsStr(),
+                    '{product}' => $actualMaterial->product->name,
+                ]),
+                'parse_mode' => 'HTML',
+                'reply_markup' => TelegramService::getInlineKeyboard(
+                    array_merge($this->getActualMaterialButtons(), [
+                        [
+                            ['text' => '🚫 Cancel', 'callback_data' => 'cancelCompleteMaterial'],
+                            ['text' => '✅ Save', 'callback_data' => 'saveCompleteMaterial'],
+                        ]
+                    ])
+                )
+            ]);
+            return;
+        }
+
+        if ($quantity > $actualMaterial->max_quantity) {
+            $this->tgBot->sendRequestAsync('editMessageText', [
+                'chat_id' => $this->tgBot->chatId,
+                'message_id' => $this->cache->get($this->getCacheKey('edit_msg_id')),
+                'text' => strtr(self::templates['completeMaterialInput'], [
+                    '{errorMsg}' => "<i>Quantity cannot be greater than {$actualMaterial->max_quantity} {$actualMaterial->product->measure_unit->getLabel()}</i>",
+                    '{actualUsedMaterials}' => $this->getActualMaterialsStr(),
+                    '{product}' => $actualMaterial->product->name,
+                ]),
+                'parse_mode' => 'HTML',
+                'reply_markup' => TelegramService::getInlineKeyboard(
+                    array_merge($this->getActualMaterialButtons(), [
+                        [
+                            ['text' => '🚫 Cancel', 'callback_data' => 'cancelCompleteMaterial'],
+                            ['text' => '✅ Save', 'callback_data' => 'saveCompleteMaterial'],
+                        ]
+                    ])
+                )
+            ]);
+            return;
+        }
+
+        $formData = json_decode($this->cache->get($this->getCacheKey('completeMaterial')), true) ?? [];
+        $formData[$actualMaterial->id] = $quantity;
+        $this->cache->put($this->getCacheKey('completeMaterial'), json_encode($formData));
+
+        $this->tgBot->sendRequestAsync('editMessageText', [
+            'chat_id' => $this->tgBot->chatId,
+            'message_id' => $this->cache->get($this->getCacheKey('edit_msg_id')),
+            'text' => strtr(self::templates['completeMaterialInput'], [
+                '{errorMsg}' => '',
+                '{actualUsedMaterials}' => $this->getActualMaterialsStr(),
+                '{product}' => $actualMaterial->product->name,
+            ]),
+            'parse_mode' => 'HTML',
+            'reply_markup' => TelegramService::getInlineKeyboard(
+                array_merge($this->getActualMaterialButtons(), [
+                    [
+                        ['text' => '🚫 Cancel', 'callback_data' => 'cancelCompleteMaterial'],
+                        ['text' => '✅ Save', 'callback_data' => 'saveCompleteMaterial'],
+                    ]
+                ])
+            )
         ]);
     }
 
@@ -303,6 +402,7 @@ HTML,
     {
         $this->cache->forget($this->getCacheKey('state'));
         $this->cache->forget($this->getCacheKey('completeMaterial'));
+        $this->cache->forget($this->getCacheKey('completeMaterialQty'));
         $this->cache->forget($this->getCacheKey('edit_msg_id'));
 
         $this->tgBot->answerCbQuery([
@@ -324,18 +424,16 @@ HTML,
             ->get();
 
         foreach ($actualUsedMaterials as $actualUsedMaterial) {
-            $properQty = Arr::get($formData, "quantity_$actualUsedMaterial->id");
+            $properQty = Arr::get($formData, $actualUsedMaterial->id);
             if (empty($properQty)) {
                 $properQty = $actualUsedMaterial->quantity;
             }
-            $actualUsedMaterial->update([
-                'status' => ProdOrderProductStatus::Completed,
-                'quantity' => $properQty
-            ]);
+            $actualUsedMaterial->update(['quantity' => $properQty]);
         }
 
         $this->cache->forget($this->getCacheKey('state'));
         $this->cache->forget($this->getCacheKey('completeMaterial'));
+        $this->cache->forget($this->getCacheKey('completeMaterialQty'));
         $this->cache->forget($this->getCacheKey('edit_msg_id'));
 
         $this->tgBot->answerCbQuery([
@@ -344,16 +442,6 @@ HTML,
         ]);
 
         $this->sendMainMenu();
-    }
-
-    protected function getStep(): ?ProdOrderStep
-    {
-        /** @var ProdOrderStep $step */
-        $step = $this->user->workStation->prodOrder->steps()
-            ->where('work_station_id', $this->user->work_station_id)
-            ->first();
-
-        return $step;
     }
 
     protected function getCompleteMaterialPlaceholders(): array
@@ -373,48 +461,70 @@ HTML,
             })
             ->implode("\n");
 
-        $actualUsedMaterials = $step->actualItems()->get();
-
-        $formData = json_decode($this->cache->get($this->getCacheKey('completeMaterial')), true) ?? [];
-
-        $actualUsedMaterialsStr = "";
-        foreach ($actualUsedMaterials as $actualUsedMaterial) {
-            $properQty = Arr::get($formData, "quantity_$actualUsedMaterial->id");
-            if (empty($properQty)) {
-                $properQty = $actualUsedMaterial->quantity;
-            }
-            $actualUsedMaterialsStr .= "{$actualUsedMaterial->product->name} ($properQty {$actualUsedMaterial->product->measure_unit->getLabel()})\n";
-        }
-
         return [
             '{prodOrder}' => "ProdOrder-$prodOrder->id",
             '{product}' => $prodOrder->product->name . " ({$prodOrder->quantity} {$prodOrder->product->measure_unit->getLabel()})",
             '{expectedMaterials}' => $expectedMaterials,
             '{requiredMaterials}' => $requiredMaterials,
-            '{actualUsedMaterials}' => $actualUsedMaterialsStr,
-            '{actualMaterial}' => $this->getActualMaterial()?->product?->name ?? '-',
+            '{actualUsedMaterials}' => $this->getActualMaterialsStr(),
         ];
     }
 
-    protected function getActualMaterial(): ?ProdOrderStepProduct
+    protected function getActualMaterialsStr(): string
     {
-        $prodOrder = $this->user->workStation->prodOrder;
-        /** @var ProdOrderStep $step */
-        $step = $prodOrder->steps()->where('work_station_id', $this->user->work_station_id)->first();
+        $step = $this->getStep();
 
-        /** @var ProdOrderStepProduct $actualMaterial */
-        $actualMaterial = $step->actualItems()
-            ->where(fn($q) => $q->where('status', '!=', ProdOrderProductStatus::Completed)->orWhereNull('status'))
-            ->first();
-
-        if (!$actualMaterial) {
-            $actualMaterial = $step->actualItems()
-                ->where('status', ProdOrderProductStatus::Completed)
-                ->latest()
-                ->first();
+        $formData = json_decode($this->cache->get($this->getCacheKey('completeMaterial')), true) ?? [];
+        $actualMaterials = $step->actualItems()->get();
+        $actualMaterialsStr = "";
+        foreach ($actualMaterials as $actualMaterial) {
+            $properQty = Arr::get($formData, $actualMaterial->id);
+            if (empty($properQty)) {
+                $properQty = $actualMaterial->quantity;
+            }
+            $actualMaterialsStr .= "{$actualMaterial->product->name}: $properQty {$actualMaterial->product->measure_unit->getLabel()}\n";
         }
 
+        return $actualMaterialsStr;
+    }
+
+    protected function getStep(): ?ProdOrderStep
+    {
+        /** @var ProdOrderStep $step */
+        $step = $this->user->workStation->prodOrder->steps()
+            ->where('work_station_id', $this->user->work_station_id)
+            ->first();
+
+        return $step;
+    }
+
+    protected function getActualMaterial($id): ProdOrderStepProduct
+    {
+        /** @var ProdOrderStepProduct $actualMaterial */
+        $actualMaterial = $this->getStep()->actualItems()->find($id);
         return $actualMaterial;
+    }
+
+    protected function getActualMaterialFromCache(): ProdOrderStepProduct
+    {
+        $id = $this->cache->get($this->getCacheKey('actualMaterialId'));
+
+        /** @var ProdOrderStepProduct $actualMaterial */
+        $actualMaterial = $this->getStep()->actualItems()->find($id);
+        return $actualMaterial;
+    }
+
+    protected function getActualMaterialButtons(): array
+    {
+        $actualMaterials = $this->getStep()->actualItems()->get();
+        $buttons = [];
+        foreach ($actualMaterials as $actualMaterial) {
+            $buttons[][] = [
+                'text' => $actualMaterial->product->name,
+                'callback_data' => "completeMaterial_{$actualMaterial->id}",
+            ];
+        }
+        return $buttons;
     }
 
     protected function getMainKb(): array

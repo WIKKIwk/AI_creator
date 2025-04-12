@@ -38,6 +38,7 @@ class ProdTemplateResource extends Resource
                     ->native(false)
                     ->relationship('product', 'name')
                     ->searchable()
+                    ->preload()
                     ->required(),
 
                 Forms\Components\Textarea::make('comment')
