@@ -24,7 +24,11 @@
         @if ($this->prodOrder->status != OrderStatus::Blocked)
         <div>
 
-            @if ($this->currentStep->id == $this->activeStep->id && $this->prodOrder->status != OrderStatus::Completed)
+            @if (
+                $this->currentStep->id == $this->activeStep->id &&
+                $this->prodOrder->status != OrderStatus::Completed &&
+                $this->prodOrder->status != OrderStatus::Approved
+            )
                 <x-filament::button
                     x-on:click="if (confirm('Are you sure?')) { $wire.call('nextStep') }"
                 >

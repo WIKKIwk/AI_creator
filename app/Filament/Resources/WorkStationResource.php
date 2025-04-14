@@ -27,6 +27,9 @@ class WorkStationResource extends Resource
     {
         return in_array(auth()->user()->role, [
             RoleType::ADMIN,
+            RoleType::PRODUCTION_MANAGER,
+            RoleType::ALLOCATION_MANAGER,
+            RoleType::STOCK_MANAGER,
         ]);
     }
 

@@ -38,6 +38,8 @@ class SupplyOrderResource extends Resource
         return in_array(auth()->user()->role, [
             RoleType::ADMIN,
             RoleType::PLANNING_MANAGER,
+            RoleType::PRODUCTION_MANAGER,
+            RoleType::ALLOCATION_MANAGER,
         ]);
     }
 

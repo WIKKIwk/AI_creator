@@ -22,6 +22,25 @@ class InventoryTransactionResource extends Resource
     protected static ?int $navigationSort = 3;
     protected static ?string $navigationIcon = 'heroicon-o-rectangle-stack';
 
+    public static function isWarehouseWorker(): bool
+    {
+        return auth()->user()->role == RoleType::STOCK_MANAGER;
+    }
+
+    public static function canAccess(): bool
+    {
+        if (auth()->user()->role == RoleType::STOCK_MANAGER) {
+            if (!auth()->user()->warehouse_id) {
+                return false;
+            }
+        }
+
+        return in_array(auth()->user()->role, [
+            RoleType::ADMIN,
+            RoleType::STOCK_MANAGER,
+        ]);
+    }
+
     public static function form(Form $form): Form
     {
         return $form
@@ -55,26 +74,29 @@ class InventoryTransactionResource extends Resource
                     ->required(),
                 Forms\Components\Select::make('warehouse_id')
                     ->relationship('warehouse', 'name')
+                    ->visible(!self::isWarehouseWorker())
+                    ->required(),
+                Forms\Components\TextInput::make('warehouse_id')
+                    ->visible(self::isWarehouseWorker())
+                    ->readOnly()
                     ->required(),
             ]);
-    }
-
-    public static function canAccess(): bool
-    {
-        return in_array(auth()->user()->role, [
-            RoleType::ADMIN,
-        ]);
     }
 
     public static function table(Table $table): Table
     {
         return $table
             ->modifyQueryUsing(function ($query) {
-                $query->with(['product', 'storageLocation', 'workStation', 'warehouse']);
+                $query
+                    ->with(['product', 'storageLocation', 'workStation', 'warehouse'])
+                    ->when(auth()->user()->role == RoleType::STOCK_MANAGER, function ($query) {
+                        $query->where('warehouse_id', auth()->user()->warehouse_id);
+                    });
             })
             ->defaultSort('created_at', 'desc')
             ->columns([
                 Tables\Columns\TextColumn::make('warehouse.name')
+                    ->hidden(self::isWarehouseWorker())
                     ->numeric()
                     ->sortable(),
                 Tables\Columns\TextColumn::make('type')

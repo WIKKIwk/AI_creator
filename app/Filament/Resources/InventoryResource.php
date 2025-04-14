@@ -3,6 +3,7 @@
 namespace App\Filament\Resources;
 
 use App\Enums\RoleType;
+use App\Filament\Resources\InventoryResource\Actions\InventoryItemsAction;
 use App\Filament\Resources\InventoryResource\Pages;
 use App\Filament\Resources\InventoryResource\RelationManagers;
 use App\Models\Inventory;
@@ -22,11 +23,23 @@ class InventoryResource extends Resource
     protected static ?int $navigationSort = 1;
     protected static ?string $navigationIcon = 'heroicon-o-rectangle-stack';
 
+    public static function isWarehouseWorker(): bool
+    {
+        return auth()->user()->role == RoleType::STOCK_MANAGER;
+    }
+
     public static function canAccess(): bool
     {
+        if (self::isWarehouseWorker() && !auth()->user()->warehouse_id) {
+            return false;
+        }
+
         return in_array(auth()->user()->role, [
             RoleType::ADMIN,
             RoleType::PLANNING_MANAGER,
+            RoleType::PRODUCTION_MANAGER,
+            RoleType::ALLOCATION_MANAGER,
+            RoleType::STOCK_MANAGER,
         ]);
     }
 
@@ -54,10 +67,15 @@ class InventoryResource extends Resource
         return $table
             ->defaultSort('updated_at', 'desc')
             ->modifyQueryUsing(function (Builder $query) {
-                $query->with('items');
+                $query
+                    ->with('items')
+                    ->when(auth()->user()->role == RoleType::STOCK_MANAGER, function ($query) {
+                        $query->where('warehouse_id', auth()->user()->warehouse_id);
+                    });
             })
             ->columns([
                 Tables\Columns\TextColumn::make('warehouse.name')
+                    ->hidden(self::isWarehouseWorker())
                     ->numeric()
                     ->sortable(),
                 Tables\Columns\TextColumn::make('product.name')
@@ -81,9 +99,16 @@ class InventoryResource extends Resource
             ->filters([
                 //
             ])
+            ->recordUrl(null)
+            ->recordAction(InventoryItemsAction::class)
             ->actions([
                 Tables\Actions\EditAction::make(),
                 Tables\Actions\DeleteAction::make(),
+                InventoryItemsAction::make()
+                    ->modalSubmitAction(false)
+                    ->modalCancelAction(false)
+                    ->label('')
+                    ->icon(''),
             ])
             ->bulkActions([
                 Tables\Actions\BulkActionGroup::make([
