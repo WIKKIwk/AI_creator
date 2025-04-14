@@ -73,11 +73,18 @@ class InventoryTransactionResource extends Resource
                     ->options(TransactionType::class)
                     ->required(),
                 Forms\Components\Select::make('warehouse_id')
+                    ->label('Warehouse')
                     ->relationship('warehouse', 'name')
                     ->visible(!self::isWarehouseWorker())
                     ->required(),
-                Forms\Components\TextInput::make('warehouse_id')
+
+                Forms\Components\Hidden::make('warehouse_id')
                     ->visible(self::isWarehouseWorker())
+                    ->formatStateUsing(fn () => auth()->user()->warehouse_id),
+                Forms\Components\TextInput::make('warehouse_label')
+                    ->label('Warehouse')
+                    ->visible(self::isWarehouseWorker())
+                    ->formatStateUsing(fn () => auth()->user()->warehouse?->name)
                     ->readOnly()
                     ->required(),
             ]);
