@@ -2,6 +2,7 @@
 
 namespace Database\Seeders;
 
+use App\Enums\RoleType;
 use App\Models\User;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\Hash;
@@ -23,6 +24,7 @@ class DatabaseSeeder extends Seeder
         User::query()->updateOrCreate(
             ['email' => env('ADMIN_EMAIL')],
             [
+                'role' => RoleType::ADMIN->value,
                 'name' => 'Admin',
                 'email' => env('ADMIN_EMAIL'),
                 'password' => Hash::make(env('ADMIN_PASSWORD')),

@@ -2,7 +2,11 @@
 
 namespace App\Enums;
 
-enum RoleType: int
+use Filament\Support\Contracts\HasColor;
+use Filament\Support\Contracts\HasIcon;
+use Filament\Support\Contracts\HasLabel;
+
+enum RoleType: int implements HasLabel, HasColor, HasIcon
 {
     case ADMIN = 1;
     case PLANNING_MANAGER = 2;
@@ -10,7 +14,7 @@ enum RoleType: int
     case ALLOCATION_MANAGER = 4;
     case STOCK_MANAGER = 5;
     case LEADER = 6;
-    case WORK_STATION_MANAGER = 7;
+    case WORK_STATION_WORKER = 7;
 
     public function getLabel(): string
     {
@@ -21,7 +25,33 @@ enum RoleType: int
             self::ALLOCATION_MANAGER => 'Allocation Manager',
             self::STOCK_MANAGER => 'Stock Manager',
             self::LEADER => 'Leader',
-            self::WORK_STATION_MANAGER => 'Work Station Manager',
+            self::WORK_STATION_WORKER => 'Work Station worker',
+        };
+    }
+
+    public function getColor(): string|array|null
+    {
+        return match ($this) {
+            self::ADMIN => 'primary',
+            self::PLANNING_MANAGER => 'success',
+            self::PRODUCTION_MANAGER => 'warning',
+            self::ALLOCATION_MANAGER => 'info',
+            self::STOCK_MANAGER => 'danger',
+            self::LEADER => 'secondary',
+            self::WORK_STATION_WORKER => 'info',
+        };
+    }
+
+    public function getIcon(): ?string
+    {
+        return match ($this) {
+            self::ADMIN => 'heroicon-o-user-circle',
+            self::PLANNING_MANAGER => 'heroicon-o-chart-bar',
+            self::PRODUCTION_MANAGER => 'heroicon-o-cog',
+            self::ALLOCATION_MANAGER => 'heroicon-o-cog',
+            self::STOCK_MANAGER => 'heroicon-o-cog',
+            self::LEADER => 'heroicon-o-shield-check',
+            self::WORK_STATION_WORKER => 'heroicon-o-cog',
         };
     }
 }

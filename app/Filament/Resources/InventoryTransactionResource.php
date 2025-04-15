@@ -43,41 +43,43 @@ class InventoryTransactionResource extends Resource
 
     public static function form(Form $form): Form
     {
-        return $form
-            ->schema([
-                Forms\Components\Select::make('product_id')
-                    ->native(false)
-                    ->relationship('product', 'name')
-                    ->reactive()
-                    ->preload()
-                    ->required(),
-                Forms\Components\TextInput::make('quantity')
-                    ->required()
-                    ->suffix(function ($get) {
-                        /** @var Product|null $product */
-                        $product = $get('product_id') ? Product::query()->find($get('product_id')) : null;
-                        if ($product?->measure_unit) {
-                            return $product->measure_unit->getLabel();
-                        }
-                        return null;
-                    })
-                    ->numeric(),
-                Forms\Components\TextInput::make('cost')
-                    ->label('Cost')
-                    ->required()
-                    ->numeric(),
-                Forms\Components\Select::make('storage_location_id')
-                    ->relationship('storageLocation', 'name'),
-                Forms\Components\Select::make('type')
-                    ->native(false)
-                    ->options(TransactionType::class)
-                    ->required(),
-                Forms\Components\Select::make('warehouse_id')
-                    ->label('Warehouse')
-                    ->relationship('warehouse', 'name')
-                    ->visible(!self::isWarehouseWorker())
-                    ->required(),
+        $schema = [
+            Forms\Components\Select::make('product_id')
+                ->native(false)
+                ->relationship('product', 'name')
+                ->reactive()
+                ->preload()
+                ->required(),
+            Forms\Components\TextInput::make('quantity')
+                ->required()
+                ->suffix(function ($get) {
+                    /** @var Product|null $product */
+                    $product = $get('product_id') ? Product::query()->find($get('product_id')) : null;
+                    if ($product?->measure_unit) {
+                        return $product->measure_unit->getLabel();
+                    }
+                    return null;
+                })
+                ->numeric(),
+            Forms\Components\TextInput::make('cost')
+                ->label('Cost')
+                ->required()
+                ->numeric(),
+            Forms\Components\Select::make('storage_location_id')
+                ->relationship('storageLocation', 'name'),
+            Forms\Components\Select::make('type')
+                ->native(false)
+                ->options(TransactionType::class)
+                ->required(),
+            Forms\Components\Select::make('warehouse_id')
+                ->label('Warehouse')
+                ->relationship('warehouse', 'name')
+                ->visible(!self::isWarehouseWorker())
+                ->required()
+        ];
 
+        if (self::isWarehouseWorker()) {
+            $schema = array_merge($schema, [
                 Forms\Components\Hidden::make('warehouse_id')
                     ->visible(self::isWarehouseWorker())
                     ->formatStateUsing(fn () => auth()->user()->warehouse_id),
@@ -88,6 +90,9 @@ class InventoryTransactionResource extends Resource
                     ->readOnly()
                     ->required(),
             ]);
+        }
+
+        return $form->schema($schema);
     }
 
     public static function table(Table $table): Table
@@ -141,7 +146,7 @@ class InventoryTransactionResource extends Resource
             ])
             ->bulkActions([
                 Tables\Actions\BulkActionGroup::make([
-                    Tables\Actions\DeleteBulkAction::make(),
+//                    Tables\Actions\DeleteBulkAction::make(),
                 ]),
             ]);
     }
