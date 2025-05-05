@@ -55,8 +55,8 @@ class InventoryTransactionResource extends Resource
                 ->suffix(function ($get) {
                     /** @var Product|null $product */
                     $product = $get('product_id') ? Product::query()->find($get('product_id')) : null;
-                    if ($product?->measure_unit) {
-                        return $product->measure_unit->getLabel();
+                    if ($product?->category?->measure_unit) {
+                        return $product->category->measure_unit->getLabel();
                     }
                     return null;
                 })

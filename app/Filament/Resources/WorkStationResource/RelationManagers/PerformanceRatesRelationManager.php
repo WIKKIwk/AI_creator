@@ -56,7 +56,7 @@ class PerformanceRatesRelationManager extends RelationManager
                 Tables\Columns\TextColumn::make('quantity')
                     ->label('Quantity')
                     ->formatStateUsing(function ($record) {
-                        return $record->quantity . ' ' . $record->product->measure_unit->getLabel();
+                        return $record->quantity . ' ' . $record->product->category?->measure_unit?->getLabel();
                     })
                     ->sortable()
                     ->searchable(),

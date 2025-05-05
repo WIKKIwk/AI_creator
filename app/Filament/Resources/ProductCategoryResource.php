@@ -3,6 +3,7 @@
 namespace App\Filament\Resources;
 
 use App\Enums\RoleType;
+use App\Enums\MeasureUnit;
 use App\Filament\Resources\ProductCategoryResource\Pages;
 use App\Filament\Resources\ProductCategoryResource\RelationManagers;
 use App\Models\ProductCategory;
@@ -31,11 +32,19 @@ class ProductCategoryResource extends Resource
     {
         return $form
             ->schema([
-                Forms\Components\TextInput::make('name')
-                    ->required()
-                    ->maxLength(255),
-                Forms\Components\Textarea::make('description')
-                    ->columnSpanFull(),
+                Forms\Components\Grid::make(3)->schema([
+
+                    Forms\Components\TextInput::make('name')
+                        ->required()
+                        ->maxLength(255),
+
+                    Forms\Components\Select::make('measure_unit')
+                        ->options(MeasureUnit::class)
+                        ->required(),
+
+                    Forms\Components\Textarea::make('description'),
+                ]),
+
                 Forms\Components\Select::make('parent_id')
                     ->relationship('parent', 'name'),
             ]);
@@ -47,9 +56,15 @@ class ProductCategoryResource extends Resource
             ->columns([
                 Tables\Columns\TextColumn::make('name')
                     ->searchable(),
+                Tables\Columns\TextColumn::make('measure_unit')
+                    ->badge()
+                    ->sortable(),
                 Tables\Columns\TextColumn::make('parent.name')
                     ->numeric()
                     ->sortable(),
+                Tables\Columns\TextColumn::make('description')
+                    ->limit(50)
+                    ->toggleable(),
                 Tables\Columns\TextColumn::make('created_at')
                     ->dateTime()
                     ->sortable()

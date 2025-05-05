@@ -38,7 +38,7 @@ class ProdOrderStepExpected extends Component implements HasForms, HasTable
                 TextColumn::make('product.name'),
                 TextColumn::make('quantity')
                     ->formatStateUsing(function (ProdOrderStepProduct $record) {
-                        return $record->quantity . ' ' . $record->product->measure_unit->getLabel();
+                        return $record->quantity . ' ' . $record->product->category?->measure_unit?->getLabel();
                     })
             ])
             ->filters([

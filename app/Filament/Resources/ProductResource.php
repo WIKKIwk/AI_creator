@@ -33,29 +33,35 @@ class ProductResource extends Resource
     {
         return $form
             ->schema([
-                Forms\Components\Select::make('type')
-                    ->options(ProductType::class)
-                    ->required(),
-                Forms\Components\TextInput::make('name')
-                    ->required()
-                    ->maxLength(255),
-                Forms\Components\TextInput::make('description')
-                    ->maxLength(255),
-                Forms\Components\TextInput::make('price')
-                    ->required()
-                    ->numeric(),
-                Forms\Components\Select::make('measure_unit')
-                    ->options(MeasureUnit::class)
-                    ->required(),
-                Forms\Components\Select::make('product_category_id')
-                    ->relationship('category', 'name')
-                    ->required(),
+                Forms\Components\Grid::make(3)->schema([
+                    Forms\Components\Select::make('type')
+                        ->options(ProductType::class)
+                        ->required(),
+                    Forms\Components\TextInput::make('name')
+                        ->required()
+                        ->maxLength(255),
+                    Forms\Components\TextInput::make('description')
+                        ->maxLength(255),
+                ]),
+
+                Forms\Components\Grid::make(3)->schema([
+                    Forms\Components\TextInput::make('price')
+                        ->numeric(),
+                    Forms\Components\Select::make('product_category_id')
+                        ->relationship('category', 'name')
+                        ->required(),
+                ]),
             ]);
     }
 
     public static function table(Table $table): Table
     {
         return $table
+            ->modifyQueryUsing(function (Builder $query) {
+                $query->with([
+                    'category'
+                ]);
+            })
             ->columns([
                 Tables\Columns\TextColumn::make('type')
                     ->badge()
@@ -68,6 +74,7 @@ class ProductResource extends Resource
                     ->money()
                     ->sortable(),
                 Tables\Columns\TextColumn::make('measure_unit')
+                    ->getStateUsing(fn($record) => $record->category->measure_unit)
                     ->badge()
                     ->sortable(),
                 Tables\Columns\TextColumn::make('category.name')

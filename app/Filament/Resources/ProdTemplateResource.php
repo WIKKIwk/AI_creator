@@ -3,6 +3,8 @@
 namespace App\Filament\Resources;
 
 use App\Enums\RoleType;
+use Illuminate\Support\Arr;
+use App\Models\WorkStation;
 use App\Enums\StepProductType;
 use App\Filament\Resources\ProdTemplateResource\Pages;
 use App\Filament\Resources\ProdTemplateResource\RelationManagers;
@@ -32,117 +34,95 @@ class ProdTemplateResource extends Resource
     {
         return $form
             ->schema([
-                Forms\Components\TextInput::make('name')
-                    ->label('Name'),
-                Forms\Components\Select::make('product_id')
-                    ->label('Product')
-                    ->native(false)
-                    ->relationship('product', 'name')
-                    ->searchable()
-                    ->preload()
-                    ->required(),
+                Forms\Components\Grid::make(3)->schema([
+                    Forms\Components\TextInput::make('name')
+                        ->label('Name'),
 
-                Forms\Components\Textarea::make('comment')
-                    ->label('Comment')
-                    ->columnSpanFull(),
+                    Forms\Components\Select::make('product_id')
+                        ->label('Ready product')
+                        ->native(false)
+                        ->relationship('product', 'name')
+                        ->searchable()
+                        ->preload()
+                        ->required(),
 
-                Forms\Components\Repeater::make('steps')
-                    ->relationship('steps')
-                    ->columnSpanFull()
-                    ->addActionAlignment('end')
-                    ->reorderable()
-                    ->orderColumn('sequence')
-                    ->collapsible()
-                    ->collapsed()
-                    ->itemLabel(fn($state) => "Station " . ($state['sequence'] ?? 1))
-                    ->afterStateUpdated(function ($set, $state) {
-                        $sequence = 1;
-                        foreach ($state as $uuid => $item) {
-                            $item['sequence'] = $sequence;
-                            $set("steps.$uuid.sequence", $sequence);
-                            $sequence++;
-                        }
-                    })
-                    ->schema([
-                        Forms\Components\Grid::make()->schema([
-                            Forms\Components\Select::make('work_station_id')
-                                ->label('Work Station')
-                                ->relationship('workStation', 'name')
-                                ->searchable()
-                                ->preload()
-                                ->required(),
-                        ]),
+                    Forms\Components\Textarea::make('comment')
+                        ->label('Comment'),
+                ]),
 
-                        Forms\Components\Repeater::make('requiredItems')
-                            ->columnSpanFull()
-                            ->relationship('requiredItems')
-                            ->addActionAlignment('end')
-                            ->schema([
-                                Forms\Components\Hidden::make('type'),
-                                Forms\Components\Grid::make()->schema([
-                                    Forms\Components\Select::make('product_id')
-                                        ->label('Material')
-                                        ->relationship('product', 'name')
-                                        ->searchable()
-                                        ->preload()
-                                        ->reactive()
-                                        ->required(),
-                                    Forms\Components\TextInput::make('quantity')
-                                        ->label('Quantity')
-                                        ->numeric()
-                                        ->suffix(function ($get) {
-                                            /** @var Product|null $product */
-                                            $product = $get('product_id') ? Product::query()->find(
-                                                $get('product_id')
-                                            ) : null;
-                                            if ($product?->measure_unit) {
-                                                return $product->measure_unit->getLabel();
-                                            }
-                                            return null;
-                                        })
-                                        ->required(),
-                                ]),
-                            ])
-                            ->mutateRelationshipDataBeforeCreateUsing(function ($data) {
-                                $data['type'] = StepProductType::Required;
-                                return $data;
-                            }),
-
-                        Forms\Components\Repeater::make('expectedItems')
-                            ->columnSpanFull()
-                            ->relationship('expectedItems')
-                            ->addActionAlignment('end')
-                            ->schema([
-                                Forms\Components\Hidden::make('type'),
-                                Forms\Components\Grid::make()->schema([
-                                    Forms\Components\Select::make('product_id')
-                                        ->label('Result product')
-                                        ->relationship('product', 'name')
-                                        ->searchable()
-                                        ->preload()
-                                        ->reactive()
-                                        ->required(),
-                                    Forms\Components\TextInput::make('quantity')
-                                        ->label('Quantity')
-                                        ->numeric()
-                                        ->suffix(function ($get) {
-                                            /** @var Product|null $product */
-                                            $product = $get('product_id') ? Product::query()->find(
-                                                $get('product_id')
-                                            ) : null;
-                                            if ($product?->measure_unit) {
-                                                return $product->measure_unit->getLabel();
-                                            }
-                                            return null;
-                                        })
-                                        ->required(),
-                                ]),
-                            ])
-                            ->mutateRelationshipDataBeforeCreateUsing(function ($data) {
-                                $data['type'] = StepProductType::Expected;
-                                return $data;
-                            }),
-                    ]),
+//                Forms\Components\Repeater::make('steps')
+//                    ->relationship('steps')
+//                    ->columnSpanFull()
+//                    ->addActionAlignment('end')
+//                    ->reorderable()
+//                    ->orderColumn('sequence')
+//                    ->collapsible()
+//                    ->collapsed()
+//                    ->itemLabel(function ($get, $uuid) {
+//                        $index = array_search($uuid, array_keys($get('steps'))) ?? 0;
+//                        $index++;
+//
+//                        $label = "Step $index";
+//
+//                        $current = Arr::get($get('steps'), $uuid);
+//                        if ($current) {
+//                            $workStation = WorkStation::query()->find($current['work_station_id']);
+//                            $label = $workStation?->name ?? $label;
+//                        }
+//
+//                        return $label;
+//                    })
+//                    ->afterStateUpdated(function ($set, $state) {
+//                        $sequence = 1;
+//                        foreach ($state as $uuid => $item) {
+//                            $item['sequence'] = $sequence;
+//                            $set("steps.$uuid.sequence", $sequence);
+//                            $sequence++;
+//                        }
+//                    })
+//                    ->schema([
+//                        Forms\Components\Grid::make()->schema([
+//                            Forms\Components\Select::make('work_station_id')
+//                                ->label('Work Station')
+//                                ->relationship('workStation', 'name')
+//                                ->searchable()
+//                                ->preload()
+//                                ->reactive()
+//                                ->required(),
+//                        ]),
+//
+//                        Forms\Components\Repeater::make('requiredItems')
+//                            ->columnSpanFull()
+//                            ->relationship('requiredItems')
+//                            ->addActionAlignment('end')
+//                            ->schema([
+//                                Forms\Components\Hidden::make('type'),
+//                                Forms\Components\Grid::make()->schema([
+//                                    Forms\Components\Select::make('product_id')
+//                                        ->label('Material')
+//                                        ->relationship('product', 'name')
+//                                        ->searchable()
+//                                        ->preload()
+//                                        ->reactive()
+//                                        ->required(),
+//                                    Forms\Components\TextInput::make('quantity')
+//                                        ->label('Quantity')
+//                                        ->numeric()
+//                                        ->suffix(function($get) {
+//                                            /** @var Product|null $product */
+//                                            $product = $get('product_id') ? Product::query()->find(
+//                                                $get('product_id')
+//                                            ) : null;
+//                                            return $product?->measure_unit?->getLabel();
+//                                        })
+//                                        ->required(),
+//                                ]),
+//                            ])
+//                            ->mutateRelationshipDataBeforeCreateUsing(function ($data) {
+//                                $data['type'] = StepProductType::Required;
+//                                return $data;
+//                            }),
+//                    ]),
             ]);
     }
 
@@ -177,7 +157,7 @@ class ProdTemplateResource extends Resource
     public static function getRelations(): array
     {
         return [
-            //
+            RelationManagers\StepsRelationManager::class
         ];
     }
 

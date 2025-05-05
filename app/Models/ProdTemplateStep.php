@@ -14,8 +14,12 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
  * @property int $prod_template_id
  * @property int $work_station_id
  * @property int $sequence
+ * @property int $output_product_id
+ * @property int $expected_quantity
+ * @property int $output_quantity
  *
  * @property ProdTemplate $prodTemplate
+ * @property Product $outputProduct
  * @property WorkStation $workStation
  * @property Collection<ProdTemplateStepProduct> $productItems
  * @property Collection<ProdTemplateStepProduct> $requiredItems
@@ -30,6 +34,11 @@ class ProdTemplateStep extends Model
     public function prodTemplate(): BelongsTo
     {
         return $this->belongsTo(ProdTemplate::class);
+    }
+
+    public function outputProduct(): BelongsTo
+    {
+        return $this->belongsTo(Product::class, 'output_product_id');
     }
 
     public function workStation(): BelongsTo

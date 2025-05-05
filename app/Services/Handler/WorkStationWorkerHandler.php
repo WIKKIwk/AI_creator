@@ -185,14 +185,14 @@ HTML,
 
         $expectedMaterials = $this->getStep()->expectedItems
             ->map(function (ProdOrderStepProduct $item) {
-                return "{$item->product->name} ({$item->quantity} {$item->product->measure_unit->getLabel()})";
+                return "{$item->product->name} ({$item->quantity} {$item->product->category?->measure_unit?->getLabel()})";
             })
             ->implode("\n");
 
         $res = $this->tgBot->answerMsg([
             'text' => strtr(self::templates['completeWork'], [
                 '{prodOrder}' => "ProdOrder-{$this->user->workStation->prodOrder->id}",
-                '{product}' => $prodOrder->product->name . " ({$prodOrder->quantity} {$prodOrder->product->measure_unit->getLabel()})",
+                '{product}' => $prodOrder->product->name . " ({$prodOrder->quantity} {$prodOrder->product->category?->measure_unit?->getLabel()})",
                 '{expectedMaterials}' => $expectedMaterials,
                 '{actualUsedMaterials}' => $this->getActualMaterialsStr(),
             ]),
@@ -354,7 +354,7 @@ HTML,
                 'chat_id' => $this->tgBot->chatId,
                 'message_id' => $this->cache->get($this->getCacheKey('edit_msg_id')),
                 'text' => strtr(self::templates['completeMaterialInput'], [
-                    '{errorMsg}' => "<i>Quantity cannot be greater than {$actualMaterial->max_quantity} {$actualMaterial->product->measure_unit->getLabel()}</i>",
+                    '{errorMsg}' => "<i>Quantity cannot be greater than {$actualMaterial->max_quantity} {$actualMaterial->product->category?->measure_unit?->getLabel()}</i>",
                     '{actualUsedMaterials}' => $this->getActualMaterialsStr(),
                     '{product}' => $actualMaterial->product->name,
                 ]),
@@ -451,19 +451,19 @@ HTML,
         $step = $this->getStep();
         $expectedMaterials = $step->expectedItems
             ->map(function (ProdOrderStepProduct $item) {
-                return "{$item->product->name} ({$item->quantity} {$item->product->measure_unit->getLabel()})";
+                return "{$item->product->name} ({$item->quantity} {$item->product->category?->measure_unit?->getLabel()})";
             })
             ->implode("\n");
 
         $requiredMaterials = $step->requiredItems
             ->map(function (ProdOrderStepProduct $item) {
-                return "{$item->product->name} ({$item->quantity} {$item->product->measure_unit->getLabel()})";
+                return "{$item->product->name} ({$item->quantity} {$item->product->category?->measure_unit?->getLabel()})";
             })
             ->implode("\n");
 
         return [
             '{prodOrder}' => "ProdOrder-$prodOrder->id",
-            '{product}' => $prodOrder->product->name . " ({$prodOrder->quantity} {$prodOrder->product->measure_unit->getLabel()})",
+            '{product}' => $prodOrder->product->name . " ({$prodOrder->quantity} {$prodOrder->product->category?->measure_unit?->getLabel()})",
             '{expectedMaterials}' => $expectedMaterials,
             '{requiredMaterials}' => $requiredMaterials,
             '{actualUsedMaterials}' => $this->getActualMaterialsStr(),
@@ -482,7 +482,7 @@ HTML,
             if (empty($properQty)) {
                 $properQty = $actualMaterial->quantity;
             }
-            $actualMaterialsStr .= "{$actualMaterial->product->name}: $properQty {$actualMaterial->product->measure_unit->getLabel()}\n";
+            $actualMaterialsStr .= "{$actualMaterial->product->name}: $properQty {$actualMaterial->product->category?->measure_unit?->getLabel()}\n";
         }
 
         return $actualMaterialsStr;

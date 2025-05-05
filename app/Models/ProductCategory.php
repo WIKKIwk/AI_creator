@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use Carbon\Carbon;
+use App\Enums\MeasureUnit;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -14,6 +15,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
  * @property string $name
  * @property string $description
  * @property int $parent_id
+ * @property MeasureUnit $measure_unit
  * @property Carbon $created_at
  * @property Carbon $updated_at
  *
@@ -25,6 +27,10 @@ class ProductCategory extends Model
     use HasFactory;
 
     protected $guarded = ['id'];
+
+    protected $casts = [
+        'measure_unit' => MeasureUnit::class,
+    ];
 
     public function parent(): BelongsTo
     {
