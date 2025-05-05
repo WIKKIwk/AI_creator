@@ -39,7 +39,7 @@ class ProdOrderStepActual extends Component implements HasForms, HasTable
             ->headerActions([
                 Action::make('add')
                     ->label('Add material')
-                    ->hidden(fn() => $this->step->status == ProdOrderProductStatus::Completed)
+                    //->hidden(fn() => $this->step->status == ProdOrderProductStatus::Completed)
                     ->form([
                         Grid::make()->schema([
                             Select::make('product_id')
@@ -105,7 +105,7 @@ class ProdOrderStepActual extends Component implements HasForms, HasTable
             ])
             ->actions([
                 EditAction::make()
-                    ->hidden(fn() => $this->step->status == ProdOrderProductStatus::Completed)
+                    //->hidden(fn() => $this->step->status == ProdOrderProductStatus::Completed)
                     ->form([
                         Grid::make()->schema([
                             Select::make('product_id')

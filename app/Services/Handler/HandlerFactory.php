@@ -9,7 +9,7 @@ use Exception;
 class HandlerFactory
 {
     /**
-     * @throws Exception
+     * @throws Exc$usereption
      */
     public static function make(User $user): HandlerInterface
     {

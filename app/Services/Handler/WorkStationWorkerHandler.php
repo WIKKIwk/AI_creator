@@ -162,13 +162,13 @@ HTML,
     public function completeWork(): void
     {
         $step = $this->getStep();
-        if ($step->status == ProdOrderProductStatus::Completed) {
-            $this->tgBot->answerCbQuery([
-                'text' => "Work is already completed.",
-                'reply_markup' => $this->getMainKb(),
-            ]);
-            return;
-        }
+        //if ($step->status == ProdOrderProductStatus::Completed) {
+          //  $this->tgBot->answerCbQuery([
+            //    'text' => "Work is already completed.",
+              //  'reply_markup' => $this->getMainKb(),
+            //]);
+            //return;
+        //}
 
         $prodOrder = $this->user->workStation->prodOrder;
         if (!$prodOrder) {
@@ -248,13 +248,13 @@ HTML,
     public function completeMaterial(): void
     {
         $step = $this->getStep();
-        if ($step->status == ProdOrderProductStatus::Completed) {
-            $this->tgBot->answerCbQuery([
-                'text' => "Work is already completed.",
-                'reply_markup' => $this->getMainKb(),
-            ]);
-            return;
-        }
+        //if ($step->status == ProdOrderProductStatus::Completed) {
+        //    $this->tgBot->answerCbQuery([
+        //        'text' => "Work is already completed.",
+        //        'reply_markup' => $this->getMainKb(),
+     //   ]);
+     //       return;
+       // }
 
         $prodOrder = $this->user->workStation->prodOrder;
         if (!$prodOrder) {

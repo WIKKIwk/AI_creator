@@ -50,7 +50,7 @@ class WorkStationResource extends Resource
                     ->options(function ($record) {
                         /** @var Collection<ProdOrder> $orders */
                         $orders = ProdOrder::query()
-                            ->whereHas('currentStep', fn ($q) => $q->where('work_station_id', $record->id))
+                            ->whereHas('currentStep', fn ($q) => $q->where('work_station_id', $record?->id))
                             ->get();
 
                         $result = [];

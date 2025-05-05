@@ -21,31 +21,23 @@
             @endphp
         </x-filament::tabs>
 
-        @if ($this->prodOrder->status != OrderStatus::Blocked)
+    
         <div>
-
-            @if (
-                $this->currentStep->id == $this->activeStep->id &&
-                $this->prodOrder->status != OrderStatus::Completed &&
-                $this->prodOrder->status != OrderStatus::Approved
-            )
                 <x-filament::button
                     x-on:click="if (confirm('Are you sure?')) { $wire.call('nextStep') }"
                 >
                     {{ $this->lastStep?->id == $this->currentStep->id ? 'Complete order' : 'Next Step' }}
                 </x-filament::button>
-            @endif
 
-            @if ($this->prodOrder->status == OrderStatus::Completed)
+
                 <x-filament::button
                     x-on:click="if (confirm('Are you sure?')) { $wire.call('approve') }"
                 >
                     Approve order
                 </x-filament::button>
-            @endif
 
         </div>
-        @endif
+        
     </div>
 
     {{ $this->form }}
