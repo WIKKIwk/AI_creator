@@ -2,18 +2,21 @@
 
 namespace App\Filament\Resources;
 
-use App\Enums\OrderStatus;
+use Exception;
+use Filament\Forms;
+use Filament\Tables;
+use App\Models\Product;
 use App\Enums\RoleType;
+use Filament\Forms\Form;
+use App\Models\ProdOrder;
+use App\Enums\OrderStatus;
+use App\Enums\ProductType;
+use Filament\Tables\Table;
+use Filament\Resources\Resource;
+use App\Services\ProdOrderService;
+use Filament\Notifications\Notification;
 use App\Filament\Resources\ProdOrderResource\Pages;
 use App\Filament\Resources\ProdOrderResource\RelationManagers;
-use App\Models\ProdOrder;
-use App\Services\ProdOrderService;
-use Filament\Forms;
-use Filament\Forms\Form;
-use Filament\Notifications\Notification;
-use Filament\Resources\Resource;
-use Filament\Tables;
-use Filament\Tables\Table;
 
 class ProdOrderResource extends Resource
 {
@@ -35,43 +38,55 @@ class ProdOrderResource extends Resource
     {
         return $form
             ->schema([
-                Forms\Components\Select::make('warehouse_id')
-                    ->native(false)
-                    ->searchable()
-                    ->relationship('warehouse', 'name')
-                    ->preload()
-                    ->required(),
-                Forms\Components\Select::make('product_id')
-                    ->native(false)
-                    ->searchable()
-                    ->relationship('product', 'name')
-                    ->preload()
-                    ->required(),
-                Forms\Components\Select::make('agent_id')
-                    ->native(false)
-                    ->relationship('agent', 'name')
-                    ->required(),
-                Forms\Components\TextInput::make('quantity')
-                    ->required()
-                    ->numeric(),
-                Forms\Components\TextInput::make('offer_price')
-                    ->required()
-                    ->numeric(),
-                Forms\Components\Toggle::make('can_produce')
-                    ->visible(fn($record) => $record?->status == OrderStatus::Pending)
-                    ->inline(false),
 
                 Forms\Components\Grid::make(3)->schema([
+                    Forms\Components\Select::make('warehouse_id')
+                        ->relationship('warehouse', 'name')
+                        ->required(),
+
+                    Forms\Components\Select::make('product_id')
+                        ->relationship(
+                            'product',
+                            'name',
+                            fn($query) => $query->where('type', ProductType::ReadyProduct)
+                        )
+                        ->reactive()
+                        ->required(),
+
+                    Forms\Components\Select::make('agent_id')
+                        ->relationship('agent', 'name')
+                        ->required(),
+                ]),
+
+                Forms\Components\Grid::make(3)->schema([
+                    Forms\Components\TextInput::make('quantity')
+                        ->required()
+                        ->suffix(function($get) {
+                            /** @var Product|null $product */
+                            $product = $get('product_id') ? Product::query()->find($get('product_id')) : null;
+                            return $product?->category?->measure_unit?->getLabel();
+                        })
+                        ->numeric(),
+
+                    Forms\Components\TextInput::make('offer_price')
+                        ->required()
+                        ->numeric(),
+                ]),
+
+                Forms\Components\Grid::make(3)->schema([
+
                     Forms\Components\TextInput::make('status')
                         ->default(OrderStatus::Pending->value)
                         ->formatStateUsing(fn($state) => OrderStatus::tryFrom($state)?->getLabel())
                         ->hidden(fn($record) => !$record?->id)
                         ->disabled()
                         ->required(),
+
                     Forms\Components\TextInput::make('total_cost')
                         ->label('Expected total Cost')
                         ->hidden(fn($record) => !$record?->id)
                         ->disabled(),
+
                     Forms\Components\TextInput::make('deadline')
                         ->label('Expected deadline')
                         ->hidden(fn($record) => !$record?->id)
@@ -83,7 +98,7 @@ class ProdOrderResource extends Resource
     public static function table(Table $table): Table
     {
         return $table
-            ->modifyQueryUsing(function ($query) {
+            ->modifyQueryUsing(function($query) {
                 $query->with(['product', 'agent', 'warehouse']);
             })
             ->columns([
@@ -104,8 +119,14 @@ class ProdOrderResource extends Resource
                 Tables\Columns\TextColumn::make('status')
                     ->badge()
                     ->sortable(),
-                Tables\Columns\IconColumn::make('can_produce')
-                    ->boolean()
+                Tables\Columns\TextColumn::make('confirmed_at')
+                    ->getStateUsing(function($record) {
+                        if ($record->confirmed_at) {
+                            return '<span class="text-green-500">✔️</span>';
+                        }
+                        return '<span class="text-red-500">❌</span>';
+                    })
+                    ->html()
                     ->sortable(),
                 /*Tables\Columns\TextColumn::make('total_cost')
                     ->numeric()
@@ -126,13 +147,17 @@ class ProdOrderResource extends Resource
                 //
             ])
             ->actions([
-                Tables\Actions\Action::make('startProduction')
-                    ->label('Start')
-                    ->hidden(fn($record) => $record->status != OrderStatus::Pending)
-                    ->action(function ($record) {
+
+                Tables\Actions\Action::make('confirm')
+                    ->label('Confirm')
+                    ->visible(fn($record) => !$record->confirmed_at)
+                    ->action(function($record) {
                         try {
-                            app(ProdOrderService::class)->start($record);
-                        } catch (\Exception $e) {
+                            $record->update([
+                                'confirmed_at' => now(),
+                                'confirmed_by' => auth()->user()->id,
+                            ]);
+                        } catch (Exception $e) {
                             Notification::make()
                                 ->title('Error')
                                 ->body($e->getMessage())
@@ -141,11 +166,32 @@ class ProdOrderResource extends Resource
                         }
                     })
                     ->requiresConfirmation(),
+
+                Tables\Actions\Action::make('startProduction')
+                    ->label('Start')
+                    ->visible(fn($record) => $record->confirmed_at)
+                    ->action(function($record, Tables\Actions\Action $action) {
+                        try {
+                            $insufficientAssets = app(ProdOrderService::class)->start($record);
+                            if (!empty($insufficientAssets)) {
+                                $action->halt();
+                            }
+                        } catch (Exception $e) {
+                            Notification::make()
+                                ->title('Error')
+                                ->body($e->getMessage())
+                                ->danger()
+                                ->send();
+                        }
+                    })
+                    ->requiresConfirmation(),
+
                 Tables\Actions\Action::make('details')
                     ->label('Details')
                     ->hidden(fn($record) => $record->status == OrderStatus::Pending)
                     ->url(fn($record) => ProdOrderResource::getUrl('details', ['record' => $record]))
                     ->requiresConfirmation(),
+
                 Tables\Actions\EditAction::make(),
             ])
             ->bulkActions([

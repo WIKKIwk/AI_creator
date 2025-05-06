@@ -28,13 +28,18 @@ use Illuminate\Support\Carbon;
  * @property bool $can_produce
  * @property string $created_at
  * @property string $updated_at
+ *
  * @property Carbon $started_at
  * @property Carbon $approved_at
+ * @property Carbon $confirmed_at
  * @property int $started_by
  * @property int $approved_by
+ * @property int $confirmed_by
  *
  * @property User $startedBy
  * @property User $approvedBy
+ * @property User $confirmedBy
+ *
  * @property Warehouse $warehouse
  * @property Agent $agent
  * @property Product $product
@@ -53,6 +58,7 @@ class ProdOrder extends Model
         'status' => OrderStatus::class,
         'started_at' => 'datetime',
         'approved_at' => 'datetime',
+        'confirmed_at' => 'datetime',
     ];
 
     public function warehouse(): BelongsTo
@@ -98,5 +104,10 @@ class ProdOrder extends Model
     public function approvedBy(): BelongsTo
     {
         return $this->belongsTo(User::class, 'approved_by');
+    }
+
+    public function confirmedBy(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'confirmed_by');
     }
 }

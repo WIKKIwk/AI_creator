@@ -2,8 +2,10 @@
 
 namespace App\Models;
 
+use Filament\Panel;
 use App\Enums\RoleType;
 use Exception;
+use Filament\Models\Contracts\FilamentUser;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Foundation\Auth\User as Authenticatable;
@@ -30,7 +32,7 @@ use Laravel\Sanctum\HasApiTokens;
  * @property Warehouse $warehouse
  * @property WorkStation $workStation
  */
-class User extends Authenticatable
+class User extends Authenticatable implements FilamentUser
 {
     use HasApiTokens, HasFactory, Notifiable;
 
@@ -93,5 +95,15 @@ class User extends Authenticatable
             throw new Exception("User not found by chat_id: $chatId");
         }
         return $user;
+    }
+
+    public function canAccessPanel(Panel $panel): bool
+    {
+        return !in_array(
+            $this->role,
+            [
+                RoleType::WORK_STATION_WORKER
+            ],
+        );
     }
 }

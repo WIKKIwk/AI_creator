@@ -28,11 +28,82 @@ class ProdOrderService
     ) {
     }
 
+
+    public function start(ProdOrder $prodOrder): array
+    {
+        $this->guardAlreadyStarted($prodOrder);
+        $this->guardCanBeProduced($prodOrder);
+
+        $insufficientAssets = [];
+
+        try {
+            DB::beginTransaction();
+
+            $firstStepId = null;
+            $isBlocked = false;
+
+            $prodTemplate = $this->getTemplate($prodOrder->product_id);
+            foreach ($prodTemplate->steps as $templateStep) {
+                /** @var ProdOrderStep $prodOrderStep */
+                $prodOrderStep = $prodOrder->steps()->create([
+                    'work_station_id' => $templateStep->work_station_id,
+                    'sequence' => $templateStep->sequence,
+                    'status' => OrderStatus::Pending,
+                ]);
+
+                foreach ($templateStep->expectedItems as $item) {
+                    $prodOrderStep->productItems()->create([
+                        'product_id' => $item->product_id,
+                        'quantity' => $item->quantity * $prodOrder->quantity,
+                        'type' => StepProductType::Expected,
+                    ]);
+                }
+
+                foreach ($templateStep->requiredItems as $item) {
+                    $prodOrderStep->productItems()->create([
+                        'product_id' => $item->product_id,
+                        'quantity' => $item->quantity * $prodOrder->quantity,
+                        'type' => StepProductType::Required,
+                    ]);
+
+                    if ($prodOrderStep->sequence == 1) {
+                        $firstStepId = $prodOrderStep->id;
+                        $lackQuantity = $this->createFirstActualItems(
+                            $prodOrderStep,
+                            $item->product_id,
+                            $item->quantity * $prodOrder->quantity
+                        );
+
+                        // If there's still lack of quantity, create SupplyOrder and Block the ProdOrder
+                        if ($lackQuantity > 0) {
+                            $insufficientAssets[$item->product_id] = [
+                                'product_id' => $item->product_id,
+                                'quantity' => $lackQuantity,
+                            ];
+                        }
+                    }
+                }
+            }
+
+            if (empty($insufficientAssets)) {
+                $prodOrder->current_step_id = $firstStepId;
+                $prodOrder->status = OrderStatus::Processing;
+                $prodOrder->save();
+            }
+
+            DB::commit();
+            return $insufficientAssets;
+        } catch (Throwable $e) {
+            DB::rollBack();
+            throw new Exception($e->getMessage());
+        }
+    }
+
     /**
      * @throws Exception
      * TESTED
      */
-    public function start(ProdOrder $prodOrder): void
+    public function start_old(ProdOrder $prodOrder): void
     {
         $this->guardAlreadyStarted($prodOrder);
         $this->guardCanBeProduced($prodOrder);
@@ -395,8 +466,8 @@ class ProdOrderService
      */
     public function guardCanBeProduced(ProdOrder $prodOrder): void
     {
-        if (!$prodOrder->can_produce) {
-            throw new Exception('ProdOrder cannot be produced');
+        if (!$prodOrder->confirmed_at) {
+            throw new Exception('ProdOrder is not confirmed yet');
         }
     }
 

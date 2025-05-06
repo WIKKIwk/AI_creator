@@ -51,6 +51,7 @@ class WorkStationResource extends Resource
 
                     Forms\Components\Select::make('product_category_id')
                         ->relationship('category', 'name')
+                        ->reactive()
                         ->required(),
 
                     Forms\Components\Select::make('prod_order_id')

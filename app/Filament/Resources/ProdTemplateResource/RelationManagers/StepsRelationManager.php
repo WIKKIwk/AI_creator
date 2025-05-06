@@ -128,6 +128,7 @@ class StepsRelationManager extends RelationManager
                 $query->with(['workStation', 'outputProduct']);
             })
             ->columns([
+                Tables\Columns\TextColumn::make('sequence'),
                 Tables\Columns\TextColumn::make('workStation.name'),
                 Tables\Columns\TextColumn::make('outputProduct.name'),
                 Tables\Columns\TextColumn::make('expected_quantity')

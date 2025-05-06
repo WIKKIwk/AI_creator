@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Enums\OrderStatus;
+use Illuminate\Support\Carbon;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -21,6 +22,11 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * @property int $created_at
  * @property int $updated_at
  *
+ * @property Carbon $confirmed_at
+ * @property int $confirmed_by
+ *
+ * @property User $confirmedBy
+ *
  * Relationships
  * @property Supplier $supplier
  * @property ProdOrder $prodOrder
@@ -36,6 +42,9 @@ class SupplyOrder extends Model
 
     protected $casts = [
         'status' => OrderStatus::class,
+        'created_at' => 'datetime',
+        'updated_at' => 'datetime',
+        'confirmed_at' => 'datetime',
     ];
 
     protected static function booted(): void
@@ -63,6 +72,11 @@ class SupplyOrder extends Model
     public function createdBy(): BelongsTo
     {
         return $this->belongsTo(User::class, 'created_by');
+    }
+
+    public function confirmedBy(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'confirmed_by');
     }
 
     public function warehouse(): BelongsTo

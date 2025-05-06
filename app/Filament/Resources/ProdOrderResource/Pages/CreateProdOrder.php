@@ -21,4 +21,9 @@ class CreateProdOrder extends CreateRecord
 
         return parent::mutateFormDataBeforeCreate($data);
     }
+
+    protected function getRedirectUrl(): string
+    {
+        return $this->getResource()::getUrl('index');
+    }
 }
