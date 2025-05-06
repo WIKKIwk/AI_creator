@@ -9,15 +9,18 @@ use App\Models\ProdTemplate;
 
 class ProductService
 {
-    public function createSemiFinished(ProdTemplate $pt, $wstId): ?Product
+    public function createOrGetSemiFinished(ProdTemplate $prodTmp, $workStationId, $isLast = false): ?Product
     {
+        if ($isLast) {
+            return $prodTmp->product;
+        }
+
         $outputProduct = null;
-
         /** @var WorkStation $workStation */
-        $workStation = $wstId ? WorkStation::find($wstId) : null;
+        $workStation = $workStationId ? WorkStation::query()->find($workStationId) : null;
 
-        if ($workStation && $pt->product) {
-            $productName = "$workStation->name {$pt->product->name} SFP";
+        if ($workStation && $prodTmp->product) {
+            $productName = "$workStation->name {$prodTmp->product->name} SFP";
 
             /** @var Product $outputProduct */
             $outputProduct = Product::query()->firstOrCreate(
@@ -26,7 +29,7 @@ class ProductService
                     'type' => ProductType::SemiFinishedProduct,
                     'product_category_id' => $workStation->product_category_id,
                     'work_station_id' => $workStation->id,
-                    'ready_product_id' => $pt->product->id
+                    'ready_product_id' => $prodTmp->product->id
                 ]
             );
         }

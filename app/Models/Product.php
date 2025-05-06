@@ -38,7 +38,7 @@ class Product extends Model
         'type' => ProductType::class,
     ];
 
-    public function getName(): string
+    public function getDisplayName(): string
     {
         if ($this->work_station_id && $this->ready_product_id) {
             return $this->workStation->name . ' ' . $this->readyProduct->name . ' SFP';

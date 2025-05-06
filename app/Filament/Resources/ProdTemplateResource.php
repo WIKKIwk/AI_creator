@@ -3,6 +3,7 @@
 namespace App\Filament\Resources;
 
 use App\Enums\RoleType;
+use App\Enums\ProductType;
 use Illuminate\Support\Arr;
 use App\Models\WorkStation;
 use App\Enums\StepProductType;
@@ -41,7 +42,11 @@ class ProdTemplateResource extends Resource
                     Forms\Components\Select::make('product_id')
                         ->label('Ready product')
                         ->native(false)
-                        ->relationship('product', 'name')
+                        ->relationship(
+                            'product',
+                            'name',
+                            fn ($query) => $query->where('type', ProductType::ReadyProduct)
+                        )
                         ->searchable()
                         ->preload()
                         ->required(),
@@ -49,80 +54,6 @@ class ProdTemplateResource extends Resource
                     Forms\Components\Textarea::make('comment')
                         ->label('Comment'),
                 ]),
-
-//                Forms\Components\Repeater::make('steps')
-//                    ->relationship('steps')
-//                    ->columnSpanFull()
-//                    ->addActionAlignment('end')
-//                    ->reorderable()
-//                    ->orderColumn('sequence')
-//                    ->collapsible()
-//                    ->collapsed()
-//                    ->itemLabel(function ($get, $uuid) {
-//                        $index = array_search($uuid, array_keys($get('steps'))) ?? 0;
-//                        $index++;
-//
-//                        $label = "Step $index";
-//
-//                        $current = Arr::get($get('steps'), $uuid);
-//                        if ($current) {
-//                            $workStation = WorkStation::query()->find($current['work_station_id']);
-//                            $label = $workStation?->name ?? $label;
-//                        }
-//
-//                        return $label;
-//                    })
-//                    ->afterStateUpdated(function ($set, $state) {
-//                        $sequence = 1;
-//                        foreach ($state as $uuid => $item) {
-//                            $item['sequence'] = $sequence;
-//                            $set("steps.$uuid.sequence", $sequence);
-//                            $sequence++;
-//                        }
-//                    })
-//                    ->schema([
-//                        Forms\Components\Grid::make()->schema([
-//                            Forms\Components\Select::make('work_station_id')
-//                                ->label('Work Station')
-//                                ->relationship('workStation', 'name')
-//                                ->searchable()
-//                                ->preload()
-//                                ->reactive()
-//                                ->required(),
-//                        ]),
-//
-//                        Forms\Components\Repeater::make('requiredItems')
-//                            ->columnSpanFull()
-//                            ->relationship('requiredItems')
-//                            ->addActionAlignment('end')
-//                            ->schema([
-//                                Forms\Components\Hidden::make('type'),
-//                                Forms\Components\Grid::make()->schema([
-//                                    Forms\Components\Select::make('product_id')
-//                                        ->label('Material')
-//                                        ->relationship('product', 'name')
-//                                        ->searchable()
-//                                        ->preload()
-//                                        ->reactive()
-//                                        ->required(),
-//                                    Forms\Components\TextInput::make('quantity')
-//                                        ->label('Quantity')
-//                                        ->numeric()
-//                                        ->suffix(function($get) {
-//                                            /** @var Product|null $product */
-//                                            $product = $get('product_id') ? Product::query()->find(
-//                                                $get('product_id')
-//                                            ) : null;
-//                                            return $product?->measure_unit?->getLabel();
-//                                        })
-//                                        ->required(),
-//                                ]),
-//                            ])
-//                            ->mutateRelationshipDataBeforeCreateUsing(function ($data) {
-//                                $data['type'] = StepProductType::Required;
-//                                return $data;
-//                            }),
-//                    ]),
             ]);
     }
 

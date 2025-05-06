@@ -16,7 +16,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
  * @property int $sequence
  * @property int $output_product_id
  * @property int $expected_quantity
- * @property int $output_quantity
+ * @property bool $is_last
  *
  * @property ProdTemplate $prodTemplate
  * @property Product $outputProduct

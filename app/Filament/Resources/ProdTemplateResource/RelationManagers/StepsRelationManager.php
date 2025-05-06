@@ -4,7 +4,6 @@ namespace App\Filament\Resources\ProdTemplateResource\RelationManagers;
 
 use Filament\Forms;
 use Filament\Tables;
-use App\Models\Tour;
 use App\Models\Product;
 use Filament\Forms\Form;
 use Filament\Tables\Table;
@@ -24,50 +23,63 @@ class StepsRelationManager extends RelationManager
     {
         return $form
             ->schema([
-                Forms\Components\Grid::make(3)->schema([
-                    Forms\Components\Select::make('work_station_id')
-                        ->label('Work Station')
-                        ->relationship('workStation', 'name')
-                        ->searchable()
-                        ->preload()
-                        ->reactive()
-                        ->afterStateUpdated(function($set, $get) {
-                            /** @var ?WorkStation $workStation */
-                            /** @var Product $readyProduct */
-                            $workStation = $get('work_station_id') ? WorkStation::find($get('work_station_id')) : null;
-                            $readyProduct = $this->getOwnerRecord()->product;
+                Forms\Components\Select::make('work_station_id')
+                    ->label('Work Station')
+                    ->relationship('workStation', 'name')
+                    ->searchable()
+                    ->preload()
+                    ->reactive()
+                    ->afterStateUpdated(function($set, $get) {
+                        $workStation = $get('work_station_id') ? WorkStation::find($get('work_station_id')) : null;
+                        $readyProduct = $this->getOwnerRecord()->product;
+                        if ($workStation && $readyProduct) {
+                            $set('output_product', "$workStation->name $readyProduct->name SFP");
+                        } else {
+                            $set('output_product', "-");
+                        }
+                    })
+                    ->required(),
 
-                            if ($workStation && $readyProduct) {
-                                $set('output_product', "$workStation->name $readyProduct->name SFP");
+                Forms\Components\Checkbox::make('is_last')
+                    ->inline(false)
+                    ->reactive()
+                    ->afterStateUpdated(function($set, $get) {
+                        /** @var ProdTemplate $prodTmp */
+                        $prodTmp = $this->getOwnerRecord();
+                        if ($get('is_last')) {
+                            $set('output_product', $prodTmp->product->getDisplayName());
+                        } else {
+                            $workStation = $get('work_station_id') ? WorkStation::find($get('work_station_id')) : null;
+                            if ($workStation && $prodTmp->product) {
+                                $set('output_product', "$workStation->name {$prodTmp->product->name} SFP");
                             } else {
                                 $set('output_product', "-");
                             }
-                        })
-                        ->required(),
+                        }
+                    }),
 
-                    Forms\Components\TextInput::make('output_product')
-                        ->label('Output product')
-                        ->readOnly()
-                        ->formatStateUsing(function($record) {
-                            /** @var ProdTemplateStep $record */
-                            if ($record?->outputProduct) {
-                                return $record->outputProduct->getName();
-                            } else {
-                                return "-";
-                            }
-                        })
-                        ->reactive(),
+                Forms\Components\TextInput::make('output_product')
+                    ->label('Output product')
+                    ->readOnly()
+                    ->formatStateUsing(function($record) {
+                        /** @var ProdTemplateStep $record */
+                        if ($record?->outputProduct) {
+                            return $record->outputProduct->getDisplayName();
+                        } else {
+                            return "-";
+                        }
+                    })
+                    ->reactive(),
 
-                    Forms\Components\TextInput::make('expected_quantity')
-                        ->label('Expected quantity')
-                        ->suffix(function($get) {
-                            /** @var ?WorkStation $workStation */
-                            $workStation = $get('work_station_id') ? WorkStation::find($get('work_station_id')) : null;
-                            return $workStation?->category?->measure_unit?->getLabel();
-                        })
-                        ->required()
-                        ->reactive(),
-                ]),
+                Forms\Components\TextInput::make('expected_quantity')
+                    ->label('Expected quantity')
+                    ->suffix(function($get) {
+                        /** @var ?WorkStation $workStation */
+                        $workStation = $get('work_station_id') ? WorkStation::find($get('work_station_id')) : null;
+                        return $workStation?->category?->measure_unit?->getLabel();
+                    })
+                    ->required()
+                    ->reactive(),
 
                 Forms\Components\Repeater::make('requiredItems')
                     ->columnSpanFull()
@@ -110,6 +122,7 @@ class StepsRelationManager extends RelationManager
     public function table(Table $table): Table
     {
         return $table
+            ->defaultSort('sequence')
             ->recordTitleAttribute('work_station_id')
             ->modifyQueryUsing(function($query) {
                 $query->with(['workStation', 'outputProduct']);
@@ -121,7 +134,8 @@ class StepsRelationManager extends RelationManager
                     ->label('Expected quantity')
                     ->formatStateUsing(function($record) {
                         /** @var ProdTemplateStep $record */
-                        return $record->expected_quantity . ' ' . $record->workStation->category?->measure_unit?->getLabel();
+                        return $record->expected_quantity . ' ' . $record->workStation->category?->measure_unit?->getLabel(
+                            );
                     }),
             ])
             ->filters([
@@ -135,9 +149,13 @@ class StepsRelationManager extends RelationManager
                         /** @var ProductService $productService */
                         $productService = app(ProductService::class);
                         $prodTemplate = $this->getOwnerRecord();
-                        $semiFinished = $productService->createSemiFinished($prodTemplate, $data['work_station_id'] ?? null);
+                        $outputProduct = $productService->createOrGetSemiFinished(
+                            $prodTemplate,
+                            $data['work_station_id'] ?? null,
+                            $data['is_last'] ?? false,
+                        );
 
-                        $data['output_product_id'] = $semiFinished?->id;
+                        $data['output_product_id'] = $outputProduct?->id;
                         $data['sequence'] = $prodTemplate->steps()->count() + 1;
                         return $data;
                     }),
@@ -149,9 +167,13 @@ class StepsRelationManager extends RelationManager
                         /** @var ProductService $productService */
                         $productService = app(ProductService::class);
                         $prodTemplate = $this->getOwnerRecord();
-                        $semiFinished = $productService->createSemiFinished($prodTemplate, $data['work_station_id'] ?? null);
+                        $outputProduct = $productService->createOrGetSemiFinished(
+                            $prodTemplate,
+                            $data['work_station_id'] ?? null,
+                            $data['is_last'] ?? false,
+                        );
 
-                        $data['output_product_id'] = $semiFinished?->id;
+                        $data['output_product_id'] = $outputProduct?->id;
                         return $data;
                     }),
                 Tables\Actions\DeleteAction::make(),
