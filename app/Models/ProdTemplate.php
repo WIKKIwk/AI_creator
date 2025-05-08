@@ -8,6 +8,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasManyThrough;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 
 /**
  * @property int $id
@@ -18,6 +19,8 @@ use Illuminate\Database\Eloquent\Relations\HasManyThrough;
  * @property string $updated_at
  *
  * @property Product $product
+ * @property ProdOrderStep $firstStep
+ * @property ProdOrderStep $lastStep
  * @property Collection<ProdTemplateStep> $steps
  * @property Collection<WorkStation> $workStations
  */
@@ -35,6 +38,16 @@ class ProdTemplate extends Model
     public function steps(): HasMany
     {
         return $this->hasMany(ProdTemplateStep::class, 'prod_template_id')->orderBy('sequence');
+    }
+
+    public function firstStep(): HasOne
+    {
+        return $this->hasOne(ProdTemplateStep::class)->orderBy('sequence');
+    }
+
+    public function lastStep(): HasOne
+    {
+        return $this->hasOne(ProdTemplateStep::class)->orderBy('sequence', 'desc');
     }
 
     public function workStations(): HasManyThrough

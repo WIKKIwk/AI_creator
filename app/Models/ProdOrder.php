@@ -110,4 +110,12 @@ class ProdOrder extends Model
     {
         return $this->belongsTo(User::class, 'confirmed_by');
     }
+
+    public function confirm(): void
+    {
+        $this->update([
+            'confirmed_at' => now(),
+            'confirmed_by' => auth()->user()->id,
+        ]);
+    }
 }

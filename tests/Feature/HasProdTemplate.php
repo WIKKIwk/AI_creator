@@ -30,35 +30,31 @@ trait HasProdTemplate
             'name' => 'Test Template',
             'product_id' => $this->readyProduct->id,
         ]);
+
         /** @var ProdTemplateStep $stepFirstTemplate */
         $stepFirstTemplate = $prodTemplate->steps()->create([
             'sequence' => 1,
-            'work_station_id' => $this->workStationFirst->id
+            'work_station_id' => $this->workStationFirst->id,
+            'output_product_id' => $this->semiFinishedMaterial->id,
+            'expected_quantity' => 1,
         ]);
         $stepFirstTemplate->productItems()->create([
             'product_id' => $this->rawMaterial->id,
             'quantity' => 1,
             'type' => StepProductType::Required
         ]);
-        $stepFirstTemplate->productItems()->create([
-            'product_id' => $this->semiFinishedMaterial->id,
-            'quantity' => 1,
-            'type' => StepProductType::Expected
-        ]);
+
         /** @var ProdTemplateStep $stepSecondTemplate */
         $stepSecondTemplate = $prodTemplate->steps()->create([
             'sequence' => 2,
-            'work_station_id' => $this->workStationSecond->id
+            'work_station_id' => $this->workStationSecond->id,
+            'output_product_id' => $this->readyProduct->id,
+            'expected_quantity' => 1,
         ]);
         $stepSecondTemplate->productItems()->create([
             'product_id' => $this->semiFinishedMaterial->id,
             'quantity' => 1,
             'type' => StepProductType::Required
-        ]);
-        $stepSecondTemplate->productItems()->create([
-            'product_id' => $this->readyProduct->id,
-            'quantity' => 1,
-            'type' => StepProductType::Expected
         ]);
     }
 }

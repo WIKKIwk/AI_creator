@@ -6,7 +6,7 @@ use Filament\Support\Contracts\HasColor;
 use Filament\Support\Contracts\HasIcon;
 use Filament\Support\Contracts\HasLabel;
 
-enum ProdOrderProductStatus: int implements HasLabel, HasIcon, HasColor
+enum ProdOrderStepStatus: int implements HasLabel, HasIcon, HasColor
 {
     case InProgress = 0;
     case Completed = 1;

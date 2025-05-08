@@ -2,23 +2,22 @@
 
 namespace App\Filament\Resources;
 
-use Exception;
-use Filament\Forms;
-use Filament\Tables;
-use Livewire\Livewire;
-use App\Models\Product;
-use App\Enums\RoleType;
-use Filament\Forms\Form;
-use App\Models\ProdOrder;
 use App\Enums\OrderStatus;
 use App\Enums\ProductType;
-use Filament\Tables\Table;
-use Filament\Actions\Action;
-use Filament\Resources\Resource;
-use App\Services\ProdOrderService;
-use Filament\Notifications\Notification;
+use App\Enums\RoleType;
 use App\Filament\Resources\ProdOrderResource\Pages;
 use App\Filament\Resources\ProdOrderResource\RelationManagers;
+use App\Models\ProdOrder;
+use App\Models\Product;
+use App\Services\ProdOrderService;
+use Exception;
+use Filament\Forms;
+use Filament\Forms\Form;
+use Filament\Notifications\Notification;
+use Filament\Resources\Resource;
+use Filament\Tables;
+use Filament\Tables\Table;
+use Throwable;
 
 class ProdOrderResource extends Resource
 {
@@ -63,7 +62,7 @@ class ProdOrderResource extends Resource
                 Forms\Components\Grid::make(3)->schema([
                     Forms\Components\TextInput::make('quantity')
                         ->required()
-                        ->suffix(function($get) {
+                        ->suffix(function ($get) {
                             /** @var Product|null $product */
                             $product = $get('product_id') ? Product::query()->find($get('product_id')) : null;
                             return $product?->category?->measure_unit?->getLabel();
@@ -100,7 +99,7 @@ class ProdOrderResource extends Resource
     public static function table(Table $table): Table
     {
         return $table
-            ->modifyQueryUsing(function($query) {
+            ->modifyQueryUsing(function ($query) {
                 $query->with(['product', 'agent', 'warehouse']);
             })
             ->columns([
@@ -122,7 +121,7 @@ class ProdOrderResource extends Resource
                     ->badge()
                     ->sortable(),
                 Tables\Columns\TextColumn::make('confirmed_at')
-                    ->getStateUsing(function($record) {
+                    ->getStateUsing(function ($record) {
                         if ($record->confirmed_at) {
                             return '<span class="text-green-500">✔️</span>';
                         }
@@ -153,18 +152,12 @@ class ProdOrderResource extends Resource
                 Tables\Actions\Action::make('confirm')
                     ->label('Confirm')
                     ->visible(fn($record) => !$record->confirmed_at)
-                    ->action(function($record) {
+                    ->action(function (ProdOrder $record) {
                         try {
-                            $record->update([
-                                'confirmed_at' => now(),
-                                'confirmed_by' => auth()->user()->id,
-                            ]);
-                        } catch (Exception $e) {
-                            Notification::make()
-                                ->title('Error')
-                                ->body($e->getMessage())
-                                ->danger()
-                                ->send();
+                            $record->confirm();
+                            showSuccess('Order confirmed successfully');
+                        } catch (Throwable $e) {
+                            showError($e->getMessage());
                         }
                     })
                     ->requiresConfirmation(),
@@ -172,7 +165,7 @@ class ProdOrderResource extends Resource
                 Tables\Actions\Action::make('startProduction')
                     ->label('Start')
                     ->visible(fn($record) => $record->confirmed_at && !$record->started_at)
-                    ->action(function($record, $livewire) {
+                    ->action(function ($record, $livewire) {
                         try {
                             $insufficientAssets = app(ProdOrderService::class)->checkStart($record);
                             if (!empty($insufficientAssets)) {

@@ -2,29 +2,30 @@
 
 namespace App\Services;
 
-use Exception;
-use Throwable;
-use App\Models\ProdOrder;
-use App\Enums\OrderStatus;
 use App\Enums\DurationUnit;
-use App\Models\SupplyOrder;
-use App\Models\ProdTemplate;
+use App\Enums\OrderStatus;
+use App\Enums\ProdOrderStepStatus;
+use App\Enums\StepProductType;
 use App\Models\InventoryItem;
 use App\Models\MiniInventory;
-use App\Models\ProdOrderStep;
-use App\Enums\StepProductType;
 use App\Models\PerformanceRate;
-use Illuminate\Support\Facades\DB;
+use App\Models\ProdOrder;
+use App\Models\ProdOrderStep;
 use App\Models\ProdOrderStepProduct;
-use App\Enums\ProdOrderProductStatus;
+use App\Models\ProdTemplate;
+use App\Models\SupplyOrder;
+use Exception;
 use Illuminate\Database\Eloquent\Collection;
+use Illuminate\Support\Facades\DB;
+use Throwable;
 
 class ProdOrderService
 {
     public function __construct(
         protected TransactionService $transactionService,
-        protected InventoryService   $inventoryService,
-    ) {}
+        protected InventoryService $inventoryService,
+    ) {
+    }
 
     /**
      * @throws Exception
@@ -77,6 +78,8 @@ class ProdOrderService
                     'work_station_id' => $templateStep->work_station_id,
                     'sequence' => $templateStep->sequence,
                     'status' => OrderStatus::Pending,
+                    'output_product_id' => $templateStep->output_product_id,
+                    'expected_quantity' => $templateStep->expected_quantity,
                 ]);
 
                 foreach ($templateStep->requiredItems as $item) {
@@ -117,81 +120,6 @@ class ProdOrderService
             $prodOrder->status = !empty($insufficientAssets) ? OrderStatus::Blocked : OrderStatus::Processing;
             $prodOrder->started_at = now();
             $prodOrder->started_by = auth()->user()->id;
-            $prodOrder->save();
-
-            DB::commit();
-        } catch (Throwable $e) {
-            DB::rollBack();
-            throw new Exception($e->getMessage());
-        }
-    }
-
-
-    /**
-     * @throws Exception
-     * TESTED
-     */
-    public function start_old(ProdOrder $prodOrder): void
-    {
-        $this->guardAlreadyStarted($prodOrder);
-        $this->guardCanBeProduced($prodOrder);
-
-        try {
-            DB::beginTransaction();
-
-            $firstStepId = null;
-            $isBlocked = false;
-
-            $prodTemplate = $this->getTemplate($prodOrder->product_id);
-            foreach ($prodTemplate->steps as $templateStep) {
-                /** @var ProdOrderStep $prodOrderStep */
-                $prodOrderStep = $prodOrder->steps()->create([
-                    'work_station_id' => $templateStep->work_station_id,
-                    'sequence' => $templateStep->sequence,
-                    'status' => OrderStatus::Pending,
-                ]);
-
-                foreach ($templateStep->expectedItems as $item) {
-                    $prodOrderStep->productItems()->create([
-                        'product_id' => $item->product_id,
-                        'quantity' => $item->quantity * $prodOrder->quantity,
-                        'type' => StepProductType::Expected,
-                    ]);
-                }
-
-                foreach ($templateStep->requiredItems as $item) {
-                    $prodOrderStep->productItems()->create([
-                        'product_id' => $item->product_id,
-                        'quantity' => $item->quantity * $prodOrder->quantity,
-                        'type' => StepProductType::Required,
-                    ]);
-
-                    if ($prodOrderStep->sequence == 1) {
-                        $firstStepId = $prodOrderStep->id;
-                        $lackQuantity = $this->createFirstActualItems(
-                            $prodOrderStep,
-                            $item->product_id,
-                            $item->quantity * $prodOrder->quantity
-                        );
-
-                        // If there's still lack of quantity, create SupplyOrder and Block the ProdOrder
-                        if ($lackQuantity > 0) {
-                            SupplyOrder::query()->create([
-                                'prod_order_id' => $prodOrder->id,
-                                'warehouse_id' => $prodOrder->warehouse_id,
-                                'product_id' => $item->product_id,
-                                'quantity' => $lackQuantity,
-                                'status' => OrderStatus::Pending,
-                                'created_by' => auth()->user()->id,
-                            ]);
-                            $isBlocked = true;
-                        }
-                    }
-                }
-            }
-
-            $prodOrder->current_step_id = $firstStepId;
-            $prodOrder->status = $isBlocked ? OrderStatus::Blocked : OrderStatus::Processing;
             $prodOrder->save();
 
             DB::commit();
@@ -290,7 +218,7 @@ class ProdOrderService
             //                );
             //            }
 
-            $prodOrderStep->update(['status' => ProdOrderProductStatus::Completed]);
+            $prodOrderStep->update(['status' => ProdOrderStepStatus::Completed]);
 
             DB::commit();
         } catch (Throwable $e) {
@@ -306,7 +234,7 @@ class ProdOrderService
     public function next(ProdOrder $prodOrder): ?ProdOrderStep
     {
         $currentStep = $prodOrder->currentStep;
-        if ($currentStep->status != ProdOrderProductStatus::Completed) {
+        if ($currentStep->status != ProdOrderStepStatus::Completed) {
             throw new Exception('Current step is not completed');
         }
 
@@ -446,11 +374,11 @@ class ProdOrderService
                     $quantityPerUnit = $rate->quantity / $rate->duration;
 
                     $quantityPerDay = match ($rate->duration_unit) {
-                        DurationUnit::Hour  => $quantityPerUnit * 12,
-                        DurationUnit::Day   => $quantityPerUnit,
-                        DurationUnit::Week  => $quantityPerUnit / 7,
+                        DurationUnit::Hour => $quantityPerUnit * 12,
+                        DurationUnit::Day => $quantityPerUnit,
+                        DurationUnit::Week => $quantityPerUnit / 7,
                         DurationUnit::Month => $quantityPerUnit / 30,
-                        DurationUnit::Year  => $quantityPerUnit / 365,
+                        DurationUnit::Year => $quantityPerUnit / 365,
                     };
 
                     $totalDays += ceil($expectedItem->quantity / $quantityPerDay);

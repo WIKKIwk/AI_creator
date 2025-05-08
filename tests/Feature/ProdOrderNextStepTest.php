@@ -3,7 +3,7 @@
 namespace Tests\Feature;
 
 use App\Enums\OrderStatus;
-use App\Enums\ProdOrderProductStatus;
+use App\Enums\ProdOrderStepStatus;
 use App\Enums\StepProductType;
 use App\Models\MiniInventory;
 use App\Models\ProdOrder;
@@ -50,7 +50,7 @@ class ProdOrderNextStepTest extends TestCase
         $step = $this->prodOrder->steps()->create([
             'sequence' => 1,
             'work_station_id' => $this->workStationFirst->id,
-            'status' => ProdOrderProductStatus::InProgress
+            'status' => ProdOrderStepStatus::InProgress
         ]);
         $this->prodOrder->update(['current_step_id' => $step->id]);
 
@@ -67,7 +67,7 @@ class ProdOrderNextStepTest extends TestCase
         $currentStep = $this->prodOrder->steps()->create([
             'sequence' => 1,
             'work_station_id' => $this->workStationFirst->id,
-            'status' => ProdOrderProductStatus::Completed
+            'status' => ProdOrderStepStatus::Completed
         ]);
         $this->prodOrder->update(['current_step_id' => $currentStep->id]);
 
@@ -100,7 +100,7 @@ class ProdOrderNextStepTest extends TestCase
         $nextStep = $this->prodOrder->steps()->create([
             'sequence' => 2,
             'work_station_id' => $this->workStationSecond->id,
-            'status' => ProdOrderProductStatus::InProgress
+            'status' => ProdOrderStepStatus::InProgress
         ]);
 
         $this->prodOrderService->next($this->prodOrder);
@@ -140,7 +140,7 @@ class ProdOrderNextStepTest extends TestCase
         $currentStep = $this->prodOrder->steps()->create([
             'sequence' => 1,
             'work_station_id' => $this->workStationFirst->id,
-            'status' => ProdOrderProductStatus::Completed
+            'status' => ProdOrderStepStatus::Completed
         ]);
         $this->prodOrder->update(['current_step_id' => $currentStep->id]);
 

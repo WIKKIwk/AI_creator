@@ -1,5 +1,5 @@
 @php
-    use App\Enums\OrderStatus;use App\Enums\ProdOrderProductStatus;
+    use App\Enums\ProdOrderStepStatus;
 
 @endphp
 <x-filament-panels::page>
@@ -11,7 +11,7 @@
             @endphp
             <x-filament::tabs.item
                 :active="$step->id === $this->activeStep->id"
-                :disabled="$step->status !== ProdOrderProductStatus::Completed && $step->id != $this->currentStep->id"
+                :disabled="$step->status !== ProdOrderStepStatus::Completed && $step->id != $this->currentStep->id"
                 wire:click="handleStepClick({{ $step->id }})"
             >
                 {{$step->workStation->name}}
@@ -21,7 +21,7 @@
             @endphp
         </x-filament::tabs>
 
-    
+
         <div>
                 <x-filament::button
                     x-on:click="if (confirm('Are you sure?')) { $wire.call('nextStep') }"
@@ -37,7 +37,7 @@
                 </x-filament::button>
 
         </div>
-        
+
     </div>
 
     {{ $this->form }}

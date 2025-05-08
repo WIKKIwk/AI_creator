@@ -2,7 +2,7 @@
 
 namespace App\Models;
 
-use App\Enums\ProdOrderProductStatus;
+use App\Enums\ProdOrderStepStatus;
 use App\Enums\StepProductType;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -15,7 +15,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
  * @property int $prod_order_id
  * @property int $work_station_id
  * @property int $sequence
- * @property ProdOrderProductStatus $status
+ * @property ProdOrderStepStatus $status
  * @property int $output_product_id
  * @property int $expected_quantity
  * @property int $output_quantity
@@ -37,7 +37,7 @@ class ProdOrderStep extends Model
     protected $guarded = ['id'];
 
     protected $casts = [
-        'status' => ProdOrderProductStatus::class,
+        'status' => ProdOrderStepStatus::class,
     ];
 
     public function prodOrder(): BelongsTo

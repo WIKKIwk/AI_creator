@@ -13,24 +13,7 @@ class ListProdOrders extends ListRecords
     protected function getHeaderActions(): array
     {
         return [
-            Actions\Action::make('Open Custom Modal')
-                ->action(fn() => $this->confirmAction())
-                ->label('Trigger Modal'),
-
             Actions\CreateAction::make(),
         ];
-    }
-
-    public function confirmAction(): void
-    {
-        // Logic to handle the confirmation action
-        $this->dispatch('openModal', [
-            'modal' => [
-                'heading' => 'Confirm Deletion',
-                'content' => 'Are you sure you want to delete this item?',
-                'confirmCallback' => 'deleteConfirmed',
-                'cancelCallback' => 'resetState',
-            ],
-        ]);
     }
 }

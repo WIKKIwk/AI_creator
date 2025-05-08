@@ -3,7 +3,7 @@
 namespace Tests\Feature;
 
 use App\Enums\OrderStatus;
-use App\Enums\ProdOrderProductStatus;
+use App\Enums\ProdOrderStepStatus;
 use App\Enums\StepProductType;
 use App\Models\MiniInventory;
 use App\Models\ProdOrder;
@@ -108,7 +108,7 @@ class ProdOrderCompleteWorkTest extends TestCase
         // Check Step status Completed
         $this->assertDatabaseHas('prod_order_steps', [
             'id' => $step->id,
-            'status' => ProdOrderProductStatus::Completed
+            'status' => ProdOrderStepStatus::Completed
         ]);
     }
 

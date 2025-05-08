@@ -29,29 +29,29 @@ class ProdOrderStartTest extends TestCase
 
         $this->createProdTemplate();
 
-        /** @var ProdOrder $prodOrder */
-        $prodOrder = ProdOrder::query()->create([
+        $this->prodOrder = ProdOrder::factory()->create([
             'agent_id' => $this->agent->id,
             'warehouse_id' => $this->warehouse->id,
             'product_id' => $this->readyProduct->id,
             'quantity' => 3,
             'offer_price' => 100,
-            'status' => OrderStatus::Pending,
-            'can_produce' => true,
+
+            // Confirmed
+            'confirmed_at' => now(),
+            'confirmed_by' => $this->user->id,
         ]);
-        $this->prodOrder = $prodOrder;
 
         $this->prodOrderService = app(ProdOrderService::class);
         $this->workStationService = app(WorkStationService::class);
     }
 
-    public function test_start_prod_order_cannot_be_produced(): void
+    public function test_start_prod_order_not_confirmed(): void
     {
         $this->actingAs($this->user);
-        $this->prodOrder->update(['can_produce' => false]);
+        $this->prodOrder->update(['confirmed_at' => null]);
 
         $this->expectException(Exception::class);
-        $this->expectExceptionMessage('ProdOrder cannot be produced');
+        $this->expectExceptionMessage('ProdOrder is not confirmed yet');
 
         $this->prodOrderService->start($this->prodOrder);
     }
@@ -62,16 +62,39 @@ class ProdOrderStartTest extends TestCase
         $this->prodOrderService->start($this->prodOrder);
 
         $firstStep = $this->prodOrder->firstStep;
-
-        $this->assertDatabaseMissing('prod_order_step_products', [
-            'prod_order_step_id' => $firstStep->id,
-            'type' => StepProductType::Actual
-        ]);
+        $secondStep = $this->prodOrder->steps()->where('sequence', 2)->first();
 
         $this->assertDatabaseHas('prod_orders', [
             'id' => $this->prodOrder->id,
             'status' => OrderStatus::Blocked,
         ]);
+
+        $this->assertDatabaseHas('prod_order_steps', [
+            'id' => $firstStep->id,
+            'prod_order_id' => $this->prodOrder->id,
+            'work_station_id' => $this->workStationFirst->id,
+            'sequence' => 1,
+            'output_product_id' => $this->semiFinishedMaterial->id,
+            'expected_quantity' => 1,
+        ]);
+        $this->assertDatabaseMissing('prod_order_step_products', [
+            'prod_order_step_id' => $firstStep->id,
+            'type' => StepProductType::Actual
+        ]);
+
+        $this->assertDatabaseHas('prod_order_steps', [
+            'id' => $secondStep->id,
+            'prod_order_id' => $this->prodOrder->id,
+            'work_station_id' => $this->workStationSecond->id,
+            'sequence' => 2,
+            'output_product_id' => $this->readyProduct->id,
+            'expected_quantity' => 1,
+        ]);
+        $this->assertDatabaseMissing('prod_order_step_products', [
+            'prod_order_step_id' => $secondStep->id,
+            'type' => StepProductType::Actual
+        ]);
+
         $this->assertDatabaseHas('supply_orders', [
             'warehouse_id' => $this->prodOrder->warehouse_id,
             'prod_order_id' => $this->prodOrder->id,
@@ -104,15 +127,33 @@ class ProdOrderStartTest extends TestCase
             'id' => $this->prodOrder->id,
             'status' => OrderStatus::Processing,
         ]);
+
         $this->assertDatabaseHas('prod_order_steps', [
+            'id' => $firstStep->id,
             'prod_order_id' => $this->prodOrder->id,
             'work_station_id' => $this->workStationFirst->id,
-            'sequence' => 1
+            'sequence' => 1,
+            'output_product_id' => $this->semiFinishedMaterial->id,
+            'expected_quantity' => 1,
         ]);
+        $this->assertDatabaseHas('prod_order_step_products', [
+            'prod_order_step_id' => $firstStep->id,
+            'product_id' => $this->rawMaterial->id,
+            'quantity' => 3,
+            'type' => StepProductType::Actual
+        ]);
+
         $this->assertDatabaseHas('prod_order_steps', [
+            'id' => $secondStep->id,
             'prod_order_id' => $this->prodOrder->id,
             'work_station_id' => $this->workStationSecond->id,
-            'sequence' => 2
+            'sequence' => 2,
+            'output_product_id' => $this->readyProduct->id,
+            'expected_quantity' => 1,
+        ]);
+        $this->assertDatabaseMissing('prod_order_step_products', [
+            'prod_order_step_id' => $secondStep->id,
+            'type' => StepProductType::Actual
         ]);
 
         // Check Supply Orders created correctly
@@ -121,17 +162,6 @@ class ProdOrderStartTest extends TestCase
         ]);
 
         // Check Inventory Items reduced correctly
-        $this->assertDatabaseHas('prod_order_step_products', [
-            'prod_order_step_id' => $firstStep->id,
-            'product_id' => $this->rawMaterial->id,
-            'quantity' => 3,
-            'type' => StepProductType::Actual
-        ]);
-        $this->assertDatabaseMissing('prod_order_step_products', [
-            'prod_order_step_id' => $secondStep->id,
-            'type' => StepProductType::Actual
-        ]);
-
         $this->assertDatabaseHas('inventory_items', [
             'id' => $inventoryItem->id,
             'quantity' => 2,

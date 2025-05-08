@@ -2,8 +2,7 @@
 
 namespace App\Livewire;
 
-use App\Enums\OrderStatus;
-use App\Enums\ProdOrderProductStatus;
+use App\Enums\ProdOrderStepStatus;
 use App\Enums\StepProductType;
 use App\Models\ProdOrderStep;
 use App\Models\ProdOrderStepProduct;
@@ -39,7 +38,7 @@ class ProdOrderStepActual extends Component implements HasForms, HasTable
             ->headerActions([
                 Action::make('add')
                     ->label('Add material')
-                    //->hidden(fn() => $this->step->status == ProdOrderProductStatus::Completed)
+                    ->hidden(fn() => $this->step->status == ProdOrderStepStatus::Completed)
                     ->form([
                         Grid::make()->schema([
                             Select::make('product_id')
@@ -94,7 +93,8 @@ class ProdOrderStepActual extends Component implements HasForms, HasTable
                     ->where('type', StepProductType::Actual)
             )
             ->columns([
-                TextColumn::make('product.name'),
+                TextColumn::make('product.name')
+                    ->width('500px'),
                 TextColumn::make('quantity')
                     ->formatStateUsing(function (ProdOrderStepProduct $record) {
                         return $record->quantity . ' ' . $record->product->category?->measure_unit?->getLabel();
@@ -105,7 +105,7 @@ class ProdOrderStepActual extends Component implements HasForms, HasTable
             ])
             ->actions([
                 EditAction::make()
-                    //->hidden(fn() => $this->step->status == ProdOrderProductStatus::Completed)
+                    //->hidden(fn() => $this->step->status == ProdOrderStepStatus::Completed)
                     ->form([
                         Grid::make()->schema([
                             Select::make('product_id')

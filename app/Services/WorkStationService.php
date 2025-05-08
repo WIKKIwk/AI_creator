@@ -2,12 +2,8 @@
 
 namespace App\Services;
 
-use App\Enums\ProdOrderProductStatus;
-use App\Enums\ProdOrderProductType;
-use App\Enums\StepProductType;
-use App\Models\ProdOrder;
+use App\Enums\ProdOrderStepStatus;
 use App\Models\ProdOrderStep;
-use App\Models\ProdOrderStepProduct;
 use Exception;
 
 class WorkStationService
@@ -42,7 +38,7 @@ class WorkStationService
             );
         }
 
-        $prodOrderStep->update(['status' => ProdOrderProductStatus::Completed]);
+        $prodOrderStep->update(['status' => ProdOrderStepStatus::Completed]);
         $prodOrderStep->workStation->update(['prod_order_id' => null]);
     }
 }

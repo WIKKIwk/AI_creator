@@ -11,7 +11,7 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::table('prod_orders', function (Blueprint $table) {
+        Schema::table('prod_order_steps', function (Blueprint $table) {
             $table->bigInteger('output_product_id')->nullable();
             $table->foreign('output_product_id')->references('id')->on('products')->onDelete('set null');
             $table->double('expected_quantity')->nullable();
@@ -24,7 +24,7 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::table('prod_orders', function (Blueprint $table) {
+        Schema::table('prod_order_steps', function (Blueprint $table) {
             $table->dropForeign(['output_product_id']);
             $table->dropColumn('output_product_id');
             $table->dropColumn('expected_quantity');

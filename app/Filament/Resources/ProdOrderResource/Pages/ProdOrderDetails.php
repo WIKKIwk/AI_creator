@@ -2,12 +2,12 @@
 
 namespace App\Filament\Resources\ProdOrderResource\Pages;
 
-use App\Enums\ProdOrderProductStatus;
 use App\Filament\Resources\ProdOrderResource;
 use App\Models\ProdOrder;
 use App\Models\ProdOrderStep;
 use App\Services\ProdOrderService;
-use Filament\Actions\Action;
+use Filament\Forms\Components\Grid;
+use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\View as ViewField;
 use Filament\Forms\Concerns\InteractsWithForms;
 use Filament\Notifications\Notification;
@@ -45,6 +45,21 @@ class ProdOrderDetails extends Page
     protected function getFormSchema(): array
     {
         return [
+            Grid::make(3)->schema([
+                TextInput::make('output_product_id')
+                    ->label('Output Product')
+                    ->formatStateUsing(fn ($record) => $this->currentStep->outputProduct?->name)
+                    ->readOnly(),
+
+                TextInput::make('expected_quantity')
+                    ->formatStateUsing(fn ($record) => $this->currentStep->expected_quantity)
+                    ->readOnly(),
+
+                TextInput::make('output_quantity')
+                    ->formatStateUsing(fn ($record) => $this->currentStep->expected_quantity)
+                    ->readOnly(),
+            ]),
+
             ViewField::make("step_{$this->activeStep->id}")
                 ->view('filament.resources.prod-order-resource.pages.prod-order-step')
                 ->viewData(['step' => $this->activeStep])
