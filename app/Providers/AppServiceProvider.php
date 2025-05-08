@@ -5,6 +5,7 @@ namespace App\Providers;
 use App\Services\Cache\Cache;
 use App\Services\Cache\RedisCache;
 use Filament\Support\Assets\Css;
+use Illuminate\Support\Facades\Blade;
 use Filament\Support\Facades\FilamentAsset;
 use Filament\Support\Facades\FilamentView;
 use Filament\View\PanelsRenderHook;
@@ -36,7 +37,7 @@ class AppServiceProvider extends ServiceProvider
 
         FilamentView::registerRenderHook(
             PanelsRenderHook::BODY_END,
-            fn (): View => view('custom-modal')
+            fn (): string => Blade::render('@livewire("confirm-supply-modal")')
         );
     }
 }

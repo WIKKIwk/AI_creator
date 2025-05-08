@@ -16,10 +16,14 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
  * @property int $work_station_id
  * @property int $sequence
  * @property ProdOrderProductStatus $status
+ * @property int $output_product_id
+ * @property int $expected_quantity
+ * @property int $output_quantity
  * @property string $created_at
  * @property string $updated_at
  *
  * @property ProdOrder $prodOrder
+ * @property Product $outputProduct
  * @property WorkStation $workStation
  * @property Collection<ProdOrderStepProduct> $productItems
  * @property Collection<ProdOrderStepProduct> $requiredItems
@@ -44,6 +48,11 @@ class ProdOrderStep extends Model
     public function workStation(): BelongsTo
     {
         return $this->belongsTo(WorkStation::class);
+    }
+
+    public function outputProduct(): BelongsTo
+    {
+        return $this->belongsTo(Product::class, 'output_product_id');
     }
 
     public function productItems(): HasMany

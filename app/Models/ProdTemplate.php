@@ -34,7 +34,7 @@ class ProdTemplate extends Model
 
     public function steps(): HasMany
     {
-        return $this->hasMany(ProdTemplateStep::class, 'prod_template_id');
+        return $this->hasMany(ProdTemplateStep::class, 'prod_template_id')->orderBy('sequence');
     }
 
     public function workStations(): HasManyThrough

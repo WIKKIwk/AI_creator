@@ -5,6 +5,7 @@ namespace App\Filament\Resources;
 use Exception;
 use Filament\Forms;
 use Filament\Tables;
+use Livewire\Livewire;
 use App\Models\Product;
 use App\Enums\RoleType;
 use Filament\Forms\Form;
@@ -12,6 +13,7 @@ use App\Models\ProdOrder;
 use App\Enums\OrderStatus;
 use App\Enums\ProductType;
 use Filament\Tables\Table;
+use Filament\Actions\Action;
 use Filament\Resources\Resource;
 use App\Services\ProdOrderService;
 use Filament\Notifications\Notification;
@@ -169,12 +171,12 @@ class ProdOrderResource extends Resource
 
                 Tables\Actions\Action::make('startProduction')
                     ->label('Start')
-                    ->visible(fn($record) => $record->confirmed_at)
-                    ->action(function($record, Tables\Actions\Action $action) {
+                    ->visible(fn($record) => $record->confirmed_at && !$record->started_at)
+                    ->action(function($record, $livewire) {
                         try {
-                            $insufficientAssets = app(ProdOrderService::class)->start($record);
+                            $insufficientAssets = app(ProdOrderService::class)->checkStart($record);
                             if (!empty($insufficientAssets)) {
-                                $action->halt();
+                                $livewire->dispatch('openModal', $record, $insufficientAssets);
                             }
                         } catch (Exception $e) {
                             Notification::make()

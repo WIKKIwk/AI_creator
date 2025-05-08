@@ -71,6 +71,35 @@ class TransactionService
         return $inventory->quantity >= $quantity;
     }
 
+    public function getStockLackQty(
+        $productId,
+        $quantity,
+        $warehouseId = null,
+        $storageLocationId = null
+    ): ?int {
+        /** @var Collection<InventoryItem> $inventoryItems */
+        $inventory = $this->inventoryService->getInventory($productId, $warehouseId);
+        $inventoryItems = $this->inventoryService->getInventoryItems($inventory, $storageLocationId);
+
+        // Check items in Stock
+        $lackQuantity = $quantity;
+        foreach ($inventoryItems as $inventoryItem) {
+            if ($inventoryItem->quantity <= 0) {
+                continue;
+            }
+            if ($lackQuantity <= 0) {
+                break;
+            }
+            if ($inventoryItem->quantity >= $lackQuantity) {
+                return null;
+            }
+
+            $lackQuantity -= $inventoryItem->quantity;
+        }
+
+        return $lackQuantity;
+    }
+
     public function removeStock(
         $productId,
         $quantity,
@@ -88,7 +117,6 @@ class TransactionService
             if ($inventoryItem->quantity <= 0) {
                 continue;
             }
-
             if ($lackQuantity <= 0) {
                 break;
             }
