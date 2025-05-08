@@ -2,6 +2,7 @@
 
 namespace Database\Factories;
 
+use App\Enums\MeasureUnit;
 use App\Models\ProductCategory;
 use Illuminate\Database\Eloquent\Factories\Factory;
 
@@ -14,6 +15,7 @@ class ProductCategoryFactory extends Factory
     {
         return [
             'name' => $this->faker->word(),
+            'measure_unit' => MeasureUnit::LITER,
         ];
     }
 }
