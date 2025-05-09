@@ -195,6 +195,10 @@ class ProdOrderService
      */
     public function completeWork(ProdOrderStep $prodOrderStep): void
     {
+        if (!$prodOrderStep->output_quantity) {
+            throw new Exception('Output quantity is not set');
+        }
+
         try {
             DB::beginTransaction();
 
@@ -208,15 +212,11 @@ class ProdOrderService
                 );
             }
 
-            //            /** @var Collection<ProdOrderStepProduct> $expectedMaterials */
-            //            $expectedMaterials = $prodOrderStep->expectedItems()->get();
-            //            foreach ($expectedMaterials as $expectedMaterial) {
-            //                $this->transactionService->addMiniStock(
-            //                    $expectedMaterial->product_id,
-            //                    $expectedMaterial->quantity,
-            //                    $prodOrderStep->work_station_id
-            //                );
-            //            }
+            $this->transactionService->addMiniStock(
+                $prodOrderStep->output_product_id,
+                $prodOrderStep->output_quantity,
+                $prodOrderStep->work_station_id
+            );
 
             $prodOrderStep->update(['status' => ProdOrderStepStatus::Completed]);
 

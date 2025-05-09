@@ -4,22 +4,29 @@ namespace App\Filament\Resources\ProdOrderResource\Pages;
 
 use App\Filament\Resources\ProdOrderResource;
 use App\Models\ProdOrder;
+use App\Models\ProdOrderStep;
 use App\Services\ProdOrderService;
-use Filament\Actions\Action;
-use Filament\Forms\Components\Tabs;
+use Filament\Forms\Components\Grid;
+use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\View as ViewField;
+use Filament\Forms\Concerns\InteractsWithForms;
 use Filament\Notifications\Notification;
 use Filament\Resources\Pages\Page;
 
 class ProdOrderDetails_old extends Page
 {
+    use InteractsWithForms;
+
     protected static ?string $title = 'Details';
     protected static string $resource = ProdOrderResource::class;
     protected static string $view = 'filament.resources.prod-order-resource.pages.prod-order-details';
 
+    public $tabs;
     public ProdOrder $prodOrder;
     public $record;
-    public int $activeTab;
+    public ?ProdOrderStep $currentStep;
+    public ?ProdOrderStep $activeStep;
+    public ?ProdOrderStep $lastStep;
 
     public function mount(): void
     {
@@ -30,43 +37,38 @@ class ProdOrderDetails_old extends Page
         }
 
         $this->prodOrder = $prodOrder;
-        $this->activeTab = $prodOrder->currentStep->sequence;
+        $this->activeStep = $prodOrder->currentStep;
+        $this->currentStep = $prodOrder->currentStep;
+        $this->lastStep = $prodOrder->steps->last() ?? null;
     }
 
     protected function getFormSchema(): array
     {
-        $tabs = [];
-        foreach ($this->prodOrder->steps as $step) {
-            $tabs[] = Tabs\Tab::make($step->workStation->name)
-                ->schema([
-                    ViewField::make("step_$step->id")
-                        ->view('filament.resources.prod-order-resource.pages.prod-order-step')
-                        ->viewData(['step' => $step]),
-                ]);
-        }
-
         return [
-            Tabs::make('Work Steps')
-                ->statePath('activeTab')
-                ->tabs($tabs)
-                ->activeTab($this->activeTab)
-                ->columnSpanFull(),
+            Grid::make(3)->schema([
+                TextInput::make('output_product_id')
+                    ->label('Output Product')
+                    ->formatStateUsing(fn ($record) => $this->currentStep->outputProduct?->name)
+                    ->readOnly(),
+
+                TextInput::make('expected_quantity')
+                    ->formatStateUsing(fn ($record) => $this->currentStep->expected_quantity)
+                    ->readOnly(),
+
+                TextInput::make('output_quantity')
+                    ->formatStateUsing(fn ($record) => $this->currentStep->expected_quantity)
+                    ->readOnly(),
+            ]),
+
+            ViewField::make("step_{$this->activeStep->id}")
+                ->view('filament.resources.prod-order-resource.pages.prod-order-step')
+                ->viewData(['step' => $this->activeStep])
         ];
     }
 
-    protected function getHeaderActions(): array
+    public function handleStepClick($stepId): void
     {
-        return [
-            Action::make('test')
-                ->action(fn() => $this->activeTab = 1),
-            Action::make('confirmAction')
-                ->label('Next')
-                ->requiresConfirmation()
-                ->modalHeading('Are you sure?')
-                ->modalDescription('This action is final.')
-                ->color('primary')
-                ->action(fn() => $this->nextStep()),
-        ];
+        $this->activeStep = $this->prodOrder->steps->find($stepId);
     }
 
     public function nextStep(): void
@@ -74,7 +76,7 @@ class ProdOrderDetails_old extends Page
         try {
             $nextStep = app(ProdOrderService::class)->next($this->prodOrder);
             if ($nextStep) {
-                $this->activeTab = $nextStep->sequence;
+                $this->activeStep = $nextStep;
             }
 
             Notification::make()

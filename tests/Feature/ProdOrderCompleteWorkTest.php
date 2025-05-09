@@ -50,7 +50,9 @@ class ProdOrderCompleteWorkTest extends TestCase
         $step = $this->prodOrder->steps()->create([
             'sequence' => 1,
             'work_station_id' => $this->workStationFirst->id,
-            'status' => OrderStatus::Pending
+            'status' => OrderStatus::Pending,
+            'output_product_id' => $this->readyProduct->id,
+            'output_quantity' => 5,
         ]);
 
         // Add required quantities to MiniInventory
@@ -77,11 +79,6 @@ class ProdOrderCompleteWorkTest extends TestCase
             'product_id' => $this->semiFinishedMaterial->id,
             'quantity' => 8,
             'type' => StepProductType::Actual
-        ]);
-        $step->productItems()->create([
-            'product_id' => $this->readyProduct->id,
-            'quantity' => 5,
-            'type' => StepProductType::Expected
         ]);
 
         $this->prodOrderService->completeWork($step);
@@ -120,7 +117,9 @@ class ProdOrderCompleteWorkTest extends TestCase
         $step = $this->prodOrder->steps()->create([
             'sequence' => 1,
             'work_station_id' => $this->workStationFirst->id,
-            'status' => OrderStatus::Pending
+            'status' => OrderStatus::Pending,
+            'output_product_id' => $this->readyProduct->id,
+            'output_quantity' => 5,
         ]);
 
         // Add required quantities to MiniInventory
@@ -136,11 +135,6 @@ class ProdOrderCompleteWorkTest extends TestCase
             'product_id' => $this->rawMaterial->id,
             'quantity' => 10,
             'type' => StepProductType::Actual
-        ]);
-        $step->productItems()->create([
-            'product_id' => $this->readyProduct->id,
-            'quantity' => 5,
-            'type' => StepProductType::Expected
         ]);
 
         $this->expectException(Exception::class);

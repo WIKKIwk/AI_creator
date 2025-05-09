@@ -6,7 +6,9 @@ use App\Filament\Resources\ProdOrderResource;
 use App\Models\ProdOrder;
 use App\Models\ProdOrderStep;
 use App\Services\ProdOrderService;
+use Filament\Forms\Components\Fieldset;
 use Filament\Forms\Components\Grid;
+use Filament\Forms\Components\Placeholder;
 use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\View as ViewField;
 use Filament\Forms\Concerns\InteractsWithForms;
@@ -46,18 +48,26 @@ class ProdOrderDetails extends Page
     {
         return [
             Grid::make(3)->schema([
-                TextInput::make('output_product_id')
-                    ->label('Output Product')
-                    ->formatStateUsing(fn ($record) => $this->currentStep->outputProduct?->name)
-                    ->readOnly(),
+                Fieldset::make('Step Details')
+                    ->columns(3)
+                    ->schema([
+                        Placeholder::make('ads')
+                            ->label('Output Product')
+                            ->content(fn() => $this->activeStep->outputProduct?->name),
 
-                TextInput::make('expected_quantity')
-                    ->formatStateUsing(fn ($record) => $this->currentStep->expected_quantity)
-                    ->readOnly(),
+                        Placeholder::make('expected_quantity')
+                            ->content(function () {
+                                return $this->activeStep->expected_quantity . ' ' . $this->activeStep->outputProduct?->category?->measure_unit?->getLabel();
+                            }),
 
-                TextInput::make('output_quantity')
-                    ->formatStateUsing(fn ($record) => $this->currentStep->expected_quantity)
-                    ->readOnly(),
+                        Placeholder::make('output_quantity')
+                            ->content(function () {
+                                return ($this->activeStep->output_quantity ?? 0) . ' ' . $this->activeStep->outputProduct?->category?->measure_unit?->getLabel();
+                            }),
+                        /*TextInput::make('output_quantity')
+                            ->formatStateUsing(fn ($record) => $this->currentStep->expected_quantity)
+                            ->readOnly(),*/
+                    ]),
             ]),
 
             ViewField::make("step_{$this->activeStep->id}")
