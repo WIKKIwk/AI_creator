@@ -88,8 +88,7 @@ class ProdOrderService
                 foreach ($templateStep->requiredItems as $item) {
                     $prodOrderStep->productItems()->create([
                         'product_id' => $item->product_id,
-                        'max_quantity' => $item->quantity * $prodOrder->quantity,
-                        'quantity' => 0,
+                        'quantity' => $item->quantity * $prodOrder->quantity,
                         'type' => StepProductType::Required,
                     ]);
 
