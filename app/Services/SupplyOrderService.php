@@ -8,6 +8,8 @@ use App\Enums\StepProductType;
 use App\Enums\SupplyOrderState;
 use App\Enums\SupplyOrderStatus;
 use App\Enums\TaskAction;
+use App\Models\ProdOrder;
+use App\Models\Product;
 use App\Models\SupplyOrder;
 use Exception;
 use Illuminate\Support\Arr;
@@ -23,14 +25,26 @@ class SupplyOrderService
     ) {
     }
 
-    public function store(array $values): void
+    public function storeForProdOrder(ProdOrder $prodOrder, Product $product, $quantity): void
     {
         try {
             DB::beginTransaction();
 
             /** @var SupplyOrder $supplyOrder */
-            $supplyOrder = SupplyOrder::query()->create($values);
+            $supplyOrder = SupplyOrder::query()->create([
+                'prod_order_id' => $prodOrder->id,
+                'warehouse_id' => $prodOrder->warehouse_id,
+                'product_category_id' => $product->product_category_id,
+                'state' => SupplyOrderState::Created,
+                'created_by' => auth()->user()->id,
+            ]);
             $supplyOrder->updateStatus(SupplyOrderState::Created);
+
+            $supplyOrder->products()->create([
+                'product_id' => $product->id,
+                'expected_quantity' => $quantity,
+                'actual_quantity' => 0,
+            ]);
 
             DB::commit();
         } catch (Throwable $e) {

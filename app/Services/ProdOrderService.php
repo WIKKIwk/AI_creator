@@ -103,13 +103,7 @@ class ProdOrderService
 
                         // If there's still lack of quantity, create SupplyOrder and Block the ProdOrder
                         if ($lackQuantity > 0) {
-                            app(SupplyOrderService::class)->store([
-                                'prod_order_id' => $prodOrder->id,
-                                'warehouse_id' => $prodOrder->warehouse_id,
-                                'product_category_id' => $item->product->product_category_id,
-                                'state' => SupplyOrderState::Created,
-                                'created_by' => auth()->user()->id,
-                            ]);
+                            app(SupplyOrderService::class)->storeForProdOrder($prodOrder, $item->product, $lackQuantity);
                             $insufficientAssets[$item->product_id] = [
                                 'product' => $item->product,
                                 'quantity' => $lackQuantity,
@@ -212,13 +206,7 @@ class ProdOrderService
 
                 // If there's still lack of quantity, create SupplyOrder and Block the ProdOrder
                 if ($lackQuantity > 0) {
-                    app(SupplyOrderService::class)->store([
-                        'prod_order_id' => $prodOrder->id,
-                        'warehouse_id' => $prodOrder->warehouse_id,
-                        'product_category_id' => $targetProduct->product_category_id,
-                        'state' => SupplyOrderState::Created,
-                        'created_by' => auth()->user()->id,
-                    ]);
+                    app(SupplyOrderService::class)->storeForProdOrder($prodOrder, $targetProduct, $lackQuantity);
                     $insufficientAssets[$targetProduct->id] = [
                         'product' => $targetProduct,
                         'quantity' => $lackQuantity,
