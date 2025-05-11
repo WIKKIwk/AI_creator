@@ -55,6 +55,7 @@ class ProdOrderStepActual extends Component implements HasForms, HasTable
                                 ->relationship('product', 'name')
                                 ->searchable()
                                 ->reactive()
+                                ->preload()
                                 ->required(),
 
                             TextInput::make('max_quantity')
@@ -139,6 +140,7 @@ class ProdOrderStepActual extends Component implements HasForms, HasTable
                                 ->native(false)
                                 ->relationship('product', 'name')
                                 ->searchable()
+                                ->preload()
                                 ->reactive()
                                 ->required(),
 
