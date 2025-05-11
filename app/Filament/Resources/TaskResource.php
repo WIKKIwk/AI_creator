@@ -89,7 +89,8 @@ class TaskResource extends Resource
                         switch ($record->related_type) {
                             case 'App\Models\ProdOrder':
                                 $prodOrder = ProdOrder::query()->find($record->related_id);
-                                $link = "<a href='/admin/prod-orders/$record->related_id' target='_blank'>$prodOrder->number</a>";
+                                $text = !empty($prodOrder->number) ? $prodOrder->number : "PO-$record->related_id";
+                                $link = "<a href='/admin/prod-orders/$record->related_id' target='_blank'>$text</a>";
                                 break;
                             case 'App\Models\SupplyOrder':
                                 $supplyOrder = SupplyOrder::query()->find($record->related_id);
@@ -103,7 +104,8 @@ class TaskResource extends Resource
                                     $href = "/admin/supply-orders/$record->related_id/view";
                                 }
 
-                                $link = "<a href='$href' target='_blank'>$supplyOrder->number</a>";
+                                $text = !empty($supplyOrder->number) ? $supplyOrder->number : "SO-$record->related_id";
+                                $link = "<a href='$href' target='_blank'>$text</a>";
                                 break;
                             default:
                                 $link = null;
