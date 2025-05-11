@@ -56,6 +56,7 @@ class WorkStationResource extends Resource
                         ->required(),
 
                     Forms\Components\Select::make('prod_order_id')
+                        ->native(false)
                         ->label('Current prod order')
                         ->options(function($record) {
                             /** @var Collection<ProdOrder> $orders */
