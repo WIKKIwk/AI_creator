@@ -18,6 +18,7 @@ use Illuminate\Database\Eloquent\SoftDeletingScope;
 class ProductCategoryResource extends Resource
 {
     protected static ?string $model = ProductCategory::class;
+    protected static ?int $navigationSort = 4;
 
     protected static ?string $navigationIcon = 'heroicon-o-rectangle-stack';
 
@@ -32,11 +33,15 @@ class ProductCategoryResource extends Resource
     {
         return $form
             ->schema([
-                Forms\Components\Grid::make(3)->schema([
+                Forms\Components\Grid::make(4)->schema([
 
                     Forms\Components\TextInput::make('name')
                         ->required()
                         ->maxLength(255),
+
+                    Forms\Components\TextInput::make('code')
+                        ->label('Short code')
+                        ->required(),
 
                     Forms\Components\Select::make('measure_unit')
                         ->options(MeasureUnit::class)
@@ -54,6 +59,9 @@ class ProductCategoryResource extends Resource
     {
         return $table
             ->columns([
+                Tables\Columns\TextColumn::make('code')
+                    ->label('Short code')
+                    ->searchable(),
                 Tables\Columns\TextColumn::make('name')
                     ->searchable(),
                 Tables\Columns\TextColumn::make('measure_unit')

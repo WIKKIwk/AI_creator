@@ -2,6 +2,7 @@
 
 namespace App\Livewire;
 
+use App\Models\ProdOrderStep;
 use Throwable;
 use Livewire\Component;
 use Illuminate\View\View;
@@ -12,37 +13,41 @@ use Filament\Notifications\Notification;
 class ConfirmSupplyModal extends Component
 {
     public ProdOrder $prodOrder;
+    public $arguments = [];
     public $missingAssets = [];
-    public $content;
+    public $action = null;
 
     protected $listeners = ['openModal'];
 
-    public function openModal(ProdOrder $prodOrder, array $missingAssets): void
+    public function openModal(ProdOrder $prodOrder, array $missingAssets, $action = null, $arguments = []): void
     {
         $this->prodOrder = $prodOrder;
         $this->missingAssets = $missingAssets;
-
-        $this->content = json_encode($missingAssets, JSON_PRETTY_PRINT);
+        $this->arguments = $arguments;
+        $this->action = $action;
 
         $this->dispatch('open-modal', id: 'confirm-supply-modal');
     }
 
     public function confirmSupply(): void
     {
-        try {
-            app(ProdOrderService::class)->start($this->prodOrder);
+        /** @var ProdOrderService $prodOrderService */
+        $prodOrderService = app(ProdOrderService::class);
 
-            Notification::make()
-                ->title('Success')
-                ->body('Production order started successfully.')
-                ->success()
-                ->send();
+        try {
+            if ($this->action == 'startProdOrder') {
+                $prodOrderService->start($this->prodOrder);
+                showSuccess('Production order started successfully');
+            } elseif ($this->action === 'editMaterials') {
+                [$stepId, $productId, $qty] = $this->arguments;
+
+                /** @var ProdOrderStep $step */
+                $step = ProdOrderStep::query()->find($stepId);
+                $prodOrderService->editMaterials($step, $productId, $qty);
+//                showSuccess('Material edited successfully');
+            }
         } catch (Throwable $e) {
-            Notification::make()
-                ->title('Error')
-                ->body($e->getMessage())
-                ->danger()
-                ->send();
+            showError($e->getMessage());
         } finally {
             $this->dispatch('close-modal', id: 'confirm-supply-modal');
         }

@@ -5,7 +5,10 @@ namespace App\Services;
 use App\Enums\DurationUnit;
 use App\Enums\OrderStatus;
 use App\Enums\ProdOrderStepStatus;
+use App\Enums\RoleType;
 use App\Enums\StepProductType;
+use App\Enums\SupplyOrderState;
+use App\Enums\TaskAction;
 use App\Models\InventoryItem;
 use App\Models\MiniInventory;
 use App\Models\PerformanceRate;
@@ -13,7 +16,7 @@ use App\Models\ProdOrder;
 use App\Models\ProdOrderStep;
 use App\Models\ProdOrderStepProduct;
 use App\Models\ProdTemplate;
-use App\Models\SupplyOrder;
+use App\Models\Product;
 use Exception;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Facades\DB;
@@ -77,21 +80,22 @@ class ProdOrderService
                 $prodOrderStep = $prodOrder->steps()->create([
                     'work_station_id' => $templateStep->work_station_id,
                     'sequence' => $templateStep->sequence,
-                    'status' => OrderStatus::Pending,
+                    'status' => ProdOrderStepStatus::InProgress,
                     'output_product_id' => $templateStep->output_product_id,
-                    'expected_quantity' => $templateStep->expected_quantity,
+                    'expected_quantity' => $templateStep->expected_quantity * $prodOrder->quantity,
                 ]);
 
                 foreach ($templateStep->requiredItems as $item) {
                     $prodOrderStep->productItems()->create([
                         'product_id' => $item->product_id,
-                        'quantity' => $item->quantity * $prodOrder->quantity,
+                        'max_quantity' => $item->quantity * $prodOrder->quantity,
+                        'quantity' => 0,
                         'type' => StepProductType::Required,
                     ]);
 
                     if ($prodOrderStep->sequence == 1) {
                         $firstStepId = $prodOrderStep->id;
-                        $lackQuantity = $this->createFirstActualItems(
+                        $lackQuantity = $this->createActualItem(
                             $prodOrderStep,
                             $item->product_id,
                             $item->quantity * $prodOrder->quantity
@@ -99,17 +103,17 @@ class ProdOrderService
 
                         // If there's still lack of quantity, create SupplyOrder and Block the ProdOrder
                         if ($lackQuantity > 0) {
-                            SupplyOrder::query()->create([
+                            app(SupplyOrderService::class)->store([
                                 'prod_order_id' => $prodOrder->id,
                                 'warehouse_id' => $prodOrder->warehouse_id,
-                                'product_id' => $item->product_id,
-                                'quantity' => $lackQuantity,
-                                'status' => OrderStatus::Pending,
+                                'product_category_id' => $item->product->product_category_id,
+                                'state' => SupplyOrderState::Created,
                                 'created_by' => auth()->user()->id,
                             ]);
                             $insufficientAssets[$item->product_id] = [
                                 'product' => $item->product,
                                 'quantity' => $lackQuantity,
+                                'measure_unit' => $item->product->category->measure_unit->getLabel(),
                             ];
                         }
                     }
@@ -129,12 +133,63 @@ class ProdOrderService
         }
     }
 
+    public function checkMaterials(ProdOrderStep $prodOrderStep, $productId, $quantity): array
+    {
+        $prodOrder = $prodOrderStep->prodOrder;
+
+        /** @var MiniInventory $miniStock */
+        $miniStock = $prodOrderStep->workStation->miniInventories()
+            ->where('product_id', $productId)
+            ->first();
+
+        $insufficientAssets = [];
+        $diffQty = $quantity - $miniStock?->quantity;
+
+        if ($diffQty <= 0) {
+            return $insufficientAssets;
+        }
+
+        $lackQuantity = $this->transactionService->getStockLackQty(
+            $productId,
+            $diffQty,
+            $prodOrder->warehouse_id
+        );
+
+        // If there's still lack of quantity, stop iteration and return the insufficient assets
+        if ($lackQuantity > 0) {
+            /** @var Product $lackProduct */
+            $lackProduct = Product::query()->find($productId);
+            if ($lackProduct) {
+                $insufficientAssets[$lackProduct->id] = [
+                    'product' => $lackProduct,
+                    'quantity' => $lackQuantity,
+                    'measure_unit' => $lackProduct->category->measure_unit->getLabel(),
+                ];
+            }
+        }
+
+        return $insufficientAssets;
+    }
+
     /**
      * @throws Exception
      * TESTED
      */
     public function editMaterials(ProdOrderStep $prodOrderStep, $productId, $quantity): void
     {
+        /** @var Product|null $targetProduct */
+        $targetProduct = Product::query()->find($productId);
+        if (!$targetProduct) {
+            throw new Exception('Product not found');
+        }
+
+        /** @var MiniInventory $miniStock */
+        $miniStock = $prodOrderStep->workStation->miniInventories()
+            ->where('product_id', $targetProduct->id)
+            ->first();
+
+        $diffQty = $quantity - $miniStock?->quantity;
+
         try {
             DB::beginTransaction();
 
@@ -142,44 +197,58 @@ class ProdOrderService
 
             /** @var ProdOrderStepProduct $existingActualItem */
             $existingActualItem = $prodOrderStep->productItems()
-                ->where('product_id', $productId)
+                ->where('product_id', $targetProduct->id)
                 ->where('type', StepProductType::Actual)
                 ->first();
 
-            /** @var MiniInventory $miniStock */
-            $miniStock = $prodOrderStep->workStation->miniInventories()
-                ->where('product_id', $productId)
-                ->first();
-
-            $diffQty = $quantity - $miniStock?->quantity;
+            $insufficientAssets = [];
 
             if ($diffQty > 0) {
-                if (!$this->transactionService->checkStock($productId, $diffQty, $prodOrder->warehouse_id)) {
-                    throw new Exception('Insufficient stock');
-                }
-
-                $this->transactionService->removeStock(
-                    $productId,
+                $lackQuantity = $this->transactionService->getStockLackQty(
+                    $targetProduct->id,
                     $diffQty,
-                    $prodOrder->warehouse_id,
-                    $prodOrderStep->work_station_id
+                    $prodOrder->warehouse_id
                 );
 
-                $this->transactionService->addMiniStock($productId, $diffQty, $prodOrderStep->work_station_id);
+                // If there's still lack of quantity, create SupplyOrder and Block the ProdOrder
+                if ($lackQuantity > 0) {
+                    app(SupplyOrderService::class)->store([
+                        'prod_order_id' => $prodOrder->id,
+                        'warehouse_id' => $prodOrder->warehouse_id,
+                        'product_category_id' => $targetProduct->product_category_id,
+                        'state' => SupplyOrderState::Created,
+                        'created_by' => auth()->user()->id,
+                    ]);
+                    $insufficientAssets[$targetProduct->id] = [
+                        'product' => $targetProduct,
+                        'quantity' => $lackQuantity,
+                        'measure_unit' => $targetProduct->category->measure_unit->getLabel(),
+                    ];
+                } else {
+                    $this->transactionService->removeStock(
+                        $targetProduct->id,
+                        $diffQty,
+                        $prodOrder->warehouse_id,
+                        $prodOrderStep->work_station_id
+                    );
+
+                    $this->transactionService->addMiniStock($targetProduct->id, $diffQty, $prodOrderStep->work_station_id);
+                }
             }
 
-            if ($existingActualItem) {
-                $existingActualItem->update([
-                    'quantity' => $quantity,
-                    'max_quantity' => $quantity,
-                ]);
-            } else {
-                $prodOrderStep->productItems()->create([
-                    'product_id' => $productId,
-                    'quantity' => $quantity,
-                    'max_quantity' => $quantity,
-                    'type' => StepProductType::Actual,
-                ]);
+            if (empty($insufficientAssets)) {
+                if ($existingActualItem) {
+                    $existingActualItem->update([
+                        'max_quantity' => $quantity,
+                    ]);
+                } else {
+                    $prodOrderStep->productItems()->create([
+                        'product_id' => $targetProduct->id,
+                        'max_quantity' => $quantity,
+                        'quantity' => 0,
+                        'type' => StepProductType::Actual,
+                    ]);
+                }
             }
 
             DB::commit();
@@ -193,9 +262,13 @@ class ProdOrderService
      * @throws Exception
      * TESTED
      */
-    public function completeWork(ProdOrderStep $prodOrderStep): void
+    public function completeWork(ProdOrderStep $prodOrderStep, $outputQty): void
     {
-        if (!$prodOrderStep->output_quantity) {
+        if ($prodOrderStep->status == ProdOrderStepStatus::Completed) {
+            throw new Exception('Step is already completed');
+        }
+
+        if ($outputQty <= 0) {
             throw new Exception('Output quantity is not set');
         }
 
@@ -214,11 +287,14 @@ class ProdOrderService
 
             $this->transactionService->addMiniStock(
                 $prodOrderStep->output_product_id,
-                $prodOrderStep->output_quantity,
+                $outputQty,
                 $prodOrderStep->work_station_id
             );
 
-            $prodOrderStep->update(['status' => ProdOrderStepStatus::Completed]);
+            $prodOrderStep->update([
+                'status' => ProdOrderStepStatus::Completed,
+                'output_quantity' => $outputQty,
+            ]);
 
             DB::commit();
         } catch (Throwable $e) {
@@ -247,31 +323,39 @@ class ProdOrderService
             DB::beginTransaction();
 
             if ($nextStep) {
-                foreach ($currentStep->expectedItems as $item) {
-                    $this->transactionService->removeMiniStock(
-                        $item->product_id,
-                        $item->quantity,
-                        $currentStep->work_station_id
-                    );
+                $this->transactionService->removeMiniStock(
+                    $currentStep->output_product_id,
+                    $currentStep->output_quantity,
+                    $currentStep->work_station_id
+                );
 
-                    $this->transactionService->addMiniStock(
-                        $item->product_id,
-                        $item->quantity,
-                        $nextStep->work_station_id
-                    );
+                $this->transactionService->addMiniStock(
+                    $currentStep->output_product_id,
+                    $currentStep->output_quantity,
+                    $nextStep->work_station_id
+                );
 
-                    $nextStep->productItems()->create([
-                        'product_id' => $item->product_id,
-                        'quantity' => $item->quantity,
-                        'type' => StepProductType::Actual,
-                    ]);
-                }
+                $nextStep->productItems()->create([
+                    'product_id' => $currentStep->output_product_id,
+                    'max_quantity' => $currentStep->output_quantity,
+                    'quantity' => 0,
+                    'type' => StepProductType::Actual,
+                ]);
 
                 $prodOrder->current_step_id = $nextStep->id;
             } else {
+                // Order completed
+                app(TaskService::class)->createTaskForRole(
+                    toUserRole: RoleType::SENIOR_STOCK_MANAGER,
+                    relatedType: ProdOrder::class,
+                    relatedId: $prodOrder->id,
+                    action: TaskAction::Approve,
+                    comment: 'ProdOrder is completed and needs to be approved'
+                );
                 $prodOrder->status = OrderStatus::Completed;
             }
 
+            $currentStep->workStation->update(['prod_order_id' => null]);
             $prodOrder->save();
 
             DB::commit();
@@ -296,21 +380,19 @@ class ProdOrderService
         try {
             DB::beginTransaction();
 
-            foreach ($lastStep->expectedItems as $expectedItem) {
-                $this->transactionService->removeMiniStock(
-                    $expectedItem->product_id,
-                    $expectedItem->quantity,
-                    $lastStep->work_station_id
-                );
+            $this->transactionService->removeMiniStock(
+                $lastStep->output_product_id,
+                $lastStep->output_quantity,
+                $lastStep->work_station_id
+            );
 
-                $this->transactionService->addStock(
-                    $expectedItem->product_id,
-                    $expectedItem->quantity,
-                    0,
-                    $prodOrder->warehouse_id,
-                    workStationId: $lastStep->work_station_id,
-                );
-            }
+            $this->transactionService->addStock(
+                $lastStep->output_product_id,
+                $lastStep->output_quantity,
+                0,
+                $prodOrder->warehouse_id,
+                workStationId: $lastStep->work_station_id,
+            );
 
             $prodOrder->status = OrderStatus::Approved;
             $prodOrder->save();
@@ -326,8 +408,17 @@ class ProdOrderService
      * @throws Exception
      * TESTED
      */
-    public function createFirstActualItems(ProdOrderStep $prodOrderStep, $productId, $quantity): int
+    public function createActualItem(ProdOrderStep $prodOrderStep, $productId, $quantity): int
     {
+        $exist = $prodOrderStep->productItems()
+            ->where('product_id', $productId)
+            ->where('type', StepProductType::Actual)
+            ->exists();
+
+        if ($exist) {
+            return 0;
+        }
+
         $prodOrder = $prodOrderStep->prodOrder;
 
         $lackQuantity = $this->transactionService->removeStock(
@@ -338,18 +429,19 @@ class ProdOrderService
         );
 
         // Create ProdOrderStepProducts and add to WorkStation's mini Stock
-        $takenQuantity = $quantity - $lackQuantity;
+        $takeQuantity = $quantity - $lackQuantity;
 
-        if ($takenQuantity > 0) {
+        if ($takeQuantity > 0) {
             $this->transactionService->addMiniStock(
                 $productId,
-                $takenQuantity,
+                $takeQuantity,
                 $prodOrderStep->work_station_id
             );
 
             $prodOrderStep->productItems()->create([
                 'product_id' => $productId,
-                'quantity' => $takenQuantity,
+                'max_quantity' => $takeQuantity,
+                'quantity' => 0,
                 'type' => StepProductType::Actual,
             ]);
         }
@@ -364,25 +456,23 @@ class ProdOrderService
 
         $totalDays = 0;
         foreach ($prodTemplate->steps as $step) {
-            foreach ($step->expectedItems as $expectedItem) {
-                /** @var PerformanceRate $rate */
-                $rate = $step->workStation->performanceRates()
-                    ->where('product_id', $expectedItem->product_id)
-                    ->first();
+            /** @var PerformanceRate $rate */
+            $rate = $step->workStation->performanceRates()
+                ->where('product_id', $step->output_product_id)
+                ->first();
 
-                if ($rate) {
-                    $quantityPerUnit = $rate->quantity / $rate->duration;
+            if ($rate) {
+                $quantityPerUnit = $rate->quantity / $rate->duration;
 
-                    $quantityPerDay = match ($rate->duration_unit) {
-                        DurationUnit::Hour => $quantityPerUnit * 12,
-                        DurationUnit::Day => $quantityPerUnit,
-                        DurationUnit::Week => $quantityPerUnit / 7,
-                        DurationUnit::Month => $quantityPerUnit / 30,
-                        DurationUnit::Year => $quantityPerUnit / 365,
-                    };
+                $quantityPerDay = match ($rate->duration_unit) {
+                    DurationUnit::Hour => $quantityPerUnit * 12,
+                    DurationUnit::Day => $quantityPerUnit,
+                    DurationUnit::Week => $quantityPerUnit / 7,
+                    DurationUnit::Month => $quantityPerUnit / 30,
+                    DurationUnit::Year => $quantityPerUnit / 365,
+                };
 
-                    $totalDays += ceil($expectedItem->quantity / $quantityPerDay);
-                }
+                $totalDays += ceil($step->expected_quantity / $quantityPerDay);
             }
         }
 

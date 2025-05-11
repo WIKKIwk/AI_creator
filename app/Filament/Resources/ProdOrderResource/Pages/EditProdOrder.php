@@ -18,9 +18,9 @@ class EditProdOrder extends EditRecord
      */
     protected function mutateFormDataBeforeSave(array $data): array
     {
-        if ($this->record->status != OrderStatus::Pending) {
-            throw new Exception('Cannot edit this order. It is already in ' . $this->record->status->getLabel() . ' status.');
-        }
+//        if ($this->record->status != OrderStatus::Pending) {
+//            throw new Exception('Cannot edit this order. It is already in ' . $this->record->status->getLabel() . ' status.');
+//        }
 
         $data['total_cost'] = app(ProdOrderService::class)->calculateTotalCost($data['product_id'], $data['warehouse_id']);
         $data['deadline'] = app(ProdOrderService::class)->calculateDeadline($data['product_id']);

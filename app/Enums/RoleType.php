@@ -13,8 +13,10 @@ enum RoleType: int implements HasLabel, HasColor, HasIcon
     case PRODUCTION_MANAGER = 3;
     case ALLOCATION_MANAGER = 4;
     case STOCK_MANAGER = 5;
-    case LEADER = 6;
+    case SENIOR_STOCK_MANAGER = 6;
     case WORK_STATION_WORKER = 7;
+    case SUPPLY_MANAGER = 8;
+    case SENIOR_SUPPLY_MANAGER = 9;
 
     public function getLabel(): string
     {
@@ -24,8 +26,10 @@ enum RoleType: int implements HasLabel, HasColor, HasIcon
             self::PRODUCTION_MANAGER => 'Production Manager',
             self::ALLOCATION_MANAGER => 'Allocation Manager',
             self::STOCK_MANAGER => 'Stock Manager',
-            self::LEADER => 'Leader',
+            self::SENIOR_STOCK_MANAGER => 'Senior Stock Manager',
             self::WORK_STATION_WORKER => 'Work Station worker',
+            self::SUPPLY_MANAGER => 'Supply Manager',
+            self::SENIOR_SUPPLY_MANAGER => 'Senior Supply Manager',
         };
     }
 
@@ -37,8 +41,10 @@ enum RoleType: int implements HasLabel, HasColor, HasIcon
             self::PRODUCTION_MANAGER => 'warning',
             self::ALLOCATION_MANAGER => 'info',
             self::STOCK_MANAGER => 'danger',
-            self::LEADER => 'secondary',
+            self::SENIOR_STOCK_MANAGER => 'danger',
             self::WORK_STATION_WORKER => 'info',
+            self::SUPPLY_MANAGER => 'success',
+            self::SENIOR_SUPPLY_MANAGER => 'success',
         };
     }
 
@@ -50,8 +56,10 @@ enum RoleType: int implements HasLabel, HasColor, HasIcon
             self::PRODUCTION_MANAGER => 'heroicon-o-cog',
             self::ALLOCATION_MANAGER => 'heroicon-o-cog',
             self::STOCK_MANAGER => 'heroicon-o-cog',
-            self::LEADER => 'heroicon-o-shield-check',
+            self::SENIOR_STOCK_MANAGER => 'heroicon-o-cog',
             self::WORK_STATION_WORKER => 'heroicon-o-cog',
+            self::SUPPLY_MANAGER => 'heroicon-o-cog',
+            self::SENIOR_SUPPLY_MANAGER => 'heroicon-o-cog',
         };
     }
 }

@@ -20,6 +20,7 @@ use Filament\Tables\Table;
 class ProdTemplateResource extends Resource
 {
     protected static ?string $model = ProdTemplate::class;
+    protected static ?int $navigationSort = 3;
 
     protected static ?string $navigationIcon = 'heroicon-o-rectangle-stack';
 

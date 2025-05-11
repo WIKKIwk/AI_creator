@@ -14,6 +14,7 @@ use Exception;
 use GuzzleHttp\Exception\GuzzleException;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Arr;
+use Throwable;
 
 class WorkStationWorkerHandler extends BaseHandler
 {
@@ -36,9 +37,9 @@ Required materials:
 <b>{requiredMaterials}</b>
 
 Expected materials:
-<b>{expectedMaterials}</b>
+<b>{expectedMaterial}</b>
 
-Actual materials:
+Actual used materials:
 <b>{actualUsedMaterials}</b>
 
 Choose the actual material to complete:
@@ -50,20 +51,25 @@ HTML,
 Actual used materials:
 <b>{actualUsedMaterials}</b>
 
-Input actual used quantity for <b>{product}</b>. Or choose another material to complete.:
+Input actual used quantity for <b>{product}</b>. Or choose another material to complete:
 HTML,
 
         'completeWork' => <<<HTML
+{errorMsg}
+
 Current production order: <b>{prodOrder}</b>
 Production product: <b>{product}</b>
 
 Expected materials:
-<b>{expectedMaterials}</b>
+<b>{expectedMaterial}</b>
+
+Output materials:
+<b>{outputMaterial}</b>
 
 Actual used materials:
 <b>{actualUsedMaterials}</b>
 
-Are you sure you want to complete the work?
+Input output quantity for <b>{expectedMaterialName}</b>:
 HTML,
 
     ];
@@ -96,8 +102,16 @@ HTML,
     public function handleStart(): void
     {
         $this->tgBot->answerMsg([
-            'text' => "Main menu for Work Station Worker",
+            'text' => <<<HTML
+<b>User details:</b>
+
+Name: <b>{$this->user->name}</b>
+Email: <b>{$this->user->email}</b>
+Role: <b>{$this->user->role->getLabel()}</b>
+Work station: <b>{$this->user->workStation->name}</b>
+HTML,
             'reply_markup' => $this->getMainKb(),
+            'parse_mode' => 'HTML',
         ]);
     }
 
@@ -138,8 +152,16 @@ HTML,
     {
         $this->tgBot->sendRequestAsync('sendMessage', [
             'chat_id' => $this->tgBot->chatId,
-            'text' => "Main menu for Work Station Worker",
+            'text' => <<<HTML
+<b>User details:</b>
+
+Name: <b>{$this->user->name}</b>
+Email: <b>{$this->user->email}</b>
+Role: <b>{$this->user->role->getLabel()}</b>
+Work station: <b>{$this->user->workStation->name}</b>
+HTML,
             'reply_markup' => $this->getMainKb(),
+            'parse_mode' => 'HTML',
         ]);
     }
 
@@ -149,6 +171,9 @@ HTML,
 
         if ($activeState === self::states['completeMaterialQty']) {
             $this->completeMaterialText();
+            return;
+        } elseif ($activeState === self::states['completeWork']) {
+            $this->completeWorkText();
             return;
         }
 
@@ -161,40 +186,31 @@ HTML,
      */
     public function completeWork(): void
     {
+        if (!$this->user->workStation->prodOrder) {
+            $this->tgBot->answerCbQuery(['text' => "No production order assigned to your work station."]);
+            return;
+        }
+
         $step = $this->getStep();
         if ($step->status == ProdOrderStepStatus::Completed) {
-            $this->tgBot->answerCbQuery([
-                'text' => "Work is already completed.",
-                'reply_markup' => $this->getMainKb(),
-            ]);
+            $this->tgBot->answerCbQuery(['text' => "Work is already completed."]);
             return;
         }
 
         $prodOrder = $this->user->workStation->prodOrder;
-        if (!$prodOrder) {
-            $this->tgBot->answerCbQuery([
-                'text' => "No production order assigned to your work station.",
-                'reply_markup' => $this->getMainKb(),
-            ]);
-            $this->sendMainMenu();
-            return;
-        }
 
         $this->tgBot->answerCbQuery();
         $this->cache->put($this->getCacheKey('state'), self::states['completeWork']);
 
-        $expectedMaterials = $this->getStep()->expectedItems
-            ->map(function (ProdOrderStepProduct $item) {
-                return "{$item->product->name} ({$item->quantity} {$item->product->category?->measure_unit?->getLabel()})";
-            })
-            ->implode("\n");
-
         $res = $this->tgBot->answerMsg([
             'text' => strtr(self::templates['completeWork'], [
-                '{prodOrder}' => "ProdOrder-{$this->user->workStation->prodOrder->id}",
+                '{prodOrder}' => $this->user->workStation->prodOrder->number,
                 '{product}' => $prodOrder->product->name . " ({$prodOrder->quantity} {$prodOrder->product->category?->measure_unit?->getLabel()})",
-                '{expectedMaterials}' => $expectedMaterials,
+                '{expectedMaterial}' => "{$step->outputProduct->name} ({$step->expected_quantity} {$step->outputProduct->category?->measure_unit?->getLabel()})",
+                '{outputMaterial}' => "{$step->outputProduct->name} ({$step->output_quantity} {$step->outputProduct->category?->measure_unit?->getLabel()})",
+                '{expectedMaterialName}' => $step->outputProduct->name,
                 '{actualUsedMaterials}' => $this->getActualMaterialsStr(),
+                '{errorMsg}' => '',
             ]),
             'parse_mode' => 'HTML',
             'reply_markup' => TelegramService::getInlineKeyboard([
@@ -206,6 +222,65 @@ HTML,
         ]);
         $msgId = Arr::get($res, 'result.message_id');
         $this->cache->put($this->getCacheKey('edit_msg_id'), $msgId);
+    }
+
+    public function completeWorkText(): void
+    {
+        $step = $this->getStep();
+        $quantity = $this->tgBot->getText();
+
+        $formData = json_decode($this->cache->get($this->getCacheKey('completeWork')), true) ?? [];
+        $outputQuantity = Arr::get($formData, 'output_quantity', $step->output_quantity ?? 0);
+
+        // check quantity is integer
+        if (!is_numeric($quantity) || $quantity <= 0) {
+            $this->tgBot->sendRequestAsync('editMessageText', [
+                'chat_id' => $this->tgBot->chatId,
+                'message_id' => $this->cache->get($this->getCacheKey('edit_msg_id')),
+                'text' => strtr(self::templates['completeWork'], [
+                    '{errorMsg}' => "<i>Invalid quantity. Please enter a valid number.</i>",
+                    '{prodOrder}' => $this->user->workStation->prodOrder->number,
+                    '{product}' => $step->outputProduct->name . " ({$step->expected_quantity} {$step->outputProduct->category?->measure_unit?->getLabel()})",
+                    '{expectedMaterial}' => "{$step->outputProduct->name} ({$step->expected_quantity} {$step->outputProduct->category?->measure_unit?->getLabel()})",
+                    '{outputMaterial}' => "{$step->outputProduct->name} ({$outputQuantity} {$step->outputProduct->category?->measure_unit?->getLabel()})",
+                    '{expectedMaterialName}' => $step->outputProduct->name,
+                    '{actualUsedMaterials}' => $this->getActualMaterialsStr(),
+                ]),
+                'parse_mode' => 'HTML',
+                'reply_markup' => TelegramService::getInlineKeyboard([
+                    [
+                        ['text' => '🚫 Cancel', 'callback_data' => 'cancelCompleteWork'],
+                        ['text' => '✅ Confirm', 'callback_data' => 'saveCompleteWork'],
+                    ]
+                ])
+            ]);
+            return;
+        }
+
+        $formData = json_decode($this->cache->get($this->getCacheKey('completeWork')), true) ?? [];
+        $formData['output_quantity'] = $quantity;
+        $this->cache->put($this->getCacheKey('completeWork'), json_encode($formData));
+
+        $this->tgBot->sendRequestAsync('editMessageText', [
+            'chat_id' => $this->tgBot->chatId,
+            'message_id' => $this->cache->get($this->getCacheKey('edit_msg_id')),
+            'text' => strtr(self::templates['completeWork'], [
+                '{errorMsg}' => '',
+                '{prodOrder}' => $this->user->workStation->prodOrder->number,
+                '{product}' => $step->outputProduct->name . " ({$step->expected_quantity} {$step->outputProduct->category?->measure_unit?->getLabel()})",
+                '{expectedMaterial}' => "{$step->outputProduct->name} ({$step->expected_quantity} {$step->outputProduct->category?->measure_unit?->getLabel()})",
+                '{outputMaterial}' => "{$step->outputProduct->name} ({$quantity} {$step->outputProduct->category?->measure_unit?->getLabel()})",
+                '{expectedMaterialName}' => $step->outputProduct->name,
+                '{actualUsedMaterials}' => $this->getActualMaterialsStr(),
+            ]),
+            'parse_mode' => 'HTML',
+            'reply_markup' => TelegramService::getInlineKeyboard([
+                [
+                    ['text' => '🚫 Cancel', 'callback_data' => 'cancelCompleteWork'],
+                    ['text' => '✅ Confirm', 'callback_data' => 'saveCompleteWork'],
+                ]
+            ])
+        ]);
     }
 
     /**
@@ -231,8 +306,18 @@ HTML,
     public function saveCompleteWork(): void
     {
         $step = $this->getStep();
+        $formData = json_decode($this->cache->get($this->getCacheKey('completeWork')), true) ?? [];
+        $outputQuantity = Arr::get($formData, 'output_quantity', $step->output_quantity ?? 0);
 
-        $this->prodOrderService->completeWork($step);
+        try {
+            $this->prodOrderService->completeWork($step, $outputQuantity);
+        } catch (Throwable $e) {
+            $this->tgBot->answerCbQuery([
+                'text' => "Error: {$e->getMessage()}",
+                'show_alert' => true,
+            ]);
+            return;
+        }
 
         $this->tgBot->answerCbQuery([
             'text' => "Work completed successfully.",
@@ -247,22 +332,14 @@ HTML,
      */
     public function completeMaterial(): void
     {
-        $step = $this->getStep();
-        if ($step->status == ProdOrderStepStatus::Completed) {
-            $this->tgBot->answerCbQuery([
-                'text' => "Work is already completed.",
-                'reply_markup' => $this->getMainKb(),
-            ]);
+        if (!$this->user->workStation->prodOrder) {
+            $this->tgBot->answerCbQuery(['text' => "No production order assigned to your work station."]);
             return;
         }
 
-        $prodOrder = $this->user->workStation->prodOrder;
-        if (!$prodOrder) {
-            $this->tgBot->answerCbQuery([
-                'text' => "No production order assigned to your work station.",
-                'reply_markup' => $this->getMainKb(),
-            ]);
-            $this->sendMainMenu();
+        $step = $this->getStep();
+        if ($step->status == ProdOrderStepStatus::Completed) {
+            $this->tgBot->answerCbQuery(['text' => "Work is already completed."]);
             return;
         }
 
@@ -449,12 +526,6 @@ HTML,
         $prodOrder = $this->user->workStation->prodOrder;
 
         $step = $this->getStep();
-        $expectedMaterials = $step->expectedItems
-            ->map(function (ProdOrderStepProduct $item) {
-                return "{$item->product->name} ({$item->quantity} {$item->product->category?->measure_unit?->getLabel()})";
-            })
-            ->implode("\n");
-
         $requiredMaterials = $step->requiredItems
             ->map(function (ProdOrderStepProduct $item) {
                 return "{$item->product->name} ({$item->quantity} {$item->product->category?->measure_unit?->getLabel()})";
@@ -462,9 +533,9 @@ HTML,
             ->implode("\n");
 
         return [
-            '{prodOrder}' => "ProdOrder-$prodOrder->id",
+            '{prodOrder}' => $this->user->workStation->prodOrder->number,
             '{product}' => $prodOrder->product->name . " ({$prodOrder->quantity} {$prodOrder->product->category?->measure_unit?->getLabel()})",
-            '{expectedMaterials}' => $expectedMaterials,
+            '{expectedMaterial}' => "{$step->outputProduct->name} ({$step->expected_quantity} {$step->outputProduct->category?->measure_unit?->getLabel()})",
             '{requiredMaterials}' => $requiredMaterials,
             '{actualUsedMaterials}' => $this->getActualMaterialsStr(),
         ];
@@ -475,6 +546,7 @@ HTML,
         $step = $this->getStep();
 
         $formData = json_decode($this->cache->get($this->getCacheKey('completeMaterial')), true) ?? [];
+        /** @var Collection<ProdOrderStepProduct> $actualMaterials */
         $actualMaterials = $step->actualItems()->get();
         $actualMaterialsStr = "";
         foreach ($actualMaterials as $actualMaterial) {
@@ -482,7 +554,8 @@ HTML,
             if (empty($properQty)) {
                 $properQty = $actualMaterial->quantity;
             }
-            $actualMaterialsStr .= "{$actualMaterial->product->name}: $properQty {$actualMaterial->product->category?->measure_unit?->getLabel()}\n";
+            $measureUnit = $actualMaterial->product->category?->measure_unit?->getLabel();
+            $actualMaterialsStr .= "{$actualMaterial->product->name}: $properQty $measureUnit (available: $actualMaterial->max_quantity $measureUnit)\n";
         }
 
         return $actualMaterialsStr;
@@ -531,7 +604,7 @@ HTML,
     {
         return TelegramService::getInlineKeyboard([
             [
-                ['text' => '🛠 Complete material', 'callback_data' => 'completeMaterial']
+                ['text' => '🛠 Use materials', 'callback_data' => 'completeMaterial']
             ],
             [
                 ['text' => '✅ Complete work', 'callback_data' => 'completeWork']

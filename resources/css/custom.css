@@ -70,3 +70,7 @@
     font-size: 14px;
     margin-right: 5px;
 }
+
+.row-warning {
+    background-color: rgba(var(--yellow-200), 0.3)!important;
+}

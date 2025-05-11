@@ -2,37 +2,52 @@
 
 namespace App\Models;
 
-use App\Enums\OrderStatus;
-use Illuminate\Support\Carbon;
+use App\Enums\SupplyOrderState;
+use App\Enums\SupplyOrderStatus;
+use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Support\Carbon;
 
 /**
  * @property int $id
+ * @property string $number
  * @property int $supplier_id
  * @property int $prod_order_id
- * @property int $product_id
- * @property OrderStatus $status
- * @property int $quantity
+ * @property int $product_category_id
  * @property int $total_price
  * @property int $warehouse_id
- * @property int $unit_price
+ * @property SupplyOrderState $state
+ * @property string $status
  * @property int $created_by
  * @property int $created_at
  * @property int $updated_at
  *
  * @property Carbon $confirmed_at
  * @property int $confirmed_by
+ * @property Carbon $progressed_at
+ * @property int $progressed_by
+ * @property Carbon $delivered_at
+ * @property int $delivered_by
+ * @property Carbon $closed_at
+ * @property int $closed_by
  *
  * @property User $confirmedBy
+ * @property User $progressedBy
+ * @property User $deliveredBy
+ * @property User $closedBy
  *
  * Relationships
  * @property Supplier $supplier
  * @property ProdOrder $prodOrder
  * @property Warehouse $warehouse
- * @property Product $product
+ * @property ProductCategory $productCategory
  * @property User $createdBy
+ * @property Collection<SupplyOrderStep> $steps
+ * @property Collection<SupplyOrderLocation> $locations
+ * @property Collection<SupplyOrderProduct> $products
  */
 class SupplyOrder extends Model
 {
@@ -41,16 +56,29 @@ class SupplyOrder extends Model
     protected $guarded = ['id'];
 
     protected $casts = [
-        'status' => OrderStatus::class,
+        'state' => SupplyOrderState::class,
+//        'status' => SupplyOrderStatus::class,
         'created_at' => 'datetime',
         'updated_at' => 'datetime',
         'confirmed_at' => 'datetime',
+        'progressed_at' => 'datetime',
+        'delivered_at' => 'datetime',
+        'closed_at' => 'datetime',
     ];
 
     protected static function booted(): void
     {
-        static::creating(function ($model) {
+        static::creating(function (SupplyOrder $model) {
             $model->created_by = auth()->id();
+            if ($model->supplier?->code && $model->productCategory?->code) {
+                $model->number = 'SO-' . $model->supplier->code . $model->productCategory->code . now()->format('dmy');
+            }
+        });
+        static::updating(function (SupplyOrder $model) {
+            $model->created_by = auth()->id();
+            if ($model->supplier?->code && $model->productCategory?->code) {
+                $model->number = 'SO-' . $model->supplier->code . $model->productCategory->code . now()->format('dmy');
+            }
         });
     }
 
@@ -64,9 +92,9 @@ class SupplyOrder extends Model
         return $this->belongsTo(ProdOrder::class);
     }
 
-    public function product(): BelongsTo
+    public function productCategory(): BelongsTo
     {
-        return $this->belongsTo(Product::class);
+        return $this->belongsTo(ProductCategory::class);
     }
 
     public function createdBy(): BelongsTo
@@ -79,8 +107,80 @@ class SupplyOrder extends Model
         return $this->belongsTo(User::class, 'confirmed_by');
     }
 
+    public function progressedBy(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'progressed_by');
+    }
+
+    public function deliveredBy(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'delivered_by');
+    }
+
+    public function closedBy(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'closed_by');
+    }
+
     public function warehouse(): BelongsTo
     {
         return $this->belongsTo(Warehouse::class);
+    }
+
+    public function steps(): HasMany
+    {
+        return $this->hasMany(SupplyOrderStep::class)
+            ->orderByDesc('created_at')
+            ->orderByDesc('id');
+    }
+
+    public function locations(): HasMany
+    {
+        return $this->hasMany(SupplyOrderLocation::class)
+            ->orderByDesc('created_at')
+            ->orderByDesc('id');
+    }
+
+    public function products(): HasMany
+    {
+        return $this->hasMany(SupplyOrderProduct::class);
+    }
+
+    public function setStatus(SupplyOrderState $state, ?string $status = null): void
+    {
+        $changed = $this->state->value != $state->value || $this->status != $status;
+        if ($changed) {
+            $this->steps()->create([
+                'state' => $state,
+                'status' => $status,
+                'created_by' => auth()->user()->id,
+                'created_at' => now(),
+            ]);
+        }
+
+        $this->state = $state;
+        $this->status = $status;
+    }
+
+    public function updateStatus(SupplyOrderState $state, ?string $status = null): void
+    {
+        $this->setStatus($state, $status);
+        $this->save();
+    }
+
+    public function hasStatus(SupplyOrderState $state, string $status): bool
+    {
+        return $this->state->value == $state->value && $this->status == $status;
+    }
+
+    public function getStatus(): string
+    {
+        $state = $this->state->getLabel();
+        $statusEnum = SupplyOrderStatus::tryFrom($this->status);
+        $status = $statusEnum ? $statusEnum->getLabel() : $this->status;
+        if (empty($status)) {
+            return $state;
+        }
+        return "$state: $status";
     }
 }

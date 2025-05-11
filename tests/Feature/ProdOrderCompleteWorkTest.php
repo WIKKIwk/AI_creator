@@ -50,9 +50,8 @@ class ProdOrderCompleteWorkTest extends TestCase
         $step = $this->prodOrder->steps()->create([
             'sequence' => 1,
             'work_station_id' => $this->workStationFirst->id,
-            'status' => OrderStatus::Pending,
+            'status' => ProdOrderStepStatus::InProgress,
             'output_product_id' => $this->readyProduct->id,
-            'output_quantity' => 5,
         ]);
 
         // Add required quantities to MiniInventory
@@ -81,7 +80,7 @@ class ProdOrderCompleteWorkTest extends TestCase
             'type' => StepProductType::Actual
         ]);
 
-        $this->prodOrderService->completeWork($step);
+        $this->prodOrderService->completeWork($step, 5);
 
         // Check MiniInventories for proper quantities
         $this->assertDatabaseHas('mini_inventories', [
@@ -117,9 +116,8 @@ class ProdOrderCompleteWorkTest extends TestCase
         $step = $this->prodOrder->steps()->create([
             'sequence' => 1,
             'work_station_id' => $this->workStationFirst->id,
-            'status' => OrderStatus::Pending,
+            'status' => ProdOrderStepStatus::InProgress,
             'output_product_id' => $this->readyProduct->id,
-            'output_quantity' => 5,
         ]);
 
         // Add required quantities to MiniInventory
@@ -142,6 +140,6 @@ class ProdOrderCompleteWorkTest extends TestCase
             "Insufficient quantity. Product: {$this->rawMaterial->name}. Actual quantity: $stockQty"
         );
 
-        $this->prodOrderService->completeWork($step);
+        $this->prodOrderService->completeWork($step, 5);
     }
 }

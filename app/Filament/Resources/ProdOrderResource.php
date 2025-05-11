@@ -22,6 +22,7 @@ use Throwable;
 class ProdOrderResource extends Resource
 {
     protected static ?string $model = ProdOrder::class;
+    protected static ?int $navigationSort = 2;
 
     protected static ?string $navigationIcon = 'heroicon-o-rectangle-stack';
 
@@ -32,6 +33,7 @@ class ProdOrderResource extends Resource
             RoleType::PLANNING_MANAGER,
             RoleType::PRODUCTION_MANAGER,
             RoleType::ALLOCATION_MANAGER,
+            RoleType::SENIOR_STOCK_MANAGER,
         ]);
     }
 
@@ -93,7 +95,7 @@ class ProdOrderResource extends Resource
                         ->hidden(fn($record) => !$record?->id)
                         ->disabled(),
                 ])
-            ]);
+            ])->disabled(fn($record) => $record?->status == OrderStatus::Approved);
     }
 
     public static function table(Table $table): Table
@@ -104,6 +106,9 @@ class ProdOrderResource extends Resource
             })
             ->columns([
                 Tables\Columns\TextColumn::make('id'),
+                Tables\Columns\TextColumn::make('number')
+                    ->label('Order number')
+                    ->searchable(),
                 Tables\Columns\TextColumn::make('warehouse.name')
                     ->sortable(),
                 Tables\Columns\TextColumn::make('product.name')
@@ -112,7 +117,9 @@ class ProdOrderResource extends Resource
                     ->numeric()
                     ->sortable(),
                 Tables\Columns\TextColumn::make('quantity')
-                    ->numeric()
+                    ->formatStateUsing(function ($record) {
+                        return $record->quantity . ' ' . $record->product->category?->measure_unit?->getLabel();
+                    })
                     ->sortable(),
                 Tables\Columns\TextColumn::make('offer_price')
                     ->numeric()
@@ -151,7 +158,11 @@ class ProdOrderResource extends Resource
 
                 Tables\Actions\Action::make('confirm')
                     ->label('Confirm')
-                    ->visible(fn($record) => !$record->confirmed_at)
+                    ->visible(fn($record) => !$record->confirmed_at && in_array(auth()->user()->role, [
+                        RoleType::ADMIN,
+                        RoleType::PLANNING_MANAGER,
+                        RoleType::PRODUCTION_MANAGER,
+                    ]))
                     ->action(function (ProdOrder $record) {
                         try {
                             $record->confirm();
@@ -169,14 +180,15 @@ class ProdOrderResource extends Resource
                         try {
                             $insufficientAssets = app(ProdOrderService::class)->checkStart($record);
                             if (!empty($insufficientAssets)) {
-                                $livewire->dispatch('openModal', $record, $insufficientAssets);
+                                $livewire->dispatch(
+                                    'openModal',
+                                    $record,
+                                    $insufficientAssets,
+                                    'startProdOrder'
+                                );
                             }
                         } catch (Exception $e) {
-                            Notification::make()
-                                ->title('Error')
-                                ->body($e->getMessage())
-                                ->danger()
-                                ->send();
+                            showError($e->getMessage());
                         }
                     })
                     ->requiresConfirmation(),

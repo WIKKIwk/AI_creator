@@ -64,7 +64,9 @@ class InventoryItemResource extends Resource
                     ->numeric()
                     ->sortable(),
                 Tables\Columns\TextColumn::make('quantity')
-                    ->numeric()
+                    ->formatStateUsing(function ($record) {
+                        return $record->quantity . ' ' . $record->product->category?->measure_unit?->getLabel();
+                    })
                     ->sortable(),
                 Tables\Columns\TextColumn::make('storageLocation.name')
                     ->numeric()

@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use App\Enums\OrderStatus;
 use App\Enums\StepProductType;
+use App\Enums\SupplyOrderState;
 use App\Models\Inventory;
 use App\Models\ProdOrder;
 use App\Models\ProdTemplate;
@@ -75,7 +76,7 @@ class ProdOrderStartTest extends TestCase
             'work_station_id' => $this->workStationFirst->id,
             'sequence' => 1,
             'output_product_id' => $this->semiFinishedMaterial->id,
-            'expected_quantity' => 1,
+            'expected_quantity' => 3,
         ]);
         $this->assertDatabaseMissing('prod_order_step_products', [
             'prod_order_step_id' => $firstStep->id,
@@ -88,7 +89,7 @@ class ProdOrderStartTest extends TestCase
             'work_station_id' => $this->workStationSecond->id,
             'sequence' => 2,
             'output_product_id' => $this->readyProduct->id,
-            'expected_quantity' => 1,
+            'expected_quantity' => 3,
         ]);
         $this->assertDatabaseMissing('prod_order_step_products', [
             'prod_order_step_id' => $secondStep->id,
@@ -98,9 +99,8 @@ class ProdOrderStartTest extends TestCase
         $this->assertDatabaseHas('supply_orders', [
             'warehouse_id' => $this->prodOrder->warehouse_id,
             'prod_order_id' => $this->prodOrder->id,
-            'status' => OrderStatus::Pending,
-            'product_id' => $this->rawMaterial->id,
-            'quantity' => $this->prodOrder->quantity,
+            'state' => SupplyOrderState::Created->value,
+            'product_category_id' => $this->rawMaterial->product_category_id,
         ]);
     }
 
@@ -134,7 +134,7 @@ class ProdOrderStartTest extends TestCase
             'work_station_id' => $this->workStationFirst->id,
             'sequence' => 1,
             'output_product_id' => $this->semiFinishedMaterial->id,
-            'expected_quantity' => 1,
+            'expected_quantity' => 3,
         ]);
         $this->assertDatabaseHas('prod_order_step_products', [
             'prod_order_step_id' => $firstStep->id,
@@ -149,7 +149,7 @@ class ProdOrderStartTest extends TestCase
             'work_station_id' => $this->workStationSecond->id,
             'sequence' => 2,
             'output_product_id' => $this->readyProduct->id,
-            'expected_quantity' => 1,
+            'expected_quantity' => 3,
         ]);
         $this->assertDatabaseMissing('prod_order_step_products', [
             'prod_order_step_id' => $secondStep->id,

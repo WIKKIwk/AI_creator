@@ -14,6 +14,7 @@ use Filament\Forms\Components\View as ViewField;
 use Filament\Forms\Concerns\InteractsWithForms;
 use Filament\Notifications\Notification;
 use Filament\Resources\Pages\Page;
+use Illuminate\Contracts\Support\Htmlable;
 
 class ProdOrderDetails extends Page
 {
@@ -22,6 +23,11 @@ class ProdOrderDetails extends Page
     protected static ?string $title = 'Details';
     protected static string $resource = ProdOrderResource::class;
     protected static string $view = 'filament.resources.prod-order-resource.pages.prod-order-details';
+
+    public function getTitle(): string|Htmlable
+    {
+        return 'Details ' . $this->prodOrder->number;
+    }
 
     public $tabs;
     public ProdOrder $prodOrder;
@@ -49,7 +55,7 @@ class ProdOrderDetails extends Page
         return [
             Grid::make(3)->schema([
                 Fieldset::make('Step Details')
-                    ->columns(3)
+                    ->columns(4)
                     ->schema([
                         Placeholder::make('ads')
                             ->label('Output Product')
@@ -64,9 +70,10 @@ class ProdOrderDetails extends Page
                             ->content(function () {
                                 return ($this->activeStep->output_quantity ?? 0) . ' ' . $this->activeStep->outputProduct?->category?->measure_unit?->getLabel();
                             }),
-                        /*TextInput::make('output_quantity')
-                            ->formatStateUsing(fn ($record) => $this->currentStep->expected_quantity)
-                            ->readOnly(),*/
+
+                        Placeholder::make('status')
+                            ->label('Status')
+                            ->content(fn() => $this->activeStep->status?->getLabel()),
                     ]),
             ]),
 

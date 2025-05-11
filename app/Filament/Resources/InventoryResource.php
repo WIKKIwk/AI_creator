@@ -39,6 +39,7 @@ class InventoryResource extends Resource
             RoleType::PLANNING_MANAGER,
             RoleType::PRODUCTION_MANAGER,
             RoleType::ALLOCATION_MANAGER,
+            RoleType::SENIOR_STOCK_MANAGER,
             RoleType::STOCK_MANAGER,
         ]);
     }
@@ -69,9 +70,13 @@ class InventoryResource extends Resource
             ->modifyQueryUsing(function (Builder $query) {
                 $query
                     ->with('items')
-                    ->when(auth()->user()->role == RoleType::STOCK_MANAGER, function ($query) {
-                        $query->where('warehouse_id', auth()->user()->warehouse_id);
-                    });
+                    ->when(
+                        in_array(auth()->user()->role, [
+                            RoleType::SENIOR_STOCK_MANAGER,
+                            RoleType::STOCK_MANAGER,
+                        ]),
+                        fn($query) => $query->where('warehouse_id', auth()->user()->warehouse_id)
+                    );
             })
             ->columns([
                 Tables\Columns\TextColumn::make('warehouse.name')
@@ -82,7 +87,9 @@ class InventoryResource extends Resource
                     ->numeric()
                     ->sortable(),
                 Tables\Columns\TextColumn::make('quantity')
-                    ->numeric()
+                    ->formatStateUsing(function ($record) {
+                        return $record->quantity . ' ' . $record->product->category?->measure_unit?->getLabel();
+                    })
                     ->sortable(),
                 Tables\Columns\TextColumn::make('unit_cost')
                     ->numeric()

@@ -31,6 +31,7 @@ class WorkStationResource extends Resource
             RoleType::ADMIN,
             RoleType::PRODUCTION_MANAGER,
             RoleType::ALLOCATION_MANAGER,
+            RoleType::SENIOR_STOCK_MANAGER,
             RoleType::STOCK_MANAGER,
         ]);
     }

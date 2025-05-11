@@ -31,15 +31,20 @@ class AgentResource extends Resource
     {
         return $form
             ->schema([
-                Forms\Components\TextInput::make('name')
-                    ->required()
-                    ->maxLength(255),
-                Forms\Components\Select::make('type')
-                    ->options(PartnerType::class)
-                    ->required(),
-                Forms\Components\TextInput::make('phone')
-                    ->tel()
-                    ->maxLength(255),
+                Forms\Components\Grid::make(4)->schema([
+                    Forms\Components\TextInput::make('name')
+                        ->required()
+                        ->maxLength(255),
+                    Forms\Components\TextInput::make('code')
+                        ->label('Short code')
+                        ->required(),
+                    Forms\Components\Select::make('type')
+                        ->options(PartnerType::class)
+                        ->required(),
+                    Forms\Components\TextInput::make('phone')
+                        ->tel()
+                        ->maxLength(255),
+                ])
             ]);
     }
 
@@ -48,6 +53,9 @@ class AgentResource extends Resource
         return $table
             ->columns([
                 Tables\Columns\TextColumn::make('name')
+                    ->searchable(),
+                Tables\Columns\TextColumn::make('code')
+                    ->label('Short code')
                     ->searchable(),
                 Tables\Columns\TextColumn::make('type')
                     ->badge()

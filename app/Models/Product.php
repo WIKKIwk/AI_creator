@@ -15,6 +15,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
  * @property int $id
  * @property string $name
  * @property string $description
+ * @property string $code
  * @property float $price
  * @property ProductType $type
  * @property int $product_category_id

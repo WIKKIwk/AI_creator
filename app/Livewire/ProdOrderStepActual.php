@@ -3,7 +3,9 @@
 namespace App\Livewire;
 
 use App\Enums\ProdOrderStepStatus;
+use App\Enums\RoleType;
 use App\Enums\StepProductType;
+use App\Exceptions\InsufficientAssetsException;
 use App\Models\ProdOrderStep;
 use App\Models\ProdOrderStepProduct;
 use App\Models\Product;
@@ -38,7 +40,13 @@ class ProdOrderStepActual extends Component implements HasForms, HasTable
             ->headerActions([
                 Action::make('add')
                     ->label('Add material')
-                    ->hidden(fn() => $this->step->status == ProdOrderStepStatus::Completed)
+                    ->hidden(
+                        fn() => $this->step->status == ProdOrderStepStatus::Completed ||
+                            !in_array(auth()->user()->role, [
+                                RoleType::ADMIN,
+                                RoleType::ALLOCATION_MANAGER,
+                            ])
+                    )
                     ->form([
                         Grid::make()->schema([
                             Select::make('product_id')
@@ -49,8 +57,8 @@ class ProdOrderStepActual extends Component implements HasForms, HasTable
                                 ->reactive()
                                 ->required(),
 
-                            TextInput::make('quantity')
-                                ->label('Quantity')
+                            TextInput::make('max_quantity')
+                                ->label('Available quantity')
                                 ->suffix(function ($get) {
                                     /** @var Product|null $product */
                                     $product = $get('product_id') ? Product::query()->find($get('product_id')) : null;
@@ -62,25 +70,37 @@ class ProdOrderStepActual extends Component implements HasForms, HasTable
                                 ->required(),
                         ])
                     ])
-                    ->action(function ($data) {
+                    ->action(function ($data, $livewire) {
+                        /** @var ProdOrderService $prodOrderService */
+                        $prodOrderService = app(ProdOrderService::class);
                         try {
-                            app(ProdOrderService::class)->editMaterials(
+                            $insufficientAssets = $prodOrderService->checkMaterials(
                                 $this->step,
                                 $data['product_id'],
-                                $data['quantity']
+                                $data['max_quantity']
                             );
-
-                            Notification::make()
-                                ->title('Success')
-                                ->body('Material added successfully')
-                                ->success()
-                                ->send();
+                            if (!empty($insufficientAssets)) {
+                                $livewire->dispatch(
+                                    'openModal',
+                                    $this->step->prodOrder,
+                                    $insufficientAssets,
+                                    'editMaterials',
+                                    [
+                                        $this->step->id,
+                                        $data['product_id'],
+                                        $data['max_quantity']
+                                    ]
+                                );
+                            } else {
+                                $prodOrderService->editMaterials(
+                                    $this->step,
+                                    $data['product_id'],
+                                    $data['max_quantity']
+                                );
+                                showSuccess('Material added successfully');
+                            }
                         } catch (Throwable $e) {
-                            Notification::make()
-                                ->title('Error')
-                                ->body($e->getMessage())
-                                ->danger()
-                                ->send();
+                            showError($e->getMessage());
                         }
                     })
                     ->icon('heroicon-o-plus'),
@@ -95,7 +115,13 @@ class ProdOrderStepActual extends Component implements HasForms, HasTable
             ->columns([
                 TextColumn::make('product.name')
                     ->width('500px'),
+                TextColumn::make('max_quantity')
+                    ->label('Available quantity')
+                    ->formatStateUsing(function (ProdOrderStepProduct $record) {
+                        return $record->max_quantity . ' ' . $record->product->category?->measure_unit?->getLabel();
+                    }),
                 TextColumn::make('quantity')
+                    ->label('Used quantity')
                     ->formatStateUsing(function (ProdOrderStepProduct $record) {
                         return $record->quantity . ' ' . $record->product->category?->measure_unit?->getLabel();
                     }),
@@ -105,7 +131,7 @@ class ProdOrderStepActual extends Component implements HasForms, HasTable
             ])
             ->actions([
                 EditAction::make()
-                    //->hidden(fn() => $this->step->status == ProdOrderStepStatus::Completed)
+                    ->hidden(fn() => $this->step->status == ProdOrderStepStatus::Completed)
                     ->form([
                         Grid::make()->schema([
                             Select::make('product_id')
@@ -116,8 +142,8 @@ class ProdOrderStepActual extends Component implements HasForms, HasTable
                                 ->reactive()
                                 ->required(),
 
-                            TextInput::make('quantity')
-                                ->label('Quantity')
+                            TextInput::make('max_quantity')
+                                ->label('Available quantity')
                                 ->suffix(function ($get) {
                                     /** @var Product|null $product */
                                     $product = $get('product_id') ? Product::query()->find($get('product_id')) : null;
@@ -129,25 +155,37 @@ class ProdOrderStepActual extends Component implements HasForms, HasTable
                                 ->required(),
                         ])
                     ])
-                    ->action(function ($data) {
+                    ->action(function ($data, $livewire) {
+                        /** @var ProdOrderService $prodOrderService */
+                        $prodOrderService = app(ProdOrderService::class);
                         try {
-                            app(ProdOrderService::class)->editMaterials(
+                            $insufficientAssets = $prodOrderService->checkMaterials(
                                 $this->step,
                                 $data['product_id'],
-                                $data['quantity']
+                                $data['max_quantity']
                             );
-
-                            Notification::make()
-                                ->title('Success')
-                                ->body('Material updated successfully')
-                                ->success()
-                                ->send();
+                            if (!empty($insufficientAssets)) {
+                                $livewire->dispatch(
+                                    'openModal',
+                                    $this->step->prodOrder,
+                                    $insufficientAssets,
+                                    'editMaterials',
+                                    [
+                                        $this->step->id,
+                                        $data['product_id'],
+                                        $data['max_quantity']
+                                    ]
+                                );
+                            } else {
+                                $prodOrderService->editMaterials(
+                                    $this->step,
+                                    $data['product_id'],
+                                    $data['max_quantity']
+                                );
+                                showSuccess('Material edited successfully');
+                            }
                         } catch (Throwable $e) {
-                            Notification::make()
-                                ->title('Error')
-                                ->body($e->getMessage())
-                                ->danger()
-                                ->send();
+                            showError($e->getMessage());
                         }
                     })
             ])

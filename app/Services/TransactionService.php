@@ -60,7 +60,7 @@ class TransactionService
                 'work_station_id' => $workStationId,
                 'quantity' => $quantity,
                 'type' => TransactionType::In,
-                'cost' => $cost,
+                'cost' => $cost ?? 0,
             ]);
         }
     }

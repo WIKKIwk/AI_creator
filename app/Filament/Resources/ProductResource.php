@@ -19,6 +19,7 @@ use Illuminate\Database\Eloquent\SoftDeletingScope;
 class ProductResource extends Resource
 {
     protected static ?string $model = Product::class;
+    protected static ?int $navigationSort = 5;
 
     protected static ?string $navigationIcon = 'heroicon-o-rectangle-stack';
 
@@ -33,13 +34,16 @@ class ProductResource extends Resource
     {
         return $form
             ->schema([
-                Forms\Components\Grid::make(3)->schema([
+                Forms\Components\Grid::make(4)->schema([
                     Forms\Components\Select::make('type')
                         ->options(ProductType::class)
                         ->required(),
                     Forms\Components\TextInput::make('name')
                         ->required()
                         ->maxLength(255),
+                    Forms\Components\TextInput::make('code')
+                        ->label('Short code')
+                        ->required(),
                     Forms\Components\TextInput::make('description')
                         ->maxLength(255),
                 ]),
@@ -63,11 +67,14 @@ class ProductResource extends Resource
                 ]);
             })
             ->columns([
+                Tables\Columns\TextColumn::make('code')
+                    ->label('Short code')
+                    ->searchable(),
+                Tables\Columns\TextColumn::make('name')
+                    ->searchable(),
                 Tables\Columns\TextColumn::make('type')
                     ->badge()
                     ->sortable(),
-                Tables\Columns\TextColumn::make('name')
-                    ->searchable(),
                 Tables\Columns\TextColumn::make('description')
                     ->searchable(),
                 Tables\Columns\TextColumn::make('price')

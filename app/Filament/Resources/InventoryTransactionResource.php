@@ -38,6 +38,7 @@ class InventoryTransactionResource extends Resource
         return in_array(auth()->user()->role, [
             RoleType::ADMIN,
             RoleType::STOCK_MANAGER,
+            RoleType::SENIOR_STOCK_MANAGER,
         ]);
     }
 
@@ -101,11 +102,15 @@ class InventoryTransactionResource extends Resource
             ->modifyQueryUsing(function ($query) {
                 $query
                     ->with(['product', 'storageLocation', 'workStation', 'warehouse'])
-                    ->when(auth()->user()->role == RoleType::STOCK_MANAGER, function ($query) {
-                        $query->where('warehouse_id', auth()->user()->warehouse_id);
-                    });
+                    ->when(
+                        in_array(auth()->user()->role, [
+                            RoleType::SENIOR_STOCK_MANAGER,
+                            RoleType::STOCK_MANAGER,
+                        ]),
+                        fn($query) => $query->where('warehouse_id', auth()->user()->warehouse_id)
+                    );
             })
-            ->defaultSort('created_at', 'desc')
+            ->defaultSort('id', 'desc')
             ->columns([
                 Tables\Columns\TextColumn::make('warehouse.name')
                     ->hidden(self::isWarehouseWorker())
@@ -118,7 +123,9 @@ class InventoryTransactionResource extends Resource
                     ->numeric()
                     ->sortable(),
                 Tables\Columns\TextColumn::make('quantity')
-                    ->numeric()
+                    ->formatStateUsing(function ($record) {
+                        return $record->quantity . ' ' . $record->product->category?->measure_unit?->getLabel();
+                    })
                     ->sortable(),
                 Tables\Columns\TextColumn::make('cost')
                     ->numeric()

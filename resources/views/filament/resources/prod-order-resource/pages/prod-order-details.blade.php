@@ -1,5 +1,6 @@
 @php
     use App\Enums\ProdOrderStepStatus;
+    use App\Enums\OrderStatus;
 
 @endphp
 <x-filament-panels::page>
@@ -22,21 +23,28 @@
         </x-filament::tabs>
 
 
-        <div>
+        @if (
+            $this->currentStep->id == $this->activeStep->id &&
+            $this->prodOrder->status != OrderStatus::Approved
+        )
+
+            @if ($this->prodOrder->status != OrderStatus::Completed && $this->currentStep->status == ProdOrderStepStatus::Completed)
                 <x-filament::button
                     x-on:click="if (confirm('Are you sure?')) { $wire.call('nextStep') }"
                 >
                     {{ $this->lastStep?->id == $this->currentStep->id ? 'Complete order' : 'Next Step' }}
                 </x-filament::button>
+            @endif
 
-
+            @if ($this->prodOrder->status == OrderStatus::Completed)
                 <x-filament::button
                     x-on:click="if (confirm('Are you sure?')) { $wire.call('approve') }"
                 >
                     Approve order
                 </x-filament::button>
+            @endif
 
-        </div>
+        @endif
 
     </div>
 

@@ -17,9 +17,9 @@
     </div>
     <x-slot name="footer">
         <div class="flex justify-end">
-            <x-filament::button color="danger" wire:click="cancelSupply">Cancel</x-filament::button>
-            &nbsp;
             <x-filament::button color="primary" wire:click="confirmSupply">Confirm</x-filament::button>
+            &nbsp;
+            <x-filament::button color="danger" wire:click="cancelSupply">Cancel</x-filament::button>
         </div>
     </x-slot>
 </x-filament::modal>

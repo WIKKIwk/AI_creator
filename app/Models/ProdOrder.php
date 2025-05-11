@@ -3,7 +3,6 @@
 namespace App\Models;
 
 use App\Enums\OrderStatus;
-use App\Services\ProdOrderService;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -14,6 +13,7 @@ use Illuminate\Support\Carbon;
 
 /**
  * @property int $id
+ * @property string $number
  * @property int $product_id
  * @property int $agent_id
  * @property int $warehouse_id
@@ -60,6 +60,20 @@ class ProdOrder extends Model
         'approved_at' => 'datetime',
         'confirmed_at' => 'datetime',
     ];
+
+    protected static function booted(): void
+    {
+        self::creating(function (ProdOrder $model) {
+            if ($model->agent?->code && $model->product?->code) {
+                $model->number = 'PO-' . $model->agent->code . $model->product->code . now()->format('dmy');
+            }
+        });
+        static::updating(function (ProdOrder $model) {
+            if ($model->agent?->code && $model->product?->code) {
+                $model->number = 'PO-' . $model->agent->code . $model->product->code . now()->format('dmy');
+            }
+        });
+    }
 
     public function warehouse(): BelongsTo
     {
