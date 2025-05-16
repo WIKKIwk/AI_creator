@@ -6,13 +6,13 @@ use App\Enums\RoleType;
 use App\Filament\Resources\UserResource\Pages;
 use App\Filament\Resources\UserResource\RelationManagers;
 use App\Models\User;
+use App\Services\UserService;
 use Filament\Forms;
 use Filament\Forms\Form;
 use Filament\Resources\Resource;
 use Filament\Tables;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
-use Illuminate\Database\Eloquent\SoftDeletingScope;
 
 class UserResource extends Resource
 {
@@ -20,6 +20,20 @@ class UserResource extends Resource
     protected static ?string $navigationGroup = 'Manage';
     protected static ?int $navigationSort = 10;
     protected static ?string $navigationIcon = 'heroicon-o-rectangle-stack';
+
+    public static function getEloquentQuery(): Builder
+    {
+        if (UserService::isSuperAdmin()) {
+            return parent::getEloquentQuery()->whereNot('id', auth()->user()->id);
+        }
+
+        $orgId = auth()->user()->organization_id;
+        return parent::getEloquentQuery()
+            ->when($orgId, function (Builder $query) use ($orgId) {
+                $query->where('organization_id', $orgId);
+            })
+            ->whereNot('id', auth()->user()->id);
+    }
 
     public static function canAccess(): bool
     {
@@ -32,32 +46,57 @@ class UserResource extends Resource
     {
         return $form
             ->schema([
-                Forms\Components\TextInput::make('name')
-                    ->required()
-                    ->maxLength(255),
-                Forms\Components\TextInput::make('email')
-                    ->email()
-                    ->required()
-                    ->maxLength(255),
-                Forms\Components\TextInput::make('password')
-                    ->password()
-                    ->required(fn($record) => $record === null)
-                    ->maxLength(255),
-                Forms\Components\Select::make('role')
-                    ->options(RoleType::class)
-                    ->required(),
-                Forms\Components\TextInput::make('chat_id'),
-                Forms\Components\Select::make('warehouse_id')
-                    ->relationship('warehouse', 'name'),
-                Forms\Components\Select::make('work_station_id')
-                    ->relationship('workStation', 'name'),
+                Forms\Components\Grid::make(3)->schema([
+
+                    Forms\Components\Select::make('organization_id')
+                        ->visible(UserService::isSuperAdmin())
+                        ->relationship('organization', 'name')
+                        ->required(),
+
+                    Forms\Components\Hidden::make('organization_id')->visible(!UserService::isSuperAdmin()),
+
+                    Forms\Components\TextInput::make('name')
+                        ->required()
+                        ->maxLength(255),
+                    Forms\Components\TextInput::make('email')
+                        ->email()
+                        ->required()
+                        ->maxLength(255),
+                ]),
+                Forms\Components\Grid::make(3)->schema([
+                    Forms\Components\TextInput::make('password')
+                        ->password()
+                        ->required(fn($record) => $record === null)
+                        ->maxLength(255),
+                    Forms\Components\Select::make('role')
+                        ->options(RoleType::class)
+                        ->required(),
+                    Forms\Components\TextInput::make('chat_id')
+                        ->rules('unique:users,chat_id'),
+                ]),
+                Forms\Components\Grid::make(3)->schema([
+                    Forms\Components\Select::make('warehouse_id')
+                        ->relationship('warehouse', 'name'),
+                    Forms\Components\Select::make('work_station_id')
+                        ->relationship('workStation', 'name'),
+                ])
             ]);
     }
 
     public static function table(Table $table): Table
     {
         return $table
+            ->modifyQueryUsing(function (Builder $query) {
+                return $query->with([
+                    'organization',
+                    'warehouse',
+                    'workStation',
+                ]);
+            })
             ->columns([
+                Tables\Columns\TextColumn::make('organization.name')
+                    ->visible(UserService::isSuperAdmin())
+                    ->sortable(),
                 Tables\Columns\TextColumn::make('name')
                     ->searchable(),
                 Tables\Columns\TextColumn::make('email')

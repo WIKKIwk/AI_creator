@@ -6,6 +6,7 @@ use App\Enums\RoleType;
 use App\Filament\Resources\WarehouseResource\Pages;
 use App\Filament\Resources\WarehouseResource\RelationManagers;
 use App\Models\Warehouse;
+use App\Services\UserService;
 use Filament\Forms;
 use Filament\Forms\Form;
 use Filament\Resources\Resource;
@@ -23,9 +24,7 @@ class WarehouseResource extends Resource
 
     public static function canAccess(): bool
     {
-        return in_array(auth()->user()->role, [
-            RoleType::ADMIN,
-        ]);
+        return !empty(auth()->user()->organization_id) && UserService::isAdmin();
     }
 
     public static function form(Form $form): Form

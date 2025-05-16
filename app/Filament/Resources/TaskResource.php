@@ -26,6 +26,18 @@ class TaskResource extends Resource
 
     protected static ?string $navigationIcon = 'heroicon-o-check-circle';
 
+    public static function canAccess(): bool
+    {
+        return !empty(auth()->user()->organization_id) && in_array(auth()->user()->role, [
+                RoleType::ADMIN,
+                RoleType::SENIOR_SUPPLY_MANAGER,
+                RoleType::SUPPLY_MANAGER,
+                RoleType::PRODUCTION_MANAGER,
+                RoleType::SENIOR_STOCK_MANAGER,
+                RoleType::STOCK_MANAGER,
+            ]);
+    }
+
     public static function getEloquentQuery(): Builder
     {
         if (auth()->user()->role == RoleType::ADMIN) {
@@ -41,7 +53,6 @@ class TaskResource extends Resource
     {
         return static::getModel()::count();
     }
-
 
 
     public static function form(Form $form): Form
@@ -85,7 +96,6 @@ class TaskResource extends Resource
 //                    ->sortable(),
                 Tables\Columns\TextColumn::make('related')
                     ->getStateUsing(function (Task $record) {
-
                         switch ($record->related_type) {
                             case 'App\Models\ProdOrder':
                                 $prodOrder = ProdOrder::query()->find($record->related_id);

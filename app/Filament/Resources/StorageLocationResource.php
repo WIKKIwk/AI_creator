@@ -21,9 +21,9 @@ class StorageLocationResource extends Resource
 
     public static function canAccess(): bool
     {
-        return in_array(auth()->user()->role, [
-            RoleType::ADMIN,
-        ]);
+        return !empty(auth()->user()->organization_id) && in_array(auth()->user()->role, [
+                RoleType::ADMIN,
+            ]);
     }
 
     public static function form(Form $form): Form

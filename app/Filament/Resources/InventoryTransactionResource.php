@@ -35,11 +35,11 @@ class InventoryTransactionResource extends Resource
             }
         }
 
-        return in_array(auth()->user()->role, [
-            RoleType::ADMIN,
-            RoleType::STOCK_MANAGER,
-            RoleType::SENIOR_STOCK_MANAGER,
-        ]);
+        return !empty(auth()->user()->organization_id) && in_array(auth()->user()->role, [
+                RoleType::ADMIN,
+                RoleType::STOCK_MANAGER,
+                RoleType::SENIOR_STOCK_MANAGER,
+            ]);
     }
 
     public static function form(Form $form): Form

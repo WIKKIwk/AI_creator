@@ -24,7 +24,7 @@ class ProductCategoryResource extends Resource
 
     public static function canAccess(): bool
     {
-        return in_array(auth()->user()->role, [
+        return !empty(auth()->user()->organization_id) && in_array(auth()->user()->role, [
             RoleType::ADMIN,
         ]);
     }

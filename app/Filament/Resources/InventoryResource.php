@@ -34,11 +34,9 @@ class InventoryResource extends Resource
             return false;
         }
 
-        return in_array(auth()->user()->role, [
+        return !empty(auth()->user()->organization_id) && in_array(auth()->user()->role, [
             RoleType::ADMIN,
-            RoleType::PLANNING_MANAGER,
             RoleType::PRODUCTION_MANAGER,
-            RoleType::ALLOCATION_MANAGER,
             RoleType::SENIOR_STOCK_MANAGER,
             RoleType::STOCK_MANAGER,
         ]);

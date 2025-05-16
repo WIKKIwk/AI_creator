@@ -2,10 +2,10 @@
 
 namespace App\Models;
 
-use Filament\Panel;
 use App\Enums\RoleType;
 use Exception;
 use Filament\Models\Contracts\FilamentUser;
+use Filament\Panel;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Foundation\Auth\User as Authenticatable;
@@ -23,12 +23,14 @@ use Laravel\Sanctum\HasApiTokens;
  * @property Carbon|null $email_verified_at
  * @property mixed $password
  * @property mixed $chat_id
+ * @property int $organization_id
  * @property int $warehouse_id
  * @property int $work_station_id
  * @property string|null $remember_token
  * @property Carbon|null $created_at
  * @property Carbon|null $updated_at
  *
+ * @property Organization $organization
  * @property Warehouse $warehouse
  * @property WorkStation $workStation
  */
@@ -49,6 +51,7 @@ class User extends Authenticatable implements FilamentUser
         'status',
         'role',
         'chat_id',
+        'organization_id',
         'warehouse_id',
         'work_station_id',
     ];
@@ -73,6 +76,11 @@ class User extends Authenticatable implements FilamentUser
         'password' => 'hashed',
         'role' => RoleType::class,
     ];
+
+    public function organization(): BelongsTo
+    {
+        return $this->belongsTo(Organization::class);
+    }
 
     public function warehouse(): BelongsTo
     {

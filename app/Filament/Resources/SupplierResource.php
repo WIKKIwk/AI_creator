@@ -22,6 +22,7 @@ class SupplierResource extends Resource
 
     public static function canAccess(): bool
     {
+        return false;
         return in_array(auth()->user()->role, [
             RoleType::ADMIN,
             RoleType::PLANNING_MANAGER,

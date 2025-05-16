@@ -23,9 +23,7 @@ class OrganizationResource extends Resource
 
     public static function canAccess(): bool
     {
-        return in_array(auth()->user()->role, [
-            RoleType::ADMIN,
-        ]);
+        return !auth()->user()->organization_id && auth()->user()->role == RoleType::ADMIN;
     }
 
     public static function form(Form $form): Form
