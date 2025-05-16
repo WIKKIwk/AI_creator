@@ -16,11 +16,13 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
  * @property string $description
  * @property string $code
  * @property int $parent_id
+ * @property int $organization_id
  * @property MeasureUnit $measure_unit
  * @property Carbon $created_at
  * @property Carbon $updated_at
  *
  * @property-read ProductCategory $parent
+ * @property-read Organization $organization
  * @property-read Collection<ProductCategory> $children
  */
 class ProductCategory extends Model
@@ -36,6 +38,11 @@ class ProductCategory extends Model
     public function parent(): BelongsTo
     {
         return $this->belongsTo(ProductCategory::class, 'parent_id');
+    }
+
+    public function organization(): BelongsTo
+    {
+        return $this->belongsTo(Organization::class);
     }
 
     public function children(): HasMany

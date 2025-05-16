@@ -8,6 +8,7 @@ use App\Models\Product;
 use Filament\Forms\Form;
 use Filament\Tables\Table;
 use App\Enums\ProductType;
+use App\Enums\MeasureUnit;
 use App\Models\WorkStation;
 use App\Models\ProdTemplate;
 use App\Enums\StepProductType;
@@ -58,28 +59,49 @@ class StepsRelationManager extends RelationManager
                         }
                     }),
 
-                Forms\Components\TextInput::make('output_product')
-                    ->label('Output product')
-                    ->readOnly()
-                    ->formatStateUsing(function($record) {
-                        /** @var ProdTemplateStep $record */
-                        if ($record?->outputProduct) {
-                            return $record->outputProduct->getDisplayName();
-                        } else {
-                            return "-";
-                        }
-                    })
-                    ->reactive(),
+                Forms\Components\Grid::make(3)->schema([
+                    Forms\Components\TextInput::make('output_product')
+                        ->label('Output product')
+                        ->readOnly()
+                        ->formatStateUsing(function($record) {
+                            /** @var ProdTemplateStep $record */
+                            if ($record?->outputProduct) {
+                                return $record->outputProduct->getDisplayName();
+                            } else {
+                                return "-";
+                            }
+                        })
+                        ->reactive(),
 
-                Forms\Components\TextInput::make('expected_quantity')
-                    ->label('Expected quantity')
-                    ->suffix(function($get) {
-                        /** @var ?WorkStation $workStation */
-                        $workStation = $get('work_station_id') ? WorkStation::find($get('work_station_id')) : null;
-                        return $workStation?->category?->measure_unit?->getLabel();
-                    })
-                    ->required()
-                    ->reactive(),
+                    Forms\Components\Select::make('measure_unit')
+                        ->label('Measure unit')
+                        ->options(function($record, $get) {
+                            $result = [];
+
+                            if ($record?->workStation) {
+                                $workStation = $record->workStation;
+                            } else {
+                                $workStation = $get('work_station_id') ? WorkStation::find($get('work_station_id')) : null;
+                            }
+
+                            foreach ($workStation?->getMeasureUnits() ?? [] as $item) {
+                                $result[$item->value] = $item->getLabel();
+                            }
+                            return $result;
+                        })
+                        ->required()
+                        ->reactive(),
+
+                    Forms\Components\TextInput::make('expected_quantity')
+                        ->label('Expected quantity')
+                        ->suffix(function($get) {
+                            /** @var ?WorkStation $workStation */
+                            $workStation = $get('work_station_id') ? WorkStation::find($get('work_station_id')) : null;
+                            return $workStation?->category?->measure_unit?->getLabel();
+                        })
+                        ->required()
+                        ->reactive(),
+                ]),
 
                 Forms\Components\Repeater::make('requiredItems')
                     ->columnSpanFull()
@@ -135,7 +157,7 @@ class StepsRelationManager extends RelationManager
                     ->label('Expected quantity')
                     ->formatStateUsing(function($record) {
                         /** @var ProdTemplateStep $record */
-                        return $record->expected_quantity . ' ' . $record->workStation->category?->measure_unit?->getLabel(
+                        return $record->expected_quantity . ' ' . $record->measure_unit?->getLabel(
                             );
                     }),
             ])

@@ -13,16 +13,17 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 /**
  * @property int $id
  * @property string $name
- * @property int $product_category_id
+ * @property int $work_station_category_id
  * @property int $type
  * @property int $organization_id
  * @property int $prod_order_id
  * @property int $performance_qty
  * @property int $performance_duration
+ * @property array $measure_units
  * @property DurationUnit $performance_duration_unit
  *
  * @property ProdOrder $prodOrder
- * @property ProductCategory $category
+ * @property WorkStationCategory $category
  * @property Organization $organization
  * @property Collection<PerformanceRate> $performanceRates
  * @property Collection<MiniInventory> $miniInventories
@@ -35,11 +36,30 @@ class WorkStation extends Model
 
     protected $casts = [
         'performance_duration_unit' => DurationUnit::class,
+        'measure_units' => 'array',
     ];
+
+    public function getMeasureUnits(): \Illuminate\Support\Collection
+    {
+        $measureUnits = $this->measure_units ?? [];
+
+        $result = collect();
+        foreach ($measureUnits as $value) {
+            $result->push(MeasureUnit::from($value));
+        }
+        return $result;
+    }
+
+    public function getMeasureUnitLabels(): \Illuminate\Support\Collection
+    {
+        return $this->getMeasureUnits()->map(function (MeasureUnit $item) {
+            return $item->getLabel();
+        });
+    }
 
     public function category(): BelongsTo
     {
-        return $this->belongsTo(ProductCategory::class, 'product_category_id');
+        return $this->belongsTo(WorkStationCategory::class, 'work_station_category_id');
     }
 
     public function organization(): BelongsTo

@@ -27,7 +27,8 @@ class ProductService
                 ['name' => $productName],
                 [
                     'type' => ProductType::SemiFinishedProduct,
-                    'product_category_id' => $workStation->product_category_id,
+                    'product_category_id' => $prodTmp->product->product_category_id,
+//                    'product_category_id' => $workStation->product_category_id,
                     'work_station_id' => $workStation->id,
                     'ready_product_id' => $prodTmp->product->id
                 ]

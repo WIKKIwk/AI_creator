@@ -7,6 +7,7 @@ use App\Enums\ProductType;
 use Illuminate\Support\Arr;
 use App\Models\WorkStation;
 use App\Enums\StepProductType;
+use Illuminate\Database\Eloquent\Builder;
 use App\Filament\Resources\ProdTemplateResource\Pages;
 use App\Filament\Resources\ProdTemplateResource\RelationManagers;
 use App\Models\ProdTemplate;
@@ -32,10 +33,17 @@ class ProdTemplateResource extends Resource
         ]);
     }
 
+    public static function getEloquentQuery(): Builder
+    {
+        return parent::getEloquentQuery()
+            ->where('organization_id', auth()->user()->organization_id);
+    }
+
     public static function form(Form $form): Form
     {
         return $form
             ->schema([
+                Forms\Components\Hidden::make('organization_id'),
                 Forms\Components\Grid::make(3)->schema([
                     Forms\Components\TextInput::make('name')
                         ->label('Name'),

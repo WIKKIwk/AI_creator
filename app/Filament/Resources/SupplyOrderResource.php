@@ -25,14 +25,6 @@ class SupplyOrderResource extends Resource
 
     protected static ?string $navigationIcon = 'heroicon-o-rectangle-stack';
 
-    public static function canAction(): bool
-    {
-        return in_array(auth()->user()->role, [
-            RoleType::ADMIN,
-            RoleType::PLANNING_MANAGER,
-        ]);
-    }
-
     public static function canAccess(): bool
     {
         return !empty(auth()->user()->organization_id) && in_array(auth()->user()->role, [
@@ -45,6 +37,14 @@ class SupplyOrderResource extends Resource
             RoleType::STOCK_MANAGER,
             RoleType::SENIOR_STOCK_MANAGER,
         ]);
+    }
+
+    public static function getEloquentQuery(): Builder
+    {
+        return parent::getEloquentQuery()->whereRelation(
+            'warehouse', 'organization_id',
+            auth()->user()->organization_id
+        );
     }
 
     public static function canCreate(): bool

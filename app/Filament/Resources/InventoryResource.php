@@ -3,6 +3,7 @@
 namespace App\Filament\Resources;
 
 use App\Enums\RoleType;
+use App\Services\UserService;
 use App\Filament\Resources\InventoryResource\Actions\InventoryItemsAction;
 use App\Filament\Resources\InventoryResource\Pages;
 use App\Filament\Resources\InventoryResource\RelationManagers;
@@ -26,6 +27,14 @@ class InventoryResource extends Resource
     public static function isWarehouseWorker(): bool
     {
         return auth()->user()->role == RoleType::STOCK_MANAGER;
+    }
+
+    public static function getEloquentQuery(): Builder
+    {
+        return parent::getEloquentQuery()->whereRelation(
+            'warehouse', 'organization_id',
+            auth()->user()->organization_id
+        );
     }
 
     public static function canAccess(): bool
@@ -130,6 +139,11 @@ class InventoryResource extends Resource
     public static function canDelete(Model $record): bool
     {
         return false;
+    }
+
+    public static function canDeleteAny(): bool
+    {
+        return UserService::isSuperAdmin();
     }
 
     public static function canCreate(): bool

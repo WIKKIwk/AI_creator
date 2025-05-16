@@ -14,6 +14,7 @@ use Illuminate\Database\Eloquent\Relations\HasOne;
  * @property int $id
  * @property string $name
  * @property int $product_id
+ * @property int $organization_id
  * @property string $comment
  * @property string $created_at
  * @property string $updated_at
@@ -60,5 +61,10 @@ class ProdTemplate extends Model
             'id',
             'work_station_id'
         );
+    }
+
+    public function organization(): BelongsTo
+    {
+        return $this->belongsTo(Organization::class);
     }
 }

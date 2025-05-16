@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Enums\MeasureUnit;
 use App\Enums\StepProductType;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -15,6 +16,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
  * @property int $work_station_id
  * @property int $sequence
  * @property int $output_product_id
+ * @property MeasureUnit $measure_unit
  * @property int $expected_quantity
  * @property bool $is_last
  *
@@ -30,6 +32,10 @@ class ProdTemplateStep extends Model
     use HasFactory;
 
     protected $guarded = ['id'];
+
+    protected $casts = [
+        'measure_unit' => MeasureUnit::class,
+    ];
 
     public function prodTemplate(): BelongsTo
     {

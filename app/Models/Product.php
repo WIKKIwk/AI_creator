@@ -39,6 +39,11 @@ class Product extends Model
         'type' => ProductType::class,
     ];
 
+    public function getAsdAttribute(): string
+    {
+        return $this->category->name . ' ' . $this->name;
+    }
+
     public function getDisplayName(): string
     {
         if ($this->work_station_id && $this->ready_product_id) {

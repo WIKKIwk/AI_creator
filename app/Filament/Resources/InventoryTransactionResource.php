@@ -3,7 +3,9 @@
 namespace App\Filament\Resources;
 
 use App\Enums\RoleType;
+use App\Services\UserService;
 use App\Enums\TransactionType;
+use Illuminate\Database\Eloquent\Builder;
 use App\Filament\Resources\InventoryTransactionResource\Pages;
 use App\Filament\Resources\InventoryTransactionResource\RelationManagers;
 use App\Models\InventoryTransaction;
@@ -40,6 +42,14 @@ class InventoryTransactionResource extends Resource
                 RoleType::STOCK_MANAGER,
                 RoleType::SENIOR_STOCK_MANAGER,
             ]);
+    }
+
+    public static function getEloquentQuery(): Builder
+    {
+        return parent::getEloquentQuery()->whereRelation(
+            'warehouse', 'organization_id',
+            auth()->user()->organization_id
+        );
     }
 
     public static function form(Form $form): Form
@@ -163,10 +173,10 @@ class InventoryTransactionResource extends Resource
         return false;
     }
 
-//    public static function canCreate(): bool
-//    {
-//        return false;
-//    }
+    public static function canCreate(): bool
+    {
+        return UserService::isSuperAdmin();
+    }
 
     public static function canDelete(Model $record): bool
     {

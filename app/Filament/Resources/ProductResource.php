@@ -2,19 +2,17 @@
 
 namespace App\Filament\Resources;
 
-use App\Enums\MeasureUnit;
-use App\Enums\ProductType;
+use Filament\Forms;
+use Filament\Tables;
 use App\Enums\RoleType;
+use App\Models\Product;
+use Filament\Forms\Form;
+use App\Enums\ProductType;
+use Filament\Tables\Table;
+use Filament\Resources\Resource;
+use Illuminate\Database\Eloquent\Builder;
 use App\Filament\Resources\ProductResource\Pages;
 use App\Filament\Resources\ProductResource\RelationManagers;
-use App\Models\Product;
-use Filament\Forms;
-use Filament\Forms\Form;
-use Filament\Resources\Resource;
-use Filament\Tables;
-use Filament\Tables\Table;
-use Illuminate\Database\Eloquent\Builder;
-use Illuminate\Database\Eloquent\SoftDeletingScope;
 
 class ProductResource extends Resource
 {
@@ -26,15 +24,23 @@ class ProductResource extends Resource
     public static function canAccess(): bool
     {
         return !empty(auth()->user()->organization_id) && in_array(auth()->user()->role, [
-            RoleType::ADMIN,
-        ]);
+                RoleType::ADMIN,
+            ]);
+    }
+
+    public static function getEloquentQuery(): Builder
+    {
+        return parent::getEloquentQuery()
+//            ->where('organization_id', auth()->user()->organization_id)
+            ->whereRelation('category', 'organization_id', auth()->user()->organization_id);
     }
 
     public static function form(Form $form): Form
     {
         return $form
             ->schema([
-                Forms\Components\Grid::make(4)->schema([
+//                Forms\Components\Hidden::make('organization_id'),
+                Forms\Components\Grid::make(3)->schema([
                     Forms\Components\Select::make('type')
                         ->options(ProductType::class)
                         ->required(),
@@ -44,8 +50,6 @@ class ProductResource extends Resource
                     Forms\Components\TextInput::make('code')
                         ->label('Short code')
                         ->required(),
-                    Forms\Components\TextInput::make('description')
-                        ->maxLength(255),
                 ]),
 
                 Forms\Components\Grid::make(3)->schema([
@@ -54,6 +58,8 @@ class ProductResource extends Resource
                     Forms\Components\Select::make('product_category_id')
                         ->relationship('category', 'name')
                         ->required(),
+                    Forms\Components\TextInput::make('description')
+                        ->maxLength(255),
                 ]),
             ]);
     }
@@ -61,10 +67,8 @@ class ProductResource extends Resource
     public static function table(Table $table): Table
     {
         return $table
-            ->modifyQueryUsing(function (Builder $query) {
-                $query->with([
-                    'category'
-                ]);
+            ->modifyQueryUsing(function(Builder $query) {
+                $query->with(['category']);
             })
             ->columns([
                 Tables\Columns\TextColumn::make('code')

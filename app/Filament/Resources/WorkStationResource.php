@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources;
 
+use App\Enums\MeasureUnit;
 use App\Enums\DurationUnit;
 use App\Enums\RoleType;
 use App\Filament\Resources\WorkStationResource\Pages;
@@ -42,19 +43,22 @@ class WorkStationResource extends Resource
                         ->required()
                         ->maxLength(255),
 
-                    Forms\Components\Select::make('organization_id')
-                        ->relationship('organization', 'name')
-                        ->required(),
+                    Forms\Components\Hidden::make('organization_id'),
 
-                    Forms\Components\Select::make('product_category_id')
+                    Forms\Components\Select::make('work_station_category_id')
                         ->relationship('category', 'name')
-                        ->reactive()
+                        ->reactive(),
+
+                    Forms\Components\Select::make('measure_units')
+                        ->options(MeasureUnit::class)
+                        ->preload()
+                        ->multiple()
                         ->required(),
 
                     Forms\Components\Select::make('prod_order_id')
                         ->native(false)
                         ->label('Current prod order')
-                        ->options(function ($record) {
+                        ->options(function($record) {
                             /** @var Collection<ProdOrder> $orders */
                             $orders = ProdOrder::query()
                                 ->whereHas('currentStep', fn($q) => $q->where('work_station_id', $record?->id))
@@ -71,7 +75,7 @@ class WorkStationResource extends Resource
                 Forms\Components\Grid::make(4)->schema([
 
                     Forms\Components\TextInput::make('performance_qty')
-                        ->suffix(function ($state, $get) {
+                        ->suffix(function($state, $get) {
                             /** @var ProductCategory $prodCategory */
                             $prodCategory = $get('product_category_id') ? ProductCategory::find(
                                 $get('product_category_id')
@@ -89,21 +93,21 @@ class WorkStationResource extends Resource
     public static function table(Table $table): Table
     {
         return $table
-            ->modifyQueryUsing(function (Builder $query) {
-                $query->with('organization', 'category');
+            ->modifyQueryUsing(function(Builder $query) {
+                $query->with('category');
             })
             ->columns([
                 Tables\Columns\TextColumn::make('name')
                     ->searchable(),
                 Tables\Columns\TextColumn::make('category.name')
-                    ->numeric()
                     ->sortable(),
-                Tables\Columns\TextColumn::make('organization.name')
-                    ->numeric()
-                    ->sortable(),
+                Tables\Columns\TextColumn::make('measure_units')
+                    ->formatStateUsing(function(WorkStation $record) {
+                        return $record->getMeasureUnitLabels()->implode(', ');
+                    }),
                 Tables\Columns\TextColumn::make('prod_order_id')
                     ->label('Current prod order')
-                    ->formatStateUsing(function ($state, $record) {
+                    ->formatStateUsing(function($state, $record) {
                         return $record->prodOrder?->product->name . ' - ' . $record->prodOrder?->warehouse->name . ' - ' . $record->prodOrder?->quantity;
                     }),
                 //                Tables\Columns\TextColumn::make('type')
@@ -123,6 +127,7 @@ class WorkStationResource extends Resource
             ])
             ->actions([
                 Tables\Actions\EditAction::make(),
+                Tables\Actions\DeleteAction::make(),
             ])
             ->bulkActions([
                 Tables\Actions\BulkActionGroup::make([

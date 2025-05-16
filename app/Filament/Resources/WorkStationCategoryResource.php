@@ -2,35 +2,37 @@
 
 namespace App\Filament\Resources;
 
-use Filament\Forms;
-use Filament\Tables;
 use App\Enums\RoleType;
+use App\Filament\Resources\WorkStationCategoryResource\Pages;
+use App\Filament\Resources\WorkStationCategoryResource\RelationManagers;
+use App\Models\WorkStationCategory;
+use Filament\Forms;
 use Filament\Forms\Form;
-use Filament\Tables\Table;
-use App\Models\StorageLocation;
 use Filament\Resources\Resource;
+use Filament\Tables;
+use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
-use App\Filament\Resources\StorageLocationResource\Pages;
-use App\Filament\Resources\StorageLocationResource\RelationManagers;
+use Illuminate\Database\Eloquent\SoftDeletingScope;
 
-class StorageLocationResource extends Resource
+class WorkStationCategoryResource extends Resource
 {
-    protected static ?string $model = StorageLocation::class;
-    protected static ?string $navigationGroup = 'Warehouse';
-    protected static ?int $navigationSort = 4;
+    protected static ?string $model = WorkStationCategory::class;
+    protected static ?string $navigationGroup = 'Manage';
+    protected static ?int $navigationSort = 9;
     protected static ?string $navigationIcon = 'heroicon-o-rectangle-stack';
 
     public static function canAccess(): bool
     {
         return !empty(auth()->user()->organization_id) && in_array(auth()->user()->role, [
                 RoleType::ADMIN,
+                RoleType::PRODUCTION_MANAGER,
             ]);
     }
 
     public static function getEloquentQuery(): Builder
     {
-        return parent::getEloquentQuery()->whereRelation(
-            'warehouse', 'organization_id',
+        return parent::getEloquentQuery()->where(
+            'organization_id',
             auth()->user()->organization_id
         );
     }
@@ -39,39 +41,27 @@ class StorageLocationResource extends Resource
     {
         return $form
             ->schema([
+                Forms\Components\Hidden::make('organization_id'),
                 Forms\Components\TextInput::make('name')
                     ->required()
                     ->maxLength(255),
-                Forms\Components\TextInput::make('number')
-                    ->maxLength(255),
-                Forms\Components\TextInput::make('floors_count')
+                Forms\Components\TextInput::make('short_code')
                     ->maxLength(255),
                 Forms\Components\TextInput::make('description')
                     ->maxLength(255),
-                Forms\Components\Select::make('warehouse_id')
-                    ->relationship('warehouse', 'name')
-                    ->required(),
             ]);
     }
 
     public static function table(Table $table): Table
     {
         return $table
-            ->modifyQueryUsing(function($query) {
-                return $query->with('warehouse');
-            })
             ->columns([
                 Tables\Columns\TextColumn::make('name')
                     ->searchable(),
-                Tables\Columns\TextColumn::make('number')
-                    ->searchable(),
-                Tables\Columns\TextColumn::make('floors_count')
+                Tables\Columns\TextColumn::make('short_code')
                     ->searchable(),
                 Tables\Columns\TextColumn::make('description')
                     ->searchable(),
-                Tables\Columns\TextColumn::make('warehouse.name')
-                    ->numeric()
-                    ->sortable(),
                 Tables\Columns\TextColumn::make('created_at')
                     ->dateTime()
                     ->sortable()
@@ -98,7 +88,7 @@ class StorageLocationResource extends Resource
     public static function getPages(): array
     {
         return [
-            'index' => Pages\ManageStorageLocations::route('/'),
+            'index' => Pages\ManageWorkStationCategories::route('/'),
         ];
     }
 }
