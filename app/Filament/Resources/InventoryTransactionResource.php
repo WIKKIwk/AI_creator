@@ -44,14 +44,6 @@ class InventoryTransactionResource extends Resource
             ]);
     }
 
-    public static function getEloquentQuery(): Builder
-    {
-        return parent::getEloquentQuery()->whereRelation(
-            'warehouse', 'organization_id',
-            auth()->user()->organization_id
-        );
-    }
-
     public static function form(Form $form): Form
     {
         $schema = [

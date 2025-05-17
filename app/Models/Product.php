@@ -2,9 +2,10 @@
 
 namespace App\Models;
 
-use App\Enums\MeasureUnit;
 use App\Enums\ProductType;
+use App\Services\ProductService;
 use Carbon\Carbon;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -39,15 +40,17 @@ class Product extends Model
         'type' => ProductType::class,
     ];
 
-    public function getAsdAttribute(): string
+    protected static function booted(): void
     {
-        return $this->category->name . ' ' . $this->name;
+        static::addGlobalScope('own_product_category', function (Builder $builder) {
+            $builder->whereRelation('category', 'organization_id', auth()->user()->organization_id);
+        });
     }
 
     public function getDisplayName(): string
     {
         if ($this->work_station_id && $this->ready_product_id) {
-            return $this->workStation->name . ' ' . $this->readyProduct->name . ' SFP';
+            return ProductService::getSfpName($this->readyProduct, $this->workStation);
         }
 
         return $this->name;

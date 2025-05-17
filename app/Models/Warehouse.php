@@ -2,6 +2,8 @@
 
 namespace App\Models;
 
+use App\Models\Scopes\OwnOrganizationScope;
+use Illuminate\Database\Eloquent\Attributes\ScopedBy;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -17,6 +19,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
  * @property Organization $organization
  * @property Collection<StorageLocation> $locations
  */
+#[ScopedBy(OwnOrganizationScope::class)]
 class Warehouse extends Model
 {
     use HasFactory;

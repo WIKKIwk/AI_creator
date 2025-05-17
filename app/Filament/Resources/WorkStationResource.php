@@ -37,13 +37,12 @@ class WorkStationResource extends Resource
     {
         return $form
             ->schema([
-                Forms\Components\Grid::make(4)->schema([
+                Forms\Components\Hidden::make('organization_id'),
 
+                Forms\Components\Grid::make(4)->schema([
                     Forms\Components\TextInput::make('name')
                         ->required()
                         ->maxLength(255),
-
-                    Forms\Components\Hidden::make('organization_id'),
 
                     Forms\Components\Select::make('work_station_category_id')
                         ->relationship('category', 'name')

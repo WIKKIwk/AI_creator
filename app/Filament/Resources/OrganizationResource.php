@@ -6,6 +6,7 @@ use App\Enums\RoleType;
 use App\Filament\Resources\OrganizationResource\Pages;
 use App\Filament\Resources\OrganizationResource\RelationManagers;
 use App\Models\Organization;
+use App\Services\UserService;
 use Filament\Forms;
 use Filament\Forms\Form;
 use Filament\Resources\Resource;
@@ -23,7 +24,7 @@ class OrganizationResource extends Resource
 
     public static function canAccess(): bool
     {
-        return !auth()->user()->organization_id && auth()->user()->role == RoleType::ADMIN;
+        return UserService::isSuperAdmin();
     }
 
     public static function form(Form $form): Form

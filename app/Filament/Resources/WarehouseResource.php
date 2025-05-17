@@ -25,27 +25,21 @@ class WarehouseResource extends Resource
         return !empty(auth()->user()->organization_id) && UserService::isAdmin();
     }
 
-    public static function getEloquentQuery(): Builder
-    {
-        return parent::getEloquentQuery()->where(
-            'organization_id',
-            auth()->user()->organization_id
-        );
-    }
-
     public static function form(Form $form): Form
     {
         return $form
             ->schema([
-                Forms\Components\Hidden::make('organization_id'),
-                Forms\Components\TextInput::make('name')
-                    ->required()
-                    ->maxLength(255),
-                Forms\Components\TextInput::make('address')
-                    ->maxLength(255),
-                Forms\Components\TextInput::make('phone')
-                    ->tel()
-                    ->maxLength(255),
+                Forms\Components\Grid::make(3)->schema([
+                    Forms\Components\Hidden::make('organization_id'),
+                    Forms\Components\TextInput::make('name')
+                        ->required()
+                        ->maxLength(255),
+                    Forms\Components\TextInput::make('address')
+                        ->maxLength(255),
+                    Forms\Components\TextInput::make('phone')
+                        ->tel()
+                        ->maxLength(255),
+                ])
             ]);
     }
 

@@ -30,15 +30,6 @@ class StepsRelationManager extends RelationManager
                     ->searchable()
                     ->preload()
                     ->reactive()
-                    ->afterStateUpdated(function($set, $get) {
-                        $workStation = $get('work_station_id') ? WorkStation::find($get('work_station_id')) : null;
-                        $readyProduct = $this->getOwnerRecord()->product;
-                        if ($workStation && $readyProduct) {
-                            $set('output_product', "$workStation->name $readyProduct->name SFP");
-                        } else {
-                            $set('output_product', "-");
-                        }
-                    })
                     ->required(),
 
                 Forms\Components\Checkbox::make('is_last')
@@ -48,30 +39,47 @@ class StepsRelationManager extends RelationManager
                         /** @var ProdTemplate $prodTmp */
                         $prodTmp = $this->getOwnerRecord();
                         if ($get('is_last')) {
-                            $set('output_product', $prodTmp->product->getDisplayName());
+                            $set('output_product_id', $prodTmp->product_id);
                         } else {
                             $workStation = $get('work_station_id') ? WorkStation::find($get('work_station_id')) : null;
                             if ($workStation && $prodTmp->product) {
-                                $set('output_product', "$workStation->name {$prodTmp->product->name} SFP");
+                                $sfpProduct = Product::query()
+                                    ->where('name', ProductService::getSfpName($prodTmp->product, $workStation))
+                                    ->first();
+                                $set('output_product_id', $sfpProduct?->id);
                             } else {
-                                $set('output_product', "-");
+                                $set('output_product_id', null);
                             }
                         }
                     }),
 
                 Forms\Components\Grid::make(3)->schema([
-                    Forms\Components\TextInput::make('output_product')
-                        ->label('Output product')
-                        ->readOnly()
-                        ->formatStateUsing(function($record) {
-                            /** @var ProdTemplateStep $record */
-                            if ($record?->outputProduct) {
-                                return $record->outputProduct->getDisplayName();
-                            } else {
-                                return "-";
-                            }
-                        })
-                        ->reactive(),
+//                    Forms\Components\TextInput::make('output_product')
+//                        ->label('Output product')
+//                        ->readOnly()
+//                        ->formatStateUsing(function($record) {
+//                            /** @var ProdTemplateStep $record */
+//                            if ($record?->outputProduct) {
+//                                return $record->outputProduct->getDisplayName();
+//                            } else {
+//                                return "-";
+//                            }
+//                        })
+//                        ->reactive(),
+
+                Forms\Components\Select::make('output_product_id')
+                    ->label('Output product')
+                    ->relationship('outputProduct', 'name')
+                    ->getOptionLabelFromRecordUsing(function($record) {
+                        /** @var Product $record */
+                        return $record->ready_product_id ? $record->name : ($record->category->name . ' ' . $record->name);
+                    })
+                    ->afterStateUpdated(function ($set, $get) {
+                        $set('is_last', $get('output_product_id') == $this->getOwnerRecord()->product_id);
+                    })
+                    ->reactive()
+                    ->searchable()
+                    ->preload(),
 
                     Forms\Components\Select::make('measure_unit')
                         ->label('Measure unit')
@@ -117,6 +125,10 @@ class StepsRelationManager extends RelationManager
                                     'name',
                                     fn($query) => $query->whereNot('type', ProductType::ReadyProduct)
                                 )
+                                ->getOptionLabelFromRecordUsing(function($record) {
+                                    /** @var Product $record */
+                                    return $record->ready_product_id ? $record->name : ($record->category->name . ' ' . $record->name);
+                                })
                                 ->searchable()
                                 ->preload()
                                 ->reactive()
@@ -144,6 +156,8 @@ class StepsRelationManager extends RelationManager
     public function table(Table $table): Table
     {
         return $table
+//            ->reorderable('sequence')
+            ->paginated(false)
             ->defaultSort('sequence')
             ->recordTitleAttribute('work_station_id')
             ->modifyQueryUsing(function($query) {
@@ -169,16 +183,19 @@ class StepsRelationManager extends RelationManager
                     ->label('Add step')
                     ->mutateFormDataUsing(function($data) {
                         /** @var ProdTemplate $prodTemplate */
-                        /** @var ProductService $productService */
-                        $productService = app(ProductService::class);
                         $prodTemplate = $this->getOwnerRecord();
-                        $outputProduct = $productService->createOrGetSemiFinished(
-                            $prodTemplate,
-                            $data['work_station_id'] ?? null,
-                            $data['is_last'] ?? false,
-                        );
 
-                        $data['output_product_id'] = $outputProduct?->id;
+                        if (!$data['output_product_id']) {
+                            /** @var ProductService $productService */
+                            $productService = app(ProductService::class);
+                            $outputProduct = $productService->createOrGetSemiFinished(
+                                $prodTemplate,
+                                $data['work_station_id'] ?? null,
+                                $data['is_last'] ?? false,
+                            );
+                            $data['output_product_id'] = $outputProduct?->id;
+                        }
+
                         $data['sequence'] = $prodTemplate->steps()->count() + 1;
                         return $data;
                     }),
@@ -187,16 +204,18 @@ class StepsRelationManager extends RelationManager
                 Tables\Actions\EditAction::make()
                     ->mutateFormDataUsing(function($data) {
                         /** @var ProdTemplate $prodTemplate */
-                        /** @var ProductService $productService */
-                        $productService = app(ProductService::class);
                         $prodTemplate = $this->getOwnerRecord();
-                        $outputProduct = $productService->createOrGetSemiFinished(
-                            $prodTemplate,
-                            $data['work_station_id'] ?? null,
-                            $data['is_last'] ?? false,
-                        );
 
-                        $data['output_product_id'] = $outputProduct?->id;
+                        if (!$data['output_product_id']) {
+                            /** @var ProductService $productService */
+                            $productService = app(ProductService::class);
+                            $outputProduct = $productService->createOrGetSemiFinished(
+                                $prodTemplate,
+                                $data['work_station_id'] ?? null,
+                                $data['is_last'] ?? false,
+                            );
+                            $data['output_product_id'] = $outputProduct?->id;
+                        }
                         return $data;
                     }),
                 Tables\Actions\DeleteAction::make(),

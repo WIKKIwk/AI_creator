@@ -4,6 +4,8 @@ namespace App\Models;
 
 use App\Enums\SupplyOrderState;
 use App\Enums\SupplyOrderStatus;
+use App\Models\Scopes\OwnWarehouseScope;
+use Illuminate\Database\Eloquent\Attributes\ScopedBy;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -49,6 +51,7 @@ use Illuminate\Support\Carbon;
  * @property Collection<SupplyOrderLocation> $locations
  * @property Collection<SupplyOrderProduct> $products
  */
+#[ScopedBy(OwnWarehouseScope::class)]
 class SupplyOrder extends Model
 {
     use HasFactory;

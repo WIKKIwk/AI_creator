@@ -28,13 +28,6 @@ class ProductResource extends Resource
             ]);
     }
 
-    public static function getEloquentQuery(): Builder
-    {
-        return parent::getEloquentQuery()
-//            ->where('organization_id', auth()->user()->organization_id)
-            ->whereRelation('category', 'organization_id', auth()->user()->organization_id);
-    }
-
     public static function form(Form $form): Form
     {
         return $form
@@ -44,20 +37,20 @@ class ProductResource extends Resource
                     Forms\Components\Select::make('type')
                         ->options(ProductType::class)
                         ->required(),
-                    Forms\Components\TextInput::make('name')
-                        ->required()
-                        ->maxLength(255),
-                    Forms\Components\TextInput::make('code')
-                        ->label('Short code')
-                        ->required(),
-                ]),
-
-                Forms\Components\Grid::make(3)->schema([
-                    Forms\Components\TextInput::make('price')
-                        ->numeric(),
                     Forms\Components\Select::make('product_category_id')
                         ->relationship('category', 'name')
                         ->required(),
+                    Forms\Components\TextInput::make('name')
+                        ->required()
+                        ->maxLength(255),
+                ]),
+
+                Forms\Components\Grid::make(3)->schema([
+                    Forms\Components\TextInput::make('code')
+                        ->label('Short code')
+                        ->required(),
+                    Forms\Components\TextInput::make('price')
+                        ->numeric(),
                     Forms\Components\TextInput::make('description')
                         ->maxLength(255),
                 ]),
@@ -71,25 +64,25 @@ class ProductResource extends Resource
                 $query->with(['category']);
             })
             ->columns([
+                Tables\Columns\TextColumn::make('type')
+                    ->badge()
+                    ->sortable(),
                 Tables\Columns\TextColumn::make('code')
                     ->label('Short code')
                     ->searchable(),
+                Tables\Columns\TextColumn::make('category.name')
+                    ->numeric()
+                    ->sortable(),
                 Tables\Columns\TextColumn::make('name')
                     ->searchable(),
-                Tables\Columns\TextColumn::make('type')
+                Tables\Columns\TextColumn::make('measure_unit')
+                    ->getStateUsing(fn($record) => $record->category->measure_unit)
                     ->badge()
                     ->sortable(),
                 Tables\Columns\TextColumn::make('description')
                     ->searchable(),
                 Tables\Columns\TextColumn::make('price')
                     ->money()
-                    ->sortable(),
-                Tables\Columns\TextColumn::make('measure_unit')
-                    ->getStateUsing(fn($record) => $record->category->measure_unit)
-                    ->badge()
-                    ->sortable(),
-                Tables\Columns\TextColumn::make('category.name')
-                    ->numeric()
                     ->sortable(),
                 Tables\Columns\TextColumn::make('created_at')
                     ->dateTime()

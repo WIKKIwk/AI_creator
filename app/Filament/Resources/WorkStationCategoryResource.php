@@ -29,14 +29,6 @@ class WorkStationCategoryResource extends Resource
             ]);
     }
 
-    public static function getEloquentQuery(): Builder
-    {
-        return parent::getEloquentQuery()->where(
-            'organization_id',
-            auth()->user()->organization_id
-        );
-    }
-
     public static function form(Form $form): Form
     {
         return $form

@@ -4,6 +4,8 @@ namespace App\Models;
 
 use App\Enums\MeasureUnit;
 use App\Enums\DurationUnit;
+use App\Models\Scopes\OwnOrganizationScope;
+use Illuminate\Database\Eloquent\Attributes\ScopedBy;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -28,6 +30,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
  * @property Collection<PerformanceRate> $performanceRates
  * @property Collection<MiniInventory> $miniInventories
  */
+#[ScopedBy(OwnOrganizationScope::class)]
 class WorkStation extends Model
 {
     use HasFactory;

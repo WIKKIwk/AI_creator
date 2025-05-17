@@ -3,14 +3,17 @@
 namespace App\Models;
 
 use App\Enums\RoleType;
+use App\Models\Scopes\OwnOrganizationScope;
 use Exception;
 use Filament\Models\Contracts\FilamentUser;
 use Filament\Panel;
+use Illuminate\Database\Eloquent\Attributes\ScopedBy;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Str;
 use Laravel\Sanctum\HasApiTokens;
 
 /**
@@ -19,6 +22,7 @@ use Laravel\Sanctum\HasApiTokens;
  * @property int $id
  * @property string $name
  * @property string $email
+ * @property string $auth_code
  * @property RoleType $role
  * @property Carbon|null $email_verified_at
  * @property mixed $password
@@ -90,6 +94,18 @@ class User extends Authenticatable implements FilamentUser
     public function workStation(): BelongsTo
     {
         return $this->belongsTo(WorkStation::class);
+    }
+
+    protected static function booted(): void
+    {
+        static::creating(function (self $user) {
+            $user->generateAuthCode();
+        });
+    }
+
+    public function generateAuthCode(): void
+    {
+        $this->auth_code = Str::random(6);
     }
 
     /**

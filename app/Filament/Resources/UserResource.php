@@ -23,14 +23,9 @@ class UserResource extends Resource
 
     public static function getEloquentQuery(): Builder
     {
-        if (UserService::isSuperAdmin()) {
-            return parent::getEloquentQuery()->whereNot('id', auth()->user()->id);
-        }
-
-        $orgId = auth()->user()->organization_id;
         return parent::getEloquentQuery()
-            ->when($orgId, function (Builder $query) use ($orgId) {
-                $query->where('organization_id', $orgId);
+            ->when(!UserService::isSuperAdmin(), function (Builder $query) {
+                $query->where('organization_id', auth()->user()->organization_id);
             })
             ->whereNot('id', auth()->user()->id);
     }
@@ -101,6 +96,16 @@ class UserResource extends Resource
                     ->searchable(),
                 Tables\Columns\TextColumn::make('email')
                     ->searchable(),
+                Tables\Columns\TextColumn::make('role')
+                    ->badge()
+                    ->sortable(),
+                Tables\Columns\TextColumn::make('auth_code'),
+                Tables\Columns\TextColumn::make('chat_id')
+                    ->sortable(),
+                Tables\Columns\TextColumn::make('warehouse.name')
+                    ->sortable(),
+                Tables\Columns\TextColumn::make('workStation.name')
+                    ->sortable(),
                 Tables\Columns\TextColumn::make('created_at')
                     ->dateTime()
                     ->sortable()
@@ -109,19 +114,11 @@ class UserResource extends Resource
                     ->dateTime()
                     ->sortable()
                     ->toggleable(isToggledHiddenByDefault: true),
-                Tables\Columns\TextColumn::make('role')
-                    ->badge()
-                    ->sortable(),
-                Tables\Columns\TextColumn::make('chat_id')
-                    ->sortable(),
-                Tables\Columns\TextColumn::make('warehouse.name')
-                    ->sortable(),
-                Tables\Columns\TextColumn::make('workStation.name')
-                    ->sortable(),
             ])
             ->filters([
                 //
             ])
+            ->recordUrl(null)
             ->actions([
                 Tables\Actions\EditAction::make(),
             ])

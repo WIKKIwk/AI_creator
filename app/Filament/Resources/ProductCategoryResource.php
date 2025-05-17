@@ -29,18 +29,12 @@ class ProductCategoryResource extends Resource
         ]);
     }
 
-    public static function getEloquentQuery(): Builder
-    {
-        return parent::getEloquentQuery()
-            ->where('organization_id', auth()->user()->organization_id);
-    }
-
     public static function form(Form $form): Form
     {
         return $form
             ->schema([
                 Forms\Components\Hidden::make('organization_id'),
-                Forms\Components\Grid::make(4)->schema([
+                Forms\Components\Grid::make(3)->schema([
 
                     Forms\Components\TextInput::make('name')
                         ->required()
@@ -53,12 +47,13 @@ class ProductCategoryResource extends Resource
                     Forms\Components\Select::make('measure_unit')
                         ->options(MeasureUnit::class)
                         ->required(),
-
-                    Forms\Components\Textarea::make('description'),
                 ]),
 
-                Forms\Components\Select::make('parent_id')
-                    ->relationship('parent', 'name'),
+                Forms\Components\Grid::make(3)->schema([
+                    Forms\Components\Textarea::make('description'),
+                    Forms\Components\Select::make('parent_id')
+                        ->relationship('parent', 'name'),
+                ])
             ]);
     }
 
