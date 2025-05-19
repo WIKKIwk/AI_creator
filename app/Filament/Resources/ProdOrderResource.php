@@ -56,8 +56,8 @@ class ProdOrderResource extends Resource
                         ->reactive()
                         ->required(),
 
-                    Forms\Components\Select::make('agent_id')
-                        ->relationship('agent', 'name')
+                    Forms\Components\Select::make('agent_organization_id')
+                        ->relationship('agentOrganization', 'name')
                         ->required(),
                 ]),
 

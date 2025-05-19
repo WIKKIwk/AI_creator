@@ -18,7 +18,6 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * @property-read Inventory $inventory
  * @property-read StorageLocation $storageLocation
  */
-#[ScopedBy(OwnWarehouseScope::class)]
 class InventoryItem extends Model
 {
     use HasFactory;

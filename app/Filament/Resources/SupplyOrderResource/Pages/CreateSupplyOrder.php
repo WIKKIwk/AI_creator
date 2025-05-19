@@ -49,9 +49,9 @@ class CreateSupplyOrder extends CreateRecord
                         ->reactive()
                         ->preload()
                         ->required(),
-                    Forms\Components\Select::make('supplier_id')
+                    Forms\Components\Select::make('supplier_organization_id')
                         ->native(false)
-                        ->relationship('supplier', 'name')
+                        ->relationship('supplierOrganization', 'name')
                         ->reactive(),
                 ]),
             ]);

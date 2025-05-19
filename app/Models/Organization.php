@@ -8,6 +8,7 @@ use Illuminate\Database\Eloquent\Model;
 
 /**
  * @property string $name
+ * @property string $code
  * @property string $phone
  * @property string $email
  * @property OrganizationType $type

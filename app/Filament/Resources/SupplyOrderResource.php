@@ -78,11 +78,11 @@ class SupplyOrderResource extends Resource
                             ->reactive()
                             ->preload()
                             ->required(),
-                        Forms\Components\Select::make('supplier_id')
+                        Forms\Components\Select::make('supplier_organization_id')
                             ->native(false)
-                            ->relationship('supplier', 'name')
+                            ->relationship('supplierOrganization', 'name')
                             ->afterStateUpdated(function ($get, $set) {
-                                $supplierProduct = self::getSupplierProduct($get('supplier_id'), $get('product_id'));
+                                $supplierProduct = self::getSupplierProduct($get('supplier_organization_id'), $get('product_id'));
                                 if ($supplierProduct) {
                                     $set('unit_price', $supplierProduct->unit_price);
                                     $set('total_price', $supplierProduct->unit_price * $get('quantity'));

@@ -17,7 +17,7 @@ use Illuminate\Support\Carbon;
  * @property int $id
  * @property string $number
  * @property int $product_id
- * @property int $agent_id
+ * @property int $agent_organization_id
  * @property int $warehouse_id
  * @property int $quantity
  * @property OrderStatus $status
@@ -43,7 +43,7 @@ use Illuminate\Support\Carbon;
  * @property User $confirmedBy
  *
  * @property Warehouse $warehouse
- * @property Agent $agent
+ * @property Organization $agentOrganization
  * @property Product $product
  * @property Collection<ProdOrderStep> $steps
  * @property ProdOrderStep $firstStep
@@ -67,13 +67,13 @@ class ProdOrder extends Model
     protected static function booted(): void
     {
         self::creating(function (ProdOrder $model) {
-            if ($model->agent?->code && $model->product?->code) {
-                $model->number = 'PO-' . $model->agent->code . $model->product->code . now()->format('dmy');
+            if ($model->agentOrganization?->code && $model->product?->code) {
+                $model->number = 'PO-' . $model->agentOrganization->code . $model->product->code . now()->format('dmy');
             }
         });
         static::updating(function (ProdOrder $model) {
-            if ($model->agent?->code && $model->product?->code) {
-                $model->number = 'PO-' . $model->agent->code . $model->product->code . now()->format('dmy');
+            if ($model->agentOrganization?->code && $model->product?->code) {
+                $model->number = 'PO-' . $model->agentOrganization->code . $model->product->code . now()->format('dmy');
             }
         });
     }
@@ -83,9 +83,9 @@ class ProdOrder extends Model
         return $this->belongsTo(Warehouse::class);
     }
 
-    public function agent(): BelongsTo
+    public function agentOrganization(): BelongsTo
     {
-        return $this->belongsTo(Agent::class);
+        return $this->belongsTo(Organization::class, 'agent_organization_id');
     }
 
     public function product(): BelongsTo

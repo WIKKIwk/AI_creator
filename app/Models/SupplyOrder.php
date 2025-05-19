@@ -16,7 +16,7 @@ use Illuminate\Support\Carbon;
 /**
  * @property int $id
  * @property string $number
- * @property int $supplier_id
+ * @property int $supplier_organization_id
  * @property int $prod_order_id
  * @property int $product_category_id
  * @property int $total_price
@@ -42,7 +42,7 @@ use Illuminate\Support\Carbon;
  * @property User $closedBy
  *
  * Relationships
- * @property Supplier $supplier
+ * @property Organization $supplierOrganization
  * @property ProdOrder $prodOrder
  * @property Warehouse $warehouse
  * @property ProductCategory $productCategory
@@ -73,21 +73,21 @@ class SupplyOrder extends Model
     {
         static::creating(function (SupplyOrder $model) {
             $model->created_by = auth()->id();
-            if ($model->supplier?->code && $model->productCategory?->code) {
-                $model->number = 'SO-' . $model->supplier->code . $model->productCategory->code . now()->format('dmy');
+            if ($model->supplierOrganization?->code && $model->productCategory?->code) {
+                $model->number = 'SO-' . $model->supplierOrganization->code . $model->productCategory->code . now()->format('dmy');
             }
         });
         static::updating(function (SupplyOrder $model) {
             $model->created_by = auth()->id();
-            if ($model->supplier?->code && $model->productCategory?->code) {
-                $model->number = 'SO-' . $model->supplier->code . $model->productCategory->code . now()->format('dmy');
+            if ($model->supplierOrganization?->code && $model->productCategory?->code) {
+                $model->number = 'SO-' . $model->supplierOrganization->code . $model->productCategory->code . now()->format('dmy');
             }
         });
     }
 
-    public function supplier(): BelongsTo
+    public function supplierOrganization(): BelongsTo
     {
-        return $this->belongsTo(Supplier::class);
+        return $this->belongsTo(Organization::class, 'supplier_organization_id');
     }
 
     public function prodOrder(): BelongsTo
