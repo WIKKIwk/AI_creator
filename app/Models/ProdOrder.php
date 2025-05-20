@@ -3,8 +3,6 @@
 namespace App\Models;
 
 use App\Enums\OrderStatus;
-use App\Models\Scopes\OwnWarehouseScope;
-use Illuminate\Database\Eloquent\Attributes\ScopedBy;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -17,8 +15,6 @@ use Illuminate\Support\Carbon;
  * @property int $id
  * @property string $number
  * @property int $product_id
- * @property int $agent_organization_id
- * @property int $warehouse_id
  * @property int $quantity
  * @property OrderStatus $status
  * @property int $offer_price
@@ -42,15 +38,13 @@ use Illuminate\Support\Carbon;
  * @property User $approvedBy
  * @property User $confirmedBy
  *
- * @property Warehouse $warehouse
- * @property Organization $agentOrganization
+ * @property ProdOrderGroup $group
  * @property Product $product
  * @property Collection<ProdOrderStep> $steps
  * @property ProdOrderStep $firstStep
  * @property ProdOrderStep $lastStep
  * @property ProdOrderStep $currentStep
  */
-#[ScopedBy(OwnWarehouseScope::class)]
 class ProdOrder extends Model
 {
     use HasFactory;
@@ -66,26 +60,17 @@ class ProdOrder extends Model
 
     protected static function booted(): void
     {
-        self::creating(function (ProdOrder $model) {
-            if ($model->agentOrganization?->code && $model->product?->code) {
-                $model->number = 'PO-' . $model->agentOrganization->code . $model->product->code . now()->format('dmy');
-            }
+        self::creating(function(ProdOrder $model) {
+            $model->number = 'PO-' . $model->group->organization->code . $model->product->code . now()->format('dmy');
         });
-        static::updating(function (ProdOrder $model) {
-            if ($model->agentOrganization?->code && $model->product?->code) {
-                $model->number = 'PO-' . $model->agentOrganization->code . $model->product->code . now()->format('dmy');
-            }
+        static::updating(function(ProdOrder $model) {
+            $model->number = 'PO-' . $model->group->organization->code . $model->product->code . now()->format('dmy');
         });
     }
 
-    public function warehouse(): BelongsTo
+    public function group(): BelongsTo
     {
-        return $this->belongsTo(Warehouse::class);
-    }
-
-    public function agentOrganization(): BelongsTo
-    {
-        return $this->belongsTo(Organization::class, 'agent_organization_id');
+        return $this->belongsTo(ProdOrderGroup::class, 'group_id');
     }
 
     public function product(): BelongsTo
