@@ -105,6 +105,13 @@ trait TgBotTrait
             Arr::get($this->update, 'channel_post.text');  // If no text found
     }
 
+    public static function getTextByUpdate(array $update)
+    {
+        return Arr::get($update, 'message.text') ??
+            Arr::get($update, 'edited_message.text') ??
+            Arr::get($update, 'channel_post.text');  // If no text found
+    }
+
     public function getMessageId()
     {
         return Arr::get($this->update, 'message.message_id');

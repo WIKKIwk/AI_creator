@@ -27,6 +27,10 @@ class TransactionService
         $workStationId = null,
         $withTransaction = true
     ): void {
+        if ($quantity <= 0) {
+            return;
+        }
+
         $inventory = $this->inventoryService->getInventory($productId, $warehouseId);
         if ($cost) {
             $totalCost = $inventory->items->sum('quantity') * $inventory->unit_cost + $cost;
@@ -146,6 +150,10 @@ class TransactionService
         $workStationId = null,
         $cost = null
     ): void {
+        if ($quantity <= 0) {
+            return;
+        }
+
         $miniInventory = $this->inventoryService->getMiniInventory($productId, $workStationId);
 
         if ($cost) {

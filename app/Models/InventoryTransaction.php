@@ -38,7 +38,6 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  *
  */
 #[ScopedBy(OwnWarehouseScope::class)]
-//#[ObservedBy(InventoryTransactionObserver::class)]
 class InventoryTransaction extends Model
 {
     use HasFactory;

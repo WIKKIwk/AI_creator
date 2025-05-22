@@ -80,7 +80,11 @@ class SupplyOrderResource extends Resource
                             ->required(),
                         Forms\Components\Select::make('supplier_organization_id')
                             ->native(false)
-                            ->relationship('supplierOrganization', 'name')
+                            ->relationship(
+                                'supplierOrganization',
+                                'name',
+                                fn ($query) => $query->whereNot('id', auth()->user()->organization_id)
+                            )
                             ->afterStateUpdated(function ($get, $set) {
                                 $supplierProduct = self::getSupplierProduct($get('supplier_organization_id'), $get('product_id'));
                                 if ($supplierProduct) {
@@ -192,7 +196,7 @@ class SupplyOrderResource extends Resource
     {
         return $table
             ->modifyQueryUsing(function (Builder $query) {
-                $query->with(['warehouse', 'productCategory', 'supplier', 'createdBy']);
+                $query->with(['warehouse', 'productCategory', 'supplierOrganization', 'createdBy']);
             })
             ->columns([
                 Tables\Columns\TextColumn::make('number')
@@ -202,24 +206,24 @@ class SupplyOrderResource extends Resource
                     ->label('Current status')
                     ->badge()
                     ->getStateUsing(fn (SupplyOrder $record) => $record?->getStatus()),
-                Tables\Columns\TextColumn::make('location')
-                    ->label('Current location')
-                    ->getStateUsing(function (SupplyOrder $record) {
-                        $location = $record?->locations()->latest()->first();
-                        return $location ? $location->location : '-';
-                    }),
                 Tables\Columns\TextColumn::make('warehouse.name')
                     ->numeric()
                     ->sortable(),
                 Tables\Columns\TextColumn::make('productCategory.name')
                     ->numeric()
                     ->sortable(),
-                Tables\Columns\TextColumn::make('supplier.name')
+                Tables\Columns\TextColumn::make('supplierOrganization.name')
                     ->numeric()
                     ->sortable(),
                 Tables\Columns\TextColumn::make('total_price')
                     ->numeric()
                     ->sortable(),
+                Tables\Columns\TextColumn::make('location')
+                    ->label('Current location')
+                    ->getStateUsing(function (SupplyOrder $record) {
+                        $location = $record->locations()->latest()->first();
+                        return $location ? $location->location : '-';
+                    }),
                 Tables\Columns\TextColumn::make('createdBy.name')
                     ->numeric()
                     ->sortable()

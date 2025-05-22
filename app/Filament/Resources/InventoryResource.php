@@ -68,7 +68,7 @@ class InventoryResource extends Resource
             ->defaultSort('updated_at', 'desc')
             ->modifyQueryUsing(function (Builder $query) {
                 $query
-                    ->with('items')
+                    ->with(['items', 'product' => fn($query) => $query->with('category')])
                     ->when(
                         in_array(auth()->user()->role, [
                             RoleType::SENIOR_STOCK_MANAGER,
@@ -82,7 +82,7 @@ class InventoryResource extends Resource
                     ->hidden(self::isWarehouseWorker())
                     ->numeric()
                     ->sortable(),
-                Tables\Columns\TextColumn::make('product.name')
+                Tables\Columns\TextColumn::make('product.catName')
                     ->numeric()
                     ->sortable(),
                 Tables\Columns\TextColumn::make('quantity')

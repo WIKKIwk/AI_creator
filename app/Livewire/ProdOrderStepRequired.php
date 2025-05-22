@@ -28,12 +28,12 @@ class ProdOrderStepRequired extends Component implements HasForms, HasTable
             ->paginated(false)
             ->query(
                 ProdOrderStepProduct::query()
-                    ->with(['product'])
+                    ->with(['product.category'])
                     ->where('prod_order_step_id', $this->step->id)
                     ->where('type', StepProductType::Required)
             )
             ->columns([
-                TextColumn::make('product.name')
+                TextColumn::make('product.catName')
                     ->width('500px'),
                 TextColumn::make('quantity')
                     ->formatStateUsing(function(ProdOrderStepProduct $record) {

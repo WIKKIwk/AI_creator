@@ -65,7 +65,7 @@ class WorkStationResource extends Resource
 
                             $result = [];
                             foreach ($orders as $order) {
-                                $result[$order->id] = $order->product->name . ' - ' . $order->warehouse->name . ' - ' . $order->quantity;
+                                $result[$order->id] = $order->product->name . ' - ' . $order->group->warehouse->name . ' - ' . $order->quantity;
                             }
                             return $result;
                         })
@@ -107,7 +107,10 @@ class WorkStationResource extends Resource
                 Tables\Columns\TextColumn::make('prod_order_id')
                     ->label('Current prod order')
                     ->formatStateUsing(function($state, $record) {
-                        return $record->prodOrder?->product->name . ' - ' . $record->prodOrder?->warehouse->name . ' - ' . $record->prodOrder?->quantity;
+                        if ($record->prodOrder) {
+                            return $record->prodOrder->product->name . ' - ' . $record->prodOrder->group->warehouse->name . ' - ' . $record->prodOrder->quantity;
+                        }
+                        return null;
                     }),
                 //                Tables\Columns\TextColumn::make('type')
                 //                    ->numeric()

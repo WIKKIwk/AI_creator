@@ -39,25 +39,21 @@ class ProdOrderService
         /** @var ProdOrderStep $firstStep */
         $firstStep = $prodTemplate->steps()->first();
 
-        $insufficientAssets = [];
+        $insufficientAssetsByCat = [];
         foreach ($firstStep->requiredItems as $item) {
             $lackQuantity = $this->transactionService->getStockLackQty(
                 $item->product_id,
                 $item->quantity * $prodOrder->quantity,
-                $prodOrder->warehouse_id
+                $prodOrder->group->warehouse_id
             );
 
             // If there's still lack of quantity, create SupplyOrder and Block the ProdOrder
             if ($lackQuantity > 0) {
-                $insufficientAssets[$item->product_id] = [
-                    'product' => $item->product,
-                    'quantity' => $lackQuantity,
-                    'measure_unit' => $item->product->category->measure_unit->getLabel(),
-                ];
+                $insufficientAssetsByCat[$item->product->category->id][$item->product_id] = $this->getInsufficientItemObj($item->product, $lackQuantity);
             }
         }
 
-        return $insufficientAssets;
+        return $insufficientAssetsByCat;
     }
 
     /**
@@ -68,7 +64,7 @@ class ProdOrderService
         $this->guardAlreadyStarted($prodOrder);
         $this->guardCanBeProduced($prodOrder);
 
-        $insufficientAssets = [];
+        $insufficientAssetsByCat = [];
 
         try {
             DB::beginTransaction();
@@ -92,29 +88,33 @@ class ProdOrderService
                         'type' => StepProductType::Required,
                     ]);
 
-                    if ($prodOrderStep->sequence == 1) {
-                        $firstStepId = $prodOrderStep->id;
-                        $lackQuantity = $this->createActualItem(
-                            $prodOrderStep,
-                            $item->product_id,
-                            $item->quantity * $prodOrder->quantity
-                        );
+                    if ($prodOrderStep->sequence != 1) {
+                        continue;
+                    }
 
-                        // If there's still lack of quantity, create SupplyOrder and Block the ProdOrder
-                        if ($lackQuantity > 0) {
-                            app(SupplyOrderService::class)->storeForProdOrder($prodOrder, $item->product, $lackQuantity);
-                            $insufficientAssets[$item->product_id] = [
-                                'product' => $item->product,
-                                'quantity' => $lackQuantity,
-                                'measure_unit' => $item->product->category->measure_unit->getLabel(),
-                            ];
-                        }
+                    $firstStepId = $prodOrderStep->id;
+
+                    $lackQuantity = $this->createActualItem(
+                        $prodOrderStep,
+                        $item->product_id,
+                        $item->quantity * $prodOrder->quantity
+                    );
+
+                    // If there's still lack of quantity, create SupplyOrder and Block the ProdOrder
+                    if ($lackQuantity > 0) {
+                        $insufficientAssetsByCat[$item->product->category->id][$item->product_id] = $this->getInsufficientItemObj($item->product, $lackQuantity);
                     }
                 }
             }
 
+            if (!empty($insufficientAssetsByCat)) {
+                /** @var SupplyOrderService $supplyService */
+                $supplyService = app(SupplyOrderService::class);
+                $supplyService->storeForProdOrder($prodOrder, $insufficientAssetsByCat);
+            }
+
             $prodOrder->current_step_id = $firstStepId;
-            $prodOrder->status = !empty($insufficientAssets) ? OrderStatus::Blocked : OrderStatus::Processing;
+            $prodOrder->status = !empty($insufficientAssetsByCat) ? OrderStatus::Blocked : OrderStatus::Processing;
             $prodOrder->started_at = now();
             $prodOrder->started_by = auth()->user()->id;
             $prodOrder->save();
@@ -135,17 +135,17 @@ class ProdOrderService
             ->where('product_id', $productId)
             ->first();
 
-        $insufficientAssets = [];
+        $insufficientAssetsByCat = [];
         $diffQty = $quantity - $miniStock?->quantity;
 
         if ($diffQty <= 0) {
-            return $insufficientAssets;
+            return $insufficientAssetsByCat;
         }
 
         $lackQuantity = $this->transactionService->getStockLackQty(
             $productId,
             $diffQty,
-            $prodOrder->warehouse_id
+            $prodOrder->group->warehouse_id
         );
 
         // If there's still lack of quantity, stop iteration and return the insufficient assets
@@ -153,15 +153,11 @@ class ProdOrderService
             /** @var Product $lackProduct */
             $lackProduct = Product::query()->find($productId);
             if ($lackProduct) {
-                $insufficientAssets[$lackProduct->id] = [
-                    'product' => $lackProduct,
-                    'quantity' => $lackQuantity,
-                    'measure_unit' => $lackProduct->category->measure_unit->getLabel(),
-                ];
+                $insufficientAssetsByCat[$lackProduct->category->id][$lackProduct->id] = $this->getInsufficientItemObj($lackProduct, $lackQuantity);
             }
         }
 
-        return $insufficientAssets;
+        return $insufficientAssetsByCat;
     }
 
     /**
@@ -194,28 +190,26 @@ class ProdOrderService
                 ->where('type', StepProductType::Actual)
                 ->first();
 
-            $insufficientAssets = [];
+            $insufficientAssetsByCat = [];
 
             if ($diffQty > 0) {
                 $lackQuantity = $this->transactionService->getStockLackQty(
                     $targetProduct->id,
                     $diffQty,
-                    $prodOrder->warehouse_id
+                    $prodOrder->group->warehouse_id
                 );
 
                 // If there's still lack of quantity, create SupplyOrder and Block the ProdOrder
                 if ($lackQuantity > 0) {
-                    app(SupplyOrderService::class)->storeForProdOrder($prodOrder, $targetProduct, $lackQuantity);
-                    $insufficientAssets[$targetProduct->id] = [
-                        'product' => $targetProduct,
-                        'quantity' => $lackQuantity,
-                        'measure_unit' => $targetProduct->category->measure_unit->getLabel(),
-                    ];
+                    $insufficientAssetsByCat[$targetProduct->category->id][$targetProduct->id] = $this->getInsufficientItemObj($targetProduct, $lackQuantity);
+                    /** @var SupplyOrderService $supplyService */
+                    $supplyService = app(SupplyOrderService::class);
+                    $supplyService->storeForProdOrder($prodOrder, $insufficientAssetsByCat);
                 } else {
                     $this->transactionService->removeStock(
                         $targetProduct->id,
                         $diffQty,
-                        $prodOrder->warehouse_id,
+                        $prodOrder->group->warehouse_id,
                         $prodOrderStep->work_station_id
                     );
 
@@ -223,7 +217,7 @@ class ProdOrderService
                 }
             }
 
-            if (empty($insufficientAssets)) {
+            if (empty($insufficientAssetsByCat)) {
                 if ($existingActualItem) {
                     $existingActualItem->update([
                         'max_quantity' => $quantity,
@@ -329,6 +323,8 @@ class ProdOrderService
                     'type' => StepProductType::Actual,
                 ]);
 
+                $nextStep->workStation->update(['prod_order_id' => $prodOrder->id]);
+
                 $prodOrder->current_step_id = $nextStep->id;
             } else {
                 // Order completed
@@ -377,7 +373,7 @@ class ProdOrderService
                 $lastStep->output_product_id,
                 $lastStep->output_quantity,
                 0,
-                $prodOrder->warehouse_id,
+                $prodOrder->group->warehouse_id,
                 workStationId: $lastStep->work_station_id,
             );
 
@@ -411,7 +407,7 @@ class ProdOrderService
         $lackQuantity = $this->transactionService->removeStock(
             $productId,
             $quantity,
-            $prodOrder->warehouse_id,
+            $prodOrder->group->warehouse_id,
             $prodOrderStep->work_station_id
         );
 
@@ -434,6 +430,16 @@ class ProdOrderService
         }
 
         return $lackQuantity;
+    }
+
+    protected function getInsufficientItemObj(Product $product, $lackQuantity): array
+    {
+        return [
+            'product' => $product,
+            'quantity' => $lackQuantity,
+            'category' => $product->category->name,
+            'measure_unit' => $product->category->measure_unit->getLabel(),
+        ];
     }
 
     public function calculateDeadline($productId): ?float
@@ -487,7 +493,7 @@ class ProdOrderService
     /**
      * @throws Exception
      */
-    public function guardAlreadyStarted(ProdOrder $prodOrder): void
+    protected function guardAlreadyStarted(ProdOrder $prodOrder): void
     {
         if ($prodOrder->status == OrderStatus::Processing) {
             throw new Exception('Order is already in processing');
@@ -497,7 +503,7 @@ class ProdOrderService
     /**
      * @throws Exception
      */
-    public function guardCanBeProduced(ProdOrder $prodOrder): void
+    protected function guardCanBeProduced(ProdOrder $prodOrder): void
     {
         if (!$prodOrder->confirmed_at) {
             throw new Exception('ProdOrder is not confirmed yet');
@@ -507,7 +513,7 @@ class ProdOrderService
     /**
      * @throws Exception
      */
-    public function getInventoryItem($productId, $storageLocationId = null, $storageFloor = null): InventoryItem
+    protected function getInventoryItem($productId, $storageLocationId = null, $storageFloor = null): InventoryItem
     {
         /** @var InventoryItem $inventoryItem */
         $inventoryItem = InventoryItem::query()
@@ -527,7 +533,7 @@ class ProdOrderService
     /**
      * @throws Exception
      */
-    public function getTemplate($productId): ProdTemplate
+    protected function getTemplate($productId): ProdTemplate
     {
         /** @var ProdTemplate $prodTemplate */
         $prodTemplate = ProdTemplate::query()

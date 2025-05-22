@@ -2,18 +2,18 @@
 
 namespace App\Console\Commands;
 
-use App\Services\TgBot\TgBot;
-use Illuminate\Support\Facades\Redis;
-use Symfony\Component\HttpKernel\Exception\BadRequestHttpException;
-use Throwable;
 use App\Models\User;
+use App\Services\Cache\Cache;
 use App\Services\Handler\HandlerFactory;
 use App\Services\TelegramService;
+use App\Services\TgBot\TgBot;
 use backend\services\tg_bot\TgHelper;
-use Exception;
 use GuzzleHttp\Exception\GuzzleException;
 use Illuminate\Console\Command;
 use Illuminate\Support\Arr;
+use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Redis;
+use Throwable;
 
 class BotCommand extends Command
 {
@@ -47,10 +47,9 @@ class BotCommand extends Command
 
     protected TelegramService $telegramService;
 
-    public function __construct()
+    public function __construct(protected TgBot $tgBot, protected Cache $cache)
     {
         parent::__construct();
-
         $this->telegramService = app(TelegramService::class);
     }
 
@@ -78,13 +77,55 @@ class BotCommand extends Command
                     $offset = Arr::get($lastUpdate, 'update_id', 0) + 1;
                 }
 
-                $this->info('New update:');
+                $this->tgBot->setUpdate($update);
 
-                $user = User::getFromChatId(TgBot::getChatIdByUpdate($update));
-                $handlerByRole = HandlerFactory::make($user);
-                $handlerByRole->handle($user, $update);
+                $chatId = $this->tgBot->getChatId();
+                $text = $this->tgBot->getText();
+                $user = User::findByChatId($chatId);
+
+                $this->info('New update: ' . $text);
+
+                $loginKey = "login_$chatId";
+                if ($this->cache->has($loginKey)) {
+                    /** @var User $userByAuthCode */
+                    $userByAuthCode = User::query()->where('auth_code', $text)->first();
+                    if (!$userByAuthCode) {
+                        $this->tgBot->answerMsg(['text' => 'Invalid auth code.']);
+                        $this->cache->forget($loginKey);
+                        continue;
+                    }
+
+                    $user?->update(['chat_id' => null]);
+                    $userByAuthCode->update(['chat_id' => $chatId]);
+
+                    $this->tgBot->answerMsg([
+                        'text' => <<<HTML
+<b>You logged in:</b>
+
+Name: <b>{$userByAuthCode->name}</b>
+Email: <b>{$userByAuthCode->email}</b>
+Role: <b>{$userByAuthCode->role->getLabel()}</b>
+HTML,
+                        'parse_mode' => 'HTML',
+                    ]);
+
+                    $this->cache->forget($loginKey);
+                    continue;
+                }
+
+                if ($text == '/login') {
+                    $this->cache->put($loginKey, 0);
+                    $this->tgBot->answerMsg(['text' => 'Send auth code:']);
+                    continue;
+                }
+
+                if ($user) {
+                    Auth::login($user);
+                    $handlerByRole = HandlerFactory::make($user);
+                    $handlerByRole->handle($user, $update);
+                }
             } catch (Throwable $e) {
-                $this->error($e->getMessage(), "Line: {$e->getLine()}, File: {$e->getFile()}");
+                $this->error($e->getMessage() . " Line: {$e->getLine()}, File: {$e->getFile()}");
             }
         }
     }

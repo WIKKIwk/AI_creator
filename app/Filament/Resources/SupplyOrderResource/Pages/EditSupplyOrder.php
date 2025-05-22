@@ -84,6 +84,7 @@ class EditSupplyOrder extends EditRecord
                     try {
                         app(SupplyOrderService::class)->closeOrder($this->record);
                         showSuccess('Order closed successfully');
+                        $this->dispatch('refreshRelationTable');
                     } catch (Throwable $e) {
                         showError('Failed to close order: ' . $e->getMessage());
                     }

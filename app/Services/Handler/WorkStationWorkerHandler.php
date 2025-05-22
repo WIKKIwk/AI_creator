@@ -205,10 +205,10 @@ HTML,
         $res = $this->tgBot->answerMsg([
             'text' => strtr(self::templates['completeWork'], [
                 '{prodOrder}' => $this->user->workStation->prodOrder->number,
-                '{product}' => $prodOrder->product->name . " ({$prodOrder->quantity} {$prodOrder->product->category?->measure_unit?->getLabel()})",
-                '{expectedMaterial}' => "{$step->outputProduct->name} ({$step->expected_quantity} {$step->outputProduct->category?->measure_unit?->getLabel()})",
-                '{outputMaterial}' => "{$step->outputProduct->name} ({$step->output_quantity} {$step->outputProduct->category?->measure_unit?->getLabel()})",
-                '{expectedMaterialName}' => $step->outputProduct->name,
+                '{product}' => $prodOrder->product->catName . " ({$prodOrder->quantity} {$prodOrder->product->category?->measure_unit?->getLabel()})",
+                '{expectedMaterial}' => "{$step->outputProduct->catName} ({$step->expected_quantity} {$step->outputProduct->category?->measure_unit?->getLabel()})",
+                '{outputMaterial}' => "{$step->outputProduct->catName} ({$step->output_quantity} {$step->outputProduct->category?->measure_unit?->getLabel()})",
+                '{expectedMaterialName}' => $step->outputProduct->catName,
                 '{actualUsedMaterials}' => $this->getActualMaterialsStr(),
                 '{errorMsg}' => '',
             ]),
@@ -240,10 +240,10 @@ HTML,
                 'text' => strtr(self::templates['completeWork'], [
                     '{errorMsg}' => "<i>Invalid quantity. Please enter a valid number.</i>",
                     '{prodOrder}' => $this->user->workStation->prodOrder->number,
-                    '{product}' => $step->outputProduct->name . " ({$step->expected_quantity} {$step->outputProduct->category?->measure_unit?->getLabel()})",
-                    '{expectedMaterial}' => "{$step->outputProduct->name} ({$step->expected_quantity} {$step->outputProduct->category?->measure_unit?->getLabel()})",
-                    '{outputMaterial}' => "{$step->outputProduct->name} ({$outputQuantity} {$step->outputProduct->category?->measure_unit?->getLabel()})",
-                    '{expectedMaterialName}' => $step->outputProduct->name,
+                    '{product}' => $step->outputProduct->catName . " ({$step->expected_quantity} {$step->outputProduct->category?->measure_unit?->getLabel()})",
+                    '{expectedMaterial}' => "{$step->outputProduct->catName} ({$step->expected_quantity} {$step->outputProduct->category?->measure_unit?->getLabel()})",
+                    '{outputMaterial}' => "{$step->outputProduct->catName} ({$outputQuantity} {$step->outputProduct->category?->measure_unit?->getLabel()})",
+                    '{expectedMaterialName}' => $step->outputProduct->catName,
                     '{actualUsedMaterials}' => $this->getActualMaterialsStr(),
                 ]),
                 'parse_mode' => 'HTML',
@@ -267,10 +267,10 @@ HTML,
             'text' => strtr(self::templates['completeWork'], [
                 '{errorMsg}' => '',
                 '{prodOrder}' => $this->user->workStation->prodOrder->number,
-                '{product}' => $step->outputProduct->name . " ({$step->expected_quantity} {$step->outputProduct->category?->measure_unit?->getLabel()})",
-                '{expectedMaterial}' => "{$step->outputProduct->name} ({$step->expected_quantity} {$step->outputProduct->category?->measure_unit?->getLabel()})",
-                '{outputMaterial}' => "{$step->outputProduct->name} ({$quantity} {$step->outputProduct->category?->measure_unit?->getLabel()})",
-                '{expectedMaterialName}' => $step->outputProduct->name,
+                '{product}' => $step->outputProduct->catName . " ({$step->expected_quantity} {$step->outputProduct->category?->measure_unit?->getLabel()})",
+                '{expectedMaterial}' => "{$step->outputProduct->catName} ({$step->expected_quantity} {$step->outputProduct->category?->measure_unit?->getLabel()})",
+                '{outputMaterial}' => "{$step->outputProduct->catName} ({$quantity} {$step->outputProduct->category?->measure_unit?->getLabel()})",
+                '{expectedMaterialName}' => $step->outputProduct->catName,
                 '{actualUsedMaterials}' => $this->getActualMaterialsStr(),
             ]),
             'parse_mode' => 'HTML',
@@ -351,7 +351,7 @@ HTML,
         $buttons = [];
         foreach ($actualMaterials as $actualMaterial) {
             $buttons[][] = [
-                'text' => $actualMaterial->product->name,
+                'text' => $actualMaterial->product->catName,
                 'callback_data' => "completeMaterial_{$actualMaterial->id}",
             ];
         }
@@ -384,7 +384,7 @@ HTML,
             'text' => strtr(self::templates['completeMaterialInput'], [
                 '{errorMsg}' => '',
                 '{actualUsedMaterials}' => $this->getActualMaterialsStr(),
-                '{product}' => $actualMaterial->product->name,
+                '{product}' => $actualMaterial->product->catName,
             ]),
             'parse_mode' => 'HTML',
             'reply_markup' => TelegramService::getInlineKeyboard(
@@ -411,7 +411,7 @@ HTML,
                 'text' => strtr(self::templates['completeMaterialInput'], [
                     '{errorMsg}' => "<i>Invalid quantity. Please enter a valid number.</i>",
                     '{actualUsedMaterials}' => $this->getActualMaterialsStr(),
-                    '{product}' => $actualMaterial->product->name,
+                    '{product}' => $actualMaterial->product->catName,
                 ]),
                 'parse_mode' => 'HTML',
                 'reply_markup' => TelegramService::getInlineKeyboard(
@@ -433,7 +433,7 @@ HTML,
                 'text' => strtr(self::templates['completeMaterialInput'], [
                     '{errorMsg}' => "<i>Quantity cannot be greater than {$actualMaterial->max_quantity} {$actualMaterial->product->category?->measure_unit?->getLabel()}</i>",
                     '{actualUsedMaterials}' => $this->getActualMaterialsStr(),
-                    '{product}' => $actualMaterial->product->name,
+                    '{product}' => $actualMaterial->product->catName,
                 ]),
                 'parse_mode' => 'HTML',
                 'reply_markup' => TelegramService::getInlineKeyboard(
@@ -458,7 +458,7 @@ HTML,
             'text' => strtr(self::templates['completeMaterialInput'], [
                 '{errorMsg}' => '',
                 '{actualUsedMaterials}' => $this->getActualMaterialsStr(),
-                '{product}' => $actualMaterial->product->name,
+                '{product}' => $actualMaterial->product->catName,
             ]),
             'parse_mode' => 'HTML',
             'reply_markup' => TelegramService::getInlineKeyboard(
@@ -528,14 +528,14 @@ HTML,
         $step = $this->getStep();
         $requiredMaterials = $step->requiredItems
             ->map(function (ProdOrderStepProduct $item) {
-                return "{$item->product->name} ({$item->quantity} {$item->product->category?->measure_unit?->getLabel()})";
+                return "{$item->product->catName} ({$item->quantity} {$item->product->category?->measure_unit?->getLabel()})";
             })
             ->implode("\n");
 
         return [
             '{prodOrder}' => $this->user->workStation->prodOrder->number,
-            '{product}' => $prodOrder->product->name . " ({$prodOrder->quantity} {$prodOrder->product->category?->measure_unit?->getLabel()})",
-            '{expectedMaterial}' => "{$step->outputProduct->name} ({$step->expected_quantity} {$step->outputProduct->category?->measure_unit?->getLabel()})",
+            '{product}' => $prodOrder->product->catName . " ({$prodOrder->quantity} {$prodOrder->product->category?->measure_unit?->getLabel()})",
+            '{expectedMaterial}' => "{$step->outputProduct->catName} ({$step->expected_quantity} {$step->outputProduct->category?->measure_unit?->getLabel()})",
             '{requiredMaterials}' => $requiredMaterials,
             '{actualUsedMaterials}' => $this->getActualMaterialsStr(),
         ];
@@ -555,7 +555,7 @@ HTML,
                 $properQty = $actualMaterial->quantity;
             }
             $measureUnit = $actualMaterial->product->category?->measure_unit?->getLabel();
-            $actualMaterialsStr .= "{$actualMaterial->product->name}: $properQty $measureUnit (available: $actualMaterial->max_quantity $measureUnit)\n";
+            $actualMaterialsStr .= "{$actualMaterial->product->catName}: $properQty $measureUnit (available: $actualMaterial->max_quantity $measureUnit)\n";
         }
 
         return $actualMaterialsStr;
@@ -589,11 +589,12 @@ HTML,
 
     protected function getActualMaterialButtons(): array
     {
+        /** @var Collection<ProdOrderStepProduct> $actualMaterials */
         $actualMaterials = $this->getStep()->actualItems()->get();
         $buttons = [];
         foreach ($actualMaterials as $actualMaterial) {
             $buttons[][] = [
-                'text' => $actualMaterial->product->name,
+                'text' => $actualMaterial->product->catName,
                 'callback_data' => "completeMaterial_{$actualMaterial->id}",
             ];
         }

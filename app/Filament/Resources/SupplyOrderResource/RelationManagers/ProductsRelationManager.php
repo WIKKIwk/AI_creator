@@ -16,6 +16,8 @@ class ProductsRelationManager extends RelationManager
 {
     protected static string $relationship = 'products';
 
+    protected $listeners = ['refreshRelationTable' => '$refresh'];
+
     public function form(Form $form): Form
     {
         return $form
@@ -100,7 +102,7 @@ class ProductsRelationManager extends RelationManager
     {
         return $table
             ->recordClasses(function ($record) {
-                if ($record->actual_quantity > 0 && $record->expected_quantity != $record->actual_quantity) {
+                if ($record->expected_quantity != $record->actual_quantity) {
                     return 'row-warning';
                 }
 

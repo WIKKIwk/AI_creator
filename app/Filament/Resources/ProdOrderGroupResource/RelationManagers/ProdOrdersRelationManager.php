@@ -2,16 +2,24 @@
 
 namespace App\Filament\Resources\ProdOrderGroupResource\RelationManagers;
 
-use Filament\Forms;
-use App\Models\Product;
-use Filament\Forms\Form;
+use App\Enums\OrderStatus;
 use App\Enums\ProductType;
+use App\Enums\RoleType;
+use App\Filament\Resources\ProdOrderGroupResource;
+use App\Filament\Resources\ProdOrderResource;
+use App\Models\ProdOrder;
 use App\Models\ProdOrderGroup;
+use App\Models\Product;
+use App\Services\ProdOrderService;
+use Closure;
+use Exception;
+use Filament\Forms;
+use Filament\Forms\Form;
 use Filament\Resources\RelationManagers\RelationManager;
 use Filament\Tables;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
-use Illuminate\Database\Eloquent\SoftDeletingScope;
+use Throwable;
 
 class ProdOrdersRelationManager extends RelationManager
 {
@@ -29,16 +37,34 @@ class ProdOrdersRelationManager extends RelationManager
                         ->relationship(
                             'product',
                             'name',
-                            function($query) {
+                            function ($query) {
                                 $query->where('type', ProductType::ReadyProduct);
                             }
                         )
+                        ->rules([
+                            fn(Forms\Get $get): Closure => function (string $attribute, $value, $fail) use ($get) {
+                                /** @var ProdOrderGroup $prodOrderGroup */
+                                $prodOrderGroup = $this->getOwnerRecord();
+                                if (
+                                    $prodOrderGroup->prodOrders()
+                                        ->when(
+                                            $get('id'),
+                                            fn($query) => $query->whereNot('id', $get('id'))
+                                        )
+                                        ->where('group_id', $prodOrderGroup->id)
+                                        ->where('product_id', $get('product_id'))
+                                        ->exists()
+                                ) {
+                                    $fail('This product is already added to the order.');
+                                }
+                            }
+                        ])
                         ->required()
                         ->reactive(),
 
                     Forms\Components\TextInput::make('quantity')
                         ->required()
-                        ->suffix(function($get) {
+                        ->suffix(function ($get) {
                             /** @var Product|null $product */
                             $product = $get('product_id') ? Product::query()->find(
                                 $get('product_id')
@@ -71,16 +97,107 @@ class ProdOrdersRelationManager extends RelationManager
                     })
                     ->sortable(),
                 Tables\Columns\TextColumn::make('offer_price'),
+                Tables\Columns\TextColumn::make('status')
+                    ->badge()
+                    ->sortable(),
+                Tables\Columns\TextColumn::make('confirmed_at')
+                    ->getStateUsing(function ($record) {
+                        if ($record->confirmed_at) {
+                            return '<span class="text-green-500">✔️</span>';
+                        }
+                        return '<span class="text-red-500">❌</span>';
+                    })
+                    ->html()
+                    ->sortable(),
             ])
             ->filters([
                 //
             ])
             ->headerActions([
-                Tables\Actions\CreateAction::make(),
+                Tables\Actions\CreateAction::make()
+                    ->mutateFormDataUsing(function (array $data): array {
+                        /** @var ProdOrderGroup $prodOrderGroup */
+                        $prodOrderGroup = $this->getOwnerRecord();
+
+                        $data['status'] = OrderStatus::Pending;
+
+                        $data['total_cost'] = app(ProdOrderService::class)->calculateTotalCost(
+                            $data['product_id'],
+                            $prodOrderGroup->warehouse_id
+                        );
+                        $data['deadline'] = app(ProdOrderService::class)->calculateDeadline(
+                            $data['product_id']
+                        );
+                        return $data;
+                    }),
             ])
             ->actions([
-                Tables\Actions\EditAction::make(),
-                Tables\Actions\DeleteAction::make(),
+                Tables\Actions\Action::make('confirm')
+                    ->label('Confirm')
+                    ->visible(fn($record) => !$record->confirmed_at && in_array(auth()->user()->role, [
+                            RoleType::ADMIN,
+                            RoleType::PLANNING_MANAGER,
+                            RoleType::PRODUCTION_MANAGER,
+                        ]))
+                    ->action(function (ProdOrder $record) {
+                        try {
+                            $record->confirm();
+                            showSuccess('Order confirmed successfully');
+                        } catch (Throwable $e) {
+                            showError($e->getMessage());
+                        }
+                    })
+                    ->requiresConfirmation(),
+
+                Tables\Actions\Action::make('startProduction')
+                    ->label('Start')
+                    ->visible(fn($record) => $record->confirmed_at && !$record->started_at)
+                    ->action(function ($record, $livewire) {
+                        /** @var ProdOrderService $prodOrderService */
+                        $prodOrderService = app(ProdOrderService::class);
+
+                        try {
+                            $insufficientAssets = $prodOrderService->checkStart($record);
+                            if (!empty($insufficientAssets)) {
+                                $livewire->dispatch(
+                                    'openModal',
+                                    $record,
+                                    $insufficientAssets,
+                                    'startProdOrder'
+                                );
+                            } else {
+                                $prodOrderService->start($record);
+                                showSuccess('Production order started successfully');
+                            }
+                        } catch (Exception $e) {
+                            showError($e->getMessage());
+                        }
+                    })
+                    ->requiresConfirmation(),
+
+                Tables\Actions\Action::make('details')
+                    ->label('Details')
+                    ->hidden(fn($record) => $record->status == OrderStatus::Pending)
+                    ->url(fn($record) => ProdOrderGroupResource::getUrl('details', [
+                        'record' => $this->getOwnerRecord(),
+                        'id' => $record->id,
+                    ]))
+                    ->requiresConfirmation(),
+
+                Tables\Actions\EditAction::make()
+                    ->mutateFormDataUsing(function (array $data): array {
+                        /** @var ProdOrderGroup $prodOrderGroup */
+                        $prodOrderGroup = $this->getOwnerRecord();
+
+                        $data['total_cost'] = app(ProdOrderService::class)->calculateTotalCost(
+                            $data['product_id'],
+                            $prodOrderGroup->warehouse_id
+                        );
+                        $data['deadline'] = app(ProdOrderService::class)->calculateDeadline(
+                            $data['product_id']
+                        );
+                        return $data;
+                    }),
             ])
             ->bulkActions([
                 Tables\Actions\BulkActionGroup::make([

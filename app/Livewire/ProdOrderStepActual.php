@@ -53,6 +53,10 @@ class ProdOrderStepActual extends Component implements HasForms, HasTable
                                 ->label('Product')
                                 ->native(false)
                                 ->relationship('product', 'name')
+                                ->getOptionLabelFromRecordUsing(function($record) {
+                                    /** @var Product $record */
+                                    return $record->catName;
+                                })
                                 ->searchable()
                                 ->reactive()
                                 ->preload()
@@ -109,12 +113,12 @@ class ProdOrderStepActual extends Component implements HasForms, HasTable
             ->paginated(false)
             ->query(
                 ProdOrderStepProduct::query()
-                    ->with(['product'])
+                    ->with(['product.category'])
                     ->where('prod_order_step_id', $this->step->id)
                     ->where('type', StepProductType::Actual)
             )
             ->columns([
-                TextColumn::make('product.name')
+                TextColumn::make('product.catName')
                     ->width('500px'),
                 TextColumn::make('max_quantity')
                     ->label('Available quantity')

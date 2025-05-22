@@ -4,7 +4,6 @@ namespace App\Services;
 
 use App\Enums\OrderStatus;
 use App\Enums\RoleType;
-use App\Enums\StepProductType;
 use App\Enums\SupplyOrderState;
 use App\Enums\SupplyOrderStatus;
 use App\Enums\TaskAction;
@@ -25,26 +24,35 @@ class SupplyOrderService
     ) {
     }
 
-    public function storeForProdOrder(ProdOrder $prodOrder, Product $product, $quantity): void
+    /**
+     * @throws Exception
+     */
+    public function storeForProdOrder(ProdOrder $prodOrder, $insufficientAssetsByCat): void
     {
         try {
             DB::beginTransaction();
 
-            /** @var SupplyOrder $supplyOrder */
-            $supplyOrder = SupplyOrder::query()->create([
-                'prod_order_id' => $prodOrder->id,
-                'warehouse_id' => $prodOrder->warehouse_id,
-                'product_category_id' => $product->product_category_id,
-                'state' => SupplyOrderState::Created,
-                'created_by' => auth()->user()->id,
-            ]);
-            $supplyOrder->updateStatus(SupplyOrderState::Created);
+            foreach ($insufficientAssetsByCat as $categoryId => $insufficientAssets) {
 
-            $supplyOrder->products()->create([
-                'product_id' => $product->id,
-                'expected_quantity' => $quantity,
-                'actual_quantity' => 0,
-            ]);
+                /** @var SupplyOrder $supplyOrder */
+                $supplyOrder = SupplyOrder::query()->create([
+                    'prod_order_id' => $prodOrder->id,
+                    'warehouse_id' => $prodOrder->group->warehouse_id,
+                    'product_category_id' => $categoryId,
+                    'state' => SupplyOrderState::Created,
+                    'created_by' => auth()->user()->id,
+                ]);
+                $supplyOrder->updateStatus(SupplyOrderState::Created);
+
+                foreach ($insufficientAssets as $productId => $insufficientAsset) {
+                    $supplyOrder->products()->create([
+                        'product_id' => $productId,
+                        'expected_quantity' => $insufficientAsset['quantity'],
+                        'actual_quantity' => 0,
+                    ]);
+                }
+
+            }
 
             DB::commit();
         } catch (Throwable $e) {
@@ -104,7 +112,7 @@ class SupplyOrderService
             return;
         }
 
-        if (!$supplyOrder->supplier_id) {
+        if (!$supplyOrder->supplier_organization_id) {
             throw new Exception('Supplier is not set');
         }
 
@@ -112,6 +120,11 @@ class SupplyOrderService
             DB::beginTransaction();
 
             foreach ($supplyOrder->products as $product) {
+
+                if ($product->actual_quantity == 0) {
+                    throw new Exception("Product {$product->product->name} has 0 actual quantity");
+                }
+
                 $this->transactionService->addStock(
                     $product->product_id,
                     $product->actual_quantity,

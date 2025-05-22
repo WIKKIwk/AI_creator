@@ -14,15 +14,15 @@ class ConfirmSupplyModal extends Component
 {
     public ProdOrder $prodOrder;
     public $arguments = [];
-    public $missingAssets = [];
+    public $missingAssetsByCat = [];
     public $action = null;
 
     protected $listeners = ['openModal'];
 
-    public function openModal(ProdOrder $prodOrder, array $missingAssets, $action = null, $arguments = []): void
+    public function openModal(ProdOrder $prodOrder, array $missingAssetsByCat, $action = null, $arguments = []): void
     {
         $this->prodOrder = $prodOrder;
-        $this->missingAssets = $missingAssets;
+        $this->missingAssetsByCat = $missingAssetsByCat;
         $this->arguments = $arguments;
         $this->action = $action;
 

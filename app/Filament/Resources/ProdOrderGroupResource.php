@@ -67,7 +67,28 @@ class ProdOrderGroupResource extends Resource
     {
         return $table
             ->columns([
-                //
+                Tables\Columns\TextColumn::make('id')
+                    ->label('ID')
+                    ->sortable()
+                    ->searchable()
+                    ->toggleable(),
+                Tables\Columns\TextColumn::make('type')
+                    ->badge()
+                    ->searchable(),
+                Tables\Columns\TextColumn::make('warehouse.name')
+                    ->sortable()
+                    ->searchable()
+                    ->toggleable(),
+                Tables\Columns\TextColumn::make('organization.name')
+                    ->label('Agent')
+                    ->sortable()
+                    ->searchable()
+                    ->toggleable(),
+                Tables\Columns\TextColumn::make('created_at')
+                    ->dateTime()
+                    ->sortable()
+                    ->searchable()
+                    ->toggleable(),
             ])
             ->filters([
                 //
@@ -95,6 +116,7 @@ class ProdOrderGroupResource extends Resource
             'index' => Pages\ListProdOrderGroups::route('/'),
             'create' => Pages\CreateProdOrderGroup::route('/create'),
             'edit' => Pages\EditProdOrderGroup::route('/{record}/edit'),
+            'details' => Pages\ProdOrderDetails::route('/{record}/orders/{id}/details'),
         ];
     }
 }

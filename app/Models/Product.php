@@ -15,6 +15,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 /**
  * @property int $id
  * @property string $name
+ * @property string $catName
  * @property string $description
  * @property string $code
  * @property float $price
@@ -39,6 +40,12 @@ class Product extends Model
     protected $casts = [
         'type' => ProductType::class,
     ];
+
+
+    public function getCatNameAttribute(): string
+    {
+        return $this->category->name ? $this->category->name . ' ' . $this->name : $this->name;
+    }
 
     protected static function booted(): void
     {

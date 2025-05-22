@@ -103,7 +103,12 @@ class InventoryTransactionResource extends Resource
         return $table
             ->modifyQueryUsing(function ($query) {
                 $query
-                    ->with(['product', 'storageLocation', 'workStation', 'warehouse'])
+                    ->with([
+                        'warehouse',
+                        'product' => fn($query) => $query->with('category'),
+                        'storageLocation',
+                        'workStation',
+                    ])
                     ->when(
                         in_array(auth()->user()->role, [
                             RoleType::SENIOR_STOCK_MANAGER,
@@ -121,7 +126,7 @@ class InventoryTransactionResource extends Resource
                 Tables\Columns\TextColumn::make('type')
                     ->badge()
                     ->sortable(),
-                Tables\Columns\TextColumn::make('product.name')
+                Tables\Columns\TextColumn::make('product.catName')
                     ->numeric()
                     ->sortable(),
                 Tables\Columns\TextColumn::make('quantity')

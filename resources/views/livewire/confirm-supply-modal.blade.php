@@ -4,13 +4,16 @@
     <div class="space-y-4">
         <p>These assets are not available in the warehouse:</p>
 
-        @foreach ($missingAssets as $productId => $item)
-            @php
-                $product = Arr::get($item, 'product');
-                $qty = Arr::get($item, 'quantity');
-                $measureUnit = Arr::get($item, 'measure_unit');
-            @endphp
-            <b class='text-red-500'>{{ $product['name'] }}: {{ $qty }} {{ $measureUnit }}</b><br>
+        @foreach ($missingAssetsByCat as $categoryId => $missingAssets)
+            @foreach ($missingAssets as $productId => $item)
+                @php
+                    $product = Arr::get($item, 'product');
+                    $qty = Arr::get($item, 'quantity');
+                    $category = Arr::get($item, 'category');
+                    $measureUnit = Arr::get($item, 'measure_unit');
+                @endphp
+                <b class='text-red-500'>{{ $category . ' ' .$product['name'] }}: {{ $qty }} {{ $measureUnit }}</b><br>
+            @endforeach
         @endforeach
 
         <p>Would you like to create Supply Orders for these assets?</p>

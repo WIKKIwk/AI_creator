@@ -121,6 +121,11 @@ class User extends Authenticatable implements FilamentUser
         return $user;
     }
 
+    public static function findByChatId(int $chatId): ?self
+    {
+        return self::query()->where('chat_id', $chatId)->first();
+    }
+
     public function canAccessPanel(Panel $panel): bool
     {
         return !in_array(

@@ -73,13 +73,13 @@ class SupplyOrder extends Model
     {
         static::creating(function (SupplyOrder $model) {
             $model->created_by = auth()->id();
-            if ($model->supplierOrganization?->code && $model->productCategory?->code) {
+            if ($model->supplierOrganization) {
                 $model->number = 'SO-' . $model->supplierOrganization->code . $model->productCategory->code . now()->format('dmy');
             }
         });
         static::updating(function (SupplyOrder $model) {
             $model->created_by = auth()->id();
-            if ($model->supplierOrganization?->code && $model->productCategory?->code) {
+            if ($model->supplierOrganization) {
                 $model->number = 'SO-' . $model->supplierOrganization->code . $model->productCategory->code . now()->format('dmy');
             }
         });

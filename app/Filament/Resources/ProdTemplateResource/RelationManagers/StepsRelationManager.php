@@ -72,7 +72,7 @@ class StepsRelationManager extends RelationManager
                     ->relationship('outputProduct', 'name')
                     ->getOptionLabelFromRecordUsing(function($record) {
                         /** @var Product $record */
-                        return $record->ready_product_id ? $record->name : ($record->category->name . ' ' . $record->name);
+                        return $record->ready_product_id ? $record->name : $record->catName;
                     })
                     ->afterStateUpdated(function ($set, $get) {
                         $set('is_last', $get('output_product_id') == $this->getOwnerRecord()->product_id);
@@ -127,7 +127,7 @@ class StepsRelationManager extends RelationManager
                                 )
                                 ->getOptionLabelFromRecordUsing(function($record) {
                                     /** @var Product $record */
-                                    return $record->ready_product_id ? $record->name : ($record->category->name . ' ' . $record->name);
+                                    return $record->ready_product_id ? $record->name : $record->catName;
                                 })
                                 ->searchable()
                                 ->preload()

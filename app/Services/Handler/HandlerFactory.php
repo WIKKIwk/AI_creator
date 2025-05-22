@@ -8,17 +8,11 @@ use Exception;
 
 class HandlerFactory
 {
-    /**
-     * @throws Exc$usereption
-     */
     public static function make(User $user): HandlerInterface
     {
         return match ($user->role) {
-//            RoleType::ADMIN => app(WorkStationWorkerHandler::class),
             RoleType::WORK_STATION_WORKER => app(WorkStationWorkerHandler::class),
-//            'admin' => new AdminHandler(),
-//            'order_manager' => new OrderManagerHandler(),
-            default => throw new Exception("No handler found for role: " . $user->role->getLabel()),
+            default => null,
         };
     }
 }
