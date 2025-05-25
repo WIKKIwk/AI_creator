@@ -16,7 +16,6 @@ class BotController
     public function handle(Request $request): void
     {
         $user = $request->user();
-        dd($user);
         $handlerByRole = HandlerFactory::make($request->user());
     }
 }

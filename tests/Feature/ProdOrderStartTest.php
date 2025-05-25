@@ -3,17 +3,15 @@
 namespace Tests\Feature;
 
 use App\Enums\OrderStatus;
-use App\Enums\StepProductType;
+use App\Enums\ProdOrderStepProductStatus;
+use App\Enums\ProdOrderStepStatus;
 use App\Enums\SupplyOrderState;
-use App\Models\Inventory;
 use App\Models\ProdOrder;
-use App\Models\ProdTemplate;
-use App\Models\ProdTemplateStep;
-use App\Models\Product;
-use App\Models\WorkStation;
 use App\Services\ProdOrderService;
+use App\Services\TransactionService;
 use App\Services\WorkStationService;
 use Exception;
+use Tests\Feature\Traits\HasProdTemplate;
 use Tests\TestCase;
 
 class ProdOrderStartTest extends TestCase
@@ -23,16 +21,17 @@ class ProdOrderStartTest extends TestCase
     protected ProdOrder $prodOrder;
     protected ProdOrderService $prodOrderService;
     protected WorkStationService $workStationService;
+    protected TransactionService $transactionService;
 
     protected function setUp(): void
     {
         parent::setUp();
 
+        $this->actingAs($this->user);
+
         $this->createProdTemplate();
 
         $this->prodOrder = ProdOrder::factory()->create([
-            'agent_id' => $this->agent->id,
-            'warehouse_id' => $this->warehouse->id,
             'product_id' => $this->readyProduct->id,
             'quantity' => 3,
             'offer_price' => 100,
@@ -44,11 +43,11 @@ class ProdOrderStartTest extends TestCase
 
         $this->prodOrderService = app(ProdOrderService::class);
         $this->workStationService = app(WorkStationService::class);
+        $this->transactionService = app(TransactionService::class);
     }
 
-    public function test_start_prod_order_not_confirmed(): void
+    public function test_start_not_confirmed(): void
     {
-        $this->actingAs($this->user);
         $this->prodOrder->update(['confirmed_at' => null]);
 
         $this->expectException(Exception::class);
@@ -57,7 +56,7 @@ class ProdOrderStartTest extends TestCase
         $this->prodOrderService->start($this->prodOrder);
     }
 
-    public function test_start_prod_order_basic(): void
+    public function test_start_basic(): void
     {
         $this->actingAs($this->user);
         $this->prodOrderService->start($this->prodOrder);
@@ -72,50 +71,52 @@ class ProdOrderStartTest extends TestCase
 
         $this->assertDatabaseHas('prod_order_steps', [
             'id' => $firstStep->id,
+            'sequence' => 1,
+            'status' => ProdOrderStepStatus::InProgress,
             'prod_order_id' => $this->prodOrder->id,
             'work_station_id' => $this->workStationFirst->id,
-            'sequence' => 1,
             'output_product_id' => $this->semiFinishedMaterial->id,
             'expected_quantity' => 3,
         ]);
-        $this->assertDatabaseMissing('prod_order_step_products', [
+        $this->assertDatabaseHas('prod_order_step_products', [
             'prod_order_step_id' => $firstStep->id,
-            'type' => StepProductType::Actual
+            'status' => ProdOrderStepProductStatus::InProgress,
+            'required_quantity' => 3,
+            'available_quantity' => 0,
         ]);
 
         $this->assertDatabaseHas('prod_order_steps', [
             'id' => $secondStep->id,
+            'sequence' => 2,
             'prod_order_id' => $this->prodOrder->id,
             'work_station_id' => $this->workStationSecond->id,
-            'sequence' => 2,
             'output_product_id' => $this->readyProduct->id,
             'expected_quantity' => 3,
         ]);
-        $this->assertDatabaseMissing('prod_order_step_products', [
+        $this->assertDatabaseHas('prod_order_step_products', [
             'prod_order_step_id' => $secondStep->id,
-            'type' => StepProductType::Actual
+            'status' => ProdOrderStepProductStatus::InProgress,
+            'required_quantity' => 3,
+            'available_quantity' => 0,
         ]);
 
         $this->assertDatabaseHas('supply_orders', [
-            'warehouse_id' => $this->prodOrder->warehouse_id,
+            'warehouse_id' => $this->prodOrder->group->warehouse_id,
             'prod_order_id' => $this->prodOrder->id,
             'state' => SupplyOrderState::Created->value,
             'product_category_id' => $this->rawMaterial->product_category_id,
         ]);
     }
 
-    public function test_start_prod_order_with_materials_in_stock(): void
+    public function test_start_with_materials_in_stock(): void
     {
         $this->actingAs($this->user);
 
-        /** @var Inventory $inventory */
-        $inventory = Inventory::query()->create([
-            'warehouse_id' => $this->prodOrder->warehouse_id,
-            'product_id' => $this->rawMaterial->id,
-            'quantity' => 5,
-            'unit_cost' => 100,
-        ]);
-        $inventoryItem = $inventory->items()->create(['quantity' => 5]);
+        $inventoryItem = $this->transactionService->addStock(
+            $this->rawMaterial->id,
+            5,
+            $this->prodOrder->group->warehouse_id
+        );
 
         $this->prodOrderService->start($this->prodOrder);
 
@@ -138,9 +139,10 @@ class ProdOrderStartTest extends TestCase
         ]);
         $this->assertDatabaseHas('prod_order_step_products', [
             'prod_order_step_id' => $firstStep->id,
+            'status' => ProdOrderStepProductStatus::InProgress,
             'product_id' => $this->rawMaterial->id,
-            'quantity' => 3,
-            'type' => StepProductType::Actual
+            'required_quantity' => 3,
+            'available_quantity' => 3,
         ]);
 
         $this->assertDatabaseHas('prod_order_steps', [
@@ -153,7 +155,10 @@ class ProdOrderStartTest extends TestCase
         ]);
         $this->assertDatabaseMissing('prod_order_step_products', [
             'prod_order_step_id' => $secondStep->id,
-            'type' => StepProductType::Actual
+            'status' => ProdOrderStepProductStatus::InProgress,
+            'product_id' => $this->semiFinishedMaterial->id,
+            'required_quantity' => 3,
+            'available_quantity' => 3,
         ]);
 
         // Check Supply Orders created correctly

@@ -5,6 +5,7 @@ namespace App\Filament\Resources\ProdOrderGroupResource\RelationManagers;
 use App\Enums\OrderStatus;
 use App\Enums\ProductType;
 use App\Enums\RoleType;
+use App\Events\ProdOrderChanged;
 use App\Filament\Resources\ProdOrderGroupResource;
 use App\Filament\Resources\ProdOrderResource;
 use App\Models\ProdOrder;
@@ -34,13 +35,11 @@ class ProdOrdersRelationManager extends RelationManager
             ->schema([
                 Forms\Components\Grid::make(3)->schema([
                     Forms\Components\Select::make('product_id')
-                        ->relationship(
-                            'product',
-                            'name',
-                            function ($query) {
-                                $query->where('type', ProductType::ReadyProduct);
-                            }
-                        )
+                        ->relationship('product', 'name', fn($query) => $query->where('type', ProductType::ReadyProduct))
+                        ->getOptionLabelFromRecordUsing(function($record) {
+                            /** @var Product $record */
+                            return $record->ready_product_id ? $record->name : $record->catName;
+                        })
                         ->rules([
                             fn(Forms\Get $get): Closure => function (string $attribute, $value, $fail) use ($get) {
                                 /** @var ProdOrderGroup $prodOrderGroup */
@@ -90,7 +89,7 @@ class ProdOrdersRelationManager extends RelationManager
                 ]);
             })
             ->columns([
-                Tables\Columns\TextColumn::make('product.name'),
+                Tables\Columns\TextColumn::make('product.catName'),
                 Tables\Columns\TextColumn::make('quantity')
                     ->formatStateUsing(function ($record) {
                         return $record->quantity . ' ' . $record->product->category?->measure_unit?->getLabel();
@@ -129,8 +128,18 @@ class ProdOrdersRelationManager extends RelationManager
                             $data['product_id']
                         );
                         return $data;
+                    })
+                    ->after(function () {
+                        /** @var ProdOrderGroup $prodOrderGroup */
+                        $prodOrderGroup = $this->getOwnerRecord();
+
+                        ProdOrderChanged::dispatch($prodOrderGroup, false);
                     }),
             ])
+            ->recordUrl(fn($record) => ProdOrderGroupResource::getUrl('details', [
+                'record' => $this->getOwnerRecord(),
+                'id' => $record->id,
+            ]))
             ->actions([
                 Tables\Actions\Action::make('confirm')
                     ->label('Confirm')
@@ -139,13 +148,14 @@ class ProdOrdersRelationManager extends RelationManager
                             RoleType::PLANNING_MANAGER,
                             RoleType::PRODUCTION_MANAGER,
                         ]))
-                    ->action(function (ProdOrder $record) {
+                    ->action(function (ProdOrder $record, $livewire) {
                         try {
                             $record->confirm();
                             showSuccess('Order confirmed successfully');
                         } catch (Throwable $e) {
                             showError($e->getMessage());
                         }
+                        $livewire->dispatch('$refresh');
                     })
                     ->requiresConfirmation(),
 
@@ -169,6 +179,8 @@ class ProdOrdersRelationManager extends RelationManager
                                 $prodOrderService->start($record);
                                 showSuccess('Production order started successfully');
                             }
+
+                            $livewire->dispatch('$refresh');
                         } catch (Exception $e) {
                             showError($e->getMessage());
                         }

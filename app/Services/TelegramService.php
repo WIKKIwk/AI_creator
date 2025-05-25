@@ -58,7 +58,7 @@ class TelegramService
     /**
      * @throws Exception
      */
-    public static function sendMessage(string $username, string $message, $params = []): void
+    public static function sendMessage(string $username, string $message, $params = []): ?array
     {
         $resp = Http::post(
             'https://api.telegram.org/bot' . env('TELEGRAM_BOT_TOKEN') . '/sendMessage',
@@ -72,5 +72,7 @@ class TelegramService
         if (Arr::get($data, 'ok') !== true) {
             throw new Exception('Telegram API error: ' . Arr::get($data, 'description'));
         }
+
+        return $data;
     }
 }

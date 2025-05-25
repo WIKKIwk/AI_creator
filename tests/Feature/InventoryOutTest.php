@@ -21,6 +21,8 @@ class InventoryOutTest extends TestCase
     {
         parent::setUp();
 
+        $this->actingAs($this->user);
+
         $this->inventoryService = app(InventoryService::class);
         $this->transactionService = app(TransactionService::class);
         $this->product = Product::factory()->create([

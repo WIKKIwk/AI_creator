@@ -3,20 +3,13 @@
 namespace Tests\Feature;
 
 use App\Enums\OrderStatus;
-use App\Enums\StepProductType;
-use App\Models\Inventory;
 use App\Models\MiniInventory;
 use App\Models\ProdOrder;
 use App\Models\ProdOrderStep;
-use App\Models\ProdTemplate;
-use App\Models\ProdTemplateStep;
-use App\Models\Product;
-use App\Models\WorkStation;
 use App\Services\ProdOrderService;
+use App\Services\TransactionService;
 use App\Services\WorkStationService;
-use Exception;
-use Filament\Forms\Components\Wizard\Step;
-use Tests\Feature\HasProdTemplate;
+use Tests\Feature\Traits\HasProdTemplate;
 use Tests\TestCase;
 
 class ProdOrderAddActualTest extends TestCase
@@ -26,17 +19,18 @@ class ProdOrderAddActualTest extends TestCase
     protected ProdOrder $prodOrder;
     protected ProdOrderService $prodOrderService;
     protected WorkStationService $workStationService;
+    protected TransactionService $transactionService;
 
     protected function setUp(): void
     {
         parent::setUp();
 
+        $this->actingAs($this->user);
+
         $this->createProdTemplate();
 
         /** @var ProdOrder $prodOrder */
-        $prodOrder = ProdOrder::query()->create([
-            'agent_id' => $this->agent->id,
-            'warehouse_id' => $this->warehouse->id,
+        $prodOrder = ProdOrder::factory()->create([
             'product_id' => $this->readyProduct->id,
             'quantity' => 3,
             'offer_price' => 100,
@@ -46,6 +40,7 @@ class ProdOrderAddActualTest extends TestCase
 
         $this->prodOrderService = app(ProdOrderService::class);
         $this->workStationService = app(WorkStationService::class);
+        $this->transactionService = app(TransactionService::class);
     }
 
     /**
@@ -54,61 +49,46 @@ class ProdOrderAddActualTest extends TestCase
     public function test_add_actual_materials($qty): void
     {
         $anotherProduct = $this->createProduct(['name' => 'Another Product']);
-        $this->actingAs($this->user);
 
-        /** @var Inventory $inventory */
-        $inventory = Inventory::query()->create([
-            'warehouse_id' => $this->prodOrder->warehouse_id,
-            'product_id' => $anotherProduct->id,
-            'quantity' => $stockQty = 5,
-            'unit_cost' => 100,
-        ]);
-        $inventoryItem = $inventory->items()->create(['quantity' => 5]);
-
-        /** @var ProdOrderStep $step */
-        $step = $this->prodOrder->steps()->create([
-            'sequence' => 1,
-            'work_station_id' => $this->workStationFirst->id,
-            'status' => OrderStatus::Pending,
-        ]);
+        $inventoryItem = $this->transactionService->addStock(
+            $anotherProduct->id,
+            $stockQty = 5,
+            $this->prodOrder->group->warehouse_id
+        );
 
         $insufficientQty = $qty > $stockQty;
-        if ($insufficientQty) {
-            $this->expectException(Exception::class);
-            $this->expectExceptionMessage('Insufficient stock');
-        }
 
-        $this->prodOrderService->editMaterials($step, $anotherProduct->id, $qty);
+        /** @var ProdOrderStep $firstStep */
+        $firstStep = $this->prodOrder->steps()->create([
+            'sequence' => 1,
+            'work_station_id' => $this->workStationFirst->id,
+            'output_product_id' => $this->semiFinishedMaterial->id,
+            'expected_quantity' => 1,
+        ]);
+        $firstStep->materials()->create([
+            'product_id' => $anotherProduct->id,
+            'required_quantity' => $requiredQty = 1,
+            'available_quantity' => 0,
+        ]);
 
-        if ($insufficientQty) {
-            $this->assertDatabaseMissing('prod_order_step_products', [
-                'product_id' => $anotherProduct->id,
-                'type' => StepProductType::Actual
-            ]);
-            $this->assertDatabaseHas('inventory_items', [
-                'id' => $inventoryItem->id,
-                'quantity' => $stockQty,
-            ]);
-            $this->assertDatabaseMissing('mini_inventories', [
-                'work_station_id' => $this->workStationFirst->id,
-            ]);
-        } else {
-            $this->assertDatabaseHas('prod_order_step_products', [
-                'product_id' => $anotherProduct->id,
-                'quantity' => $qty,
-                'max_quantity' => $qty,
-                'type' => StepProductType::Actual
-            ]);
-            $this->assertDatabaseHas('inventory_items', [
-                'id' => $inventoryItem->id,
-                'quantity' => $stockQty - $qty,
-            ]);
-            $this->assertDatabaseHas('mini_inventories', [
-                'work_station_id' => $this->workStationFirst->id,
-                'product_id' => $anotherProduct->id,
-                'quantity' => $qty,
-            ]);
-        }
+        $lackQuantity = $this->prodOrderService->addMaterialAvailable($firstStep, $anotherProduct->id, $qty);
+        $this->assertEquals($insufficientQty ? ($qty - $stockQty) : 0, $lackQuantity);
+
+        $this->assertDatabaseHas('prod_order_step_products', [
+            'prod_order_step_id' => $firstStep->id,
+            'product_id' => $anotherProduct->id,
+            'required_quantity' => $requiredQty,
+            'available_quantity' => min($qty, $stockQty)
+        ]);
+        $this->assertDatabaseHas('inventory_items', [
+            'id' => $inventoryItem->id,
+            'quantity' => max($stockQty - $qty, 0)
+        ]);
+        $this->assertDatabaseHas('mini_inventories', [
+            'work_station_id' => $this->workStationFirst->id,
+            'product_id' => $anotherProduct->id,
+            'quantity' => min($qty, $stockQty)
+        ]);
     }
 
     /**
@@ -116,83 +96,50 @@ class ProdOrderAddActualTest extends TestCase
      */
     public function test_edit_actual_materials($qty): void
     {
-        $this->actingAs($this->user);
+        $inventoryItem = $this->transactionService->addStock(
+            $this->rawMaterial->id,
+            $stockQty = 5,
+            $this->prodOrder->group->warehouse_id
+        );
 
-        /** @var Inventory $inventory */
-        $inventory = Inventory::query()->create([
-            'warehouse_id' => $this->prodOrder->warehouse_id,
-            'product_id' => $this->rawMaterial->id,
-            'quantity' => $stockQty = 5,
-            'unit_cost' => 100,
-        ]);
-        $inventoryItem = $inventory->items()->create(['quantity' => 5]);
-
-        /** @var ProdOrderStep $step */
-        $step = $this->prodOrder->steps()->create([
+        /** @var ProdOrderStep $firstStep */
+        $firstStep = $this->prodOrder->steps()->create([
             'sequence' => 1,
             'work_station_id' => $this->workStationFirst->id,
-            'status' => OrderStatus::Pending,
+            'output_product_id' => $this->semiFinishedMaterial->id,
+            'expected_quantity' => 1,
         ]);
-
-        $actualItem = $step->productItems()->create([
+        $firstStepMaterial = $firstStep->materials()->create([
             'product_id' => $this->rawMaterial->id,
-            'quantity' => $prevQty = 6,
-            'max_quantity' => $prevQty,
-            'type' => StepProductType::Actual
+            'required_quantity' => $requiredQty = 6,
+            'available_quantity' => $requiredQty,
         ]);
 
         /** @var MiniInventory $miniStock */
         $miniStock = $this->workStationFirst->miniInventories()->create([
             'product_id' => $this->rawMaterial->id,
-            'quantity' => $prevQty,
+            'quantity' => $requiredQty,
             'unit_cost' => 0
         ]);
 
-        $insufficientQty = $qty > ($prevQty + $stockQty);
-        if ($insufficientQty) {
-            $this->expectException(Exception::class);
-            $this->expectExceptionMessage('Insufficient stock');
-        }
+        $insufficientQty = $qty > $stockQty;
 
-        $this->prodOrderService->editMaterials($step, $this->rawMaterial->id, $qty);
+        $lackQuantity = $this->prodOrderService->addMaterialAvailable($firstStep, $this->rawMaterial->id, $qty);
+        $this->assertEquals($insufficientQty ? ($qty - $stockQty) : 0, $lackQuantity);
 
-        if ($insufficientQty) {
-            $this->assertDatabaseHas('prod_order_step_products', [
-                'id' => $actualItem->id,
-                'quantity' => $prevQty,
-                'max_quantity' => $prevQty,
-                'type' => StepProductType::Actual
-            ]);
-            $this->assertDatabaseHas('inventory_items', [
-                'id' => $inventoryItem->id,
-                'quantity' => $stockQty,
-            ]);
-            $this->assertDatabaseHas('mini_inventories', [
-                'id' => $miniStock->id,
-                'quantity' => $prevQty,
-            ]);
-        } else {
-            $this->assertDatabaseHas('prod_order_step_products', [
-                'id' => $actualItem->id,
-                'quantity' => $qty,
-                'max_quantity' => $qty,
-                'type' => StepProductType::Actual
-            ]);
-            $this->assertDatabaseHas('inventory_items', [
-                'id' => $inventoryItem->id,
-                'quantity' => match ($qty) {
-                    1, 6, 15 => $stockQty,
-                    10 => $stockQty - (10 - 6),
-                },
-            ]);
-            $this->assertDatabaseHas('mini_inventories', [
-                'id' => $miniStock->id,
-                'quantity' => match ($qty) {
-                    1, 6, 15 => $prevQty,
-                    10 => 10,
-                },
-            ]);
-        }
+        $this->assertDatabaseHas('prod_order_step_products', [
+            'id' => $firstStepMaterial->id,
+            'required_quantity' => $requiredQty,
+            'available_quantity' => $requiredQty + min($qty, $stockQty),
+        ]);
+        $this->assertDatabaseHas('inventory_items', [
+            'id' => $inventoryItem->id,
+            'quantity' => max($stockQty - $qty, 0),
+        ]);
+        $this->assertDatabaseHas('mini_inventories', [
+            'id' => $miniStock->id,
+            'quantity' => $requiredQty + min($qty, $stockQty),
+        ]);
     }
 
     public static function lessMoreQtyProvider(): array

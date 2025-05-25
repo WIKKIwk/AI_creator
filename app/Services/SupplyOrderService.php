@@ -39,7 +39,6 @@ class SupplyOrderService
                     'prod_order_id' => $prodOrder->id,
                     'warehouse_id' => $prodOrder->group->warehouse_id,
                     'product_category_id' => $categoryId,
-                    'state' => SupplyOrderState::Created,
                     'created_by' => auth()->user()->id,
                 ]);
                 $supplyOrder->updateStatus(SupplyOrderState::Created);
@@ -87,8 +86,8 @@ class SupplyOrderService
                     SupplyOrderState::Delivered,
                     SupplyOrderStatus::AwaitingSupplierApproval->value
                 );
-                $this->taskService->createTaskForRole(
-                    toUserRole: RoleType::SUPPLY_MANAGER,
+                TaskService::createTaskForRoles(
+                    toUserRoles: [RoleType::SUPPLY_MANAGER->value],
                     relatedType: SupplyOrder::class,
                     relatedId: $supplyOrder->id,
                     action: TaskAction::Check,
@@ -116,6 +115,10 @@ class SupplyOrderService
             throw new Exception('Supplier is not set');
         }
 
+        if ($supplyOrder->products->isEmpty()) {
+            throw new Exception('No products in supply order');
+        }
+
         try {
             DB::beginTransaction();
 
@@ -128,8 +131,8 @@ class SupplyOrderService
                 $this->transactionService->addStock(
                     $product->product_id,
                     $product->actual_quantity,
+                    $supplyOrder->warehouse_id,
                     $supplyOrder->total_price,
-                    $supplyOrder->warehouse_id
                 );
             }
 
@@ -142,10 +145,10 @@ class SupplyOrderService
                 ]);
 
                 foreach ($prodOrder->currentStep->requiredItems as $requiredItem) {
-                    $this->prodOrderService->createActualItem(
+                    $this->prodOrderService->addMaterialAvailable(
                         $prodOrder->currentStep,
                         $requiredItem->product_id,
-                        $requiredItem->quantity,
+                        $requiredItem->required_quantity,
                     );
                 }
             }

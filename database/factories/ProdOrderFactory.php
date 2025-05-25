@@ -5,6 +5,7 @@ namespace Database\Factories;
 use App\Enums\OrderStatus;
 use App\Models\Agent;
 use App\Models\ProdOrder;
+use App\Models\ProdOrderGroup;
 use App\Models\Product;
 use App\Models\Warehouse;
 use Illuminate\Database\Eloquent\Factories\Factory;
@@ -16,9 +17,10 @@ class ProdOrderFactory extends Factory
 {
     public function definition(): array
     {
+        $group = ProdOrderGroup::factory()->create();
+
         return [
-            'agent_id' => Agent::query()->first()->id,
-            'warehouse_id' => Warehouse::query()->first()->id,
+            'group_id' => $group->id,
             'product_id' => Product::query()->first()->id,
             'quantity' => 1,
             'offer_price' => 10,

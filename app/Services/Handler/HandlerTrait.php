@@ -6,7 +6,12 @@ trait HandlerTrait
 {
     protected function getCacheKey(string $key): string
     {
-        return $this->user->chat_id . ':' . $key;
+        return self::getCacheKeyByChatId($this->user->chat_id, $key);
+    }
+
+    public static function getCacheKeyByChatId($chatId, string $key): string
+    {
+        return $chatId . ':' . $key;
     }
 
     protected function parseUserInput($text): ?array

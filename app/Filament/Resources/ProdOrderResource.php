@@ -47,6 +47,10 @@ class ProdOrderResource extends Resource
                             'name',
                             fn($query) => $query->where('type', ProductType::ReadyProduct)
                         )
+                        ->getOptionLabelFromRecordUsing(function($record) {
+                            /** @var Product $record */
+                            return $record->ready_product_id ? $record->name : $record->catName;
+                        })
                         ->reactive()
                         ->required(),
 
@@ -105,7 +109,7 @@ class ProdOrderResource extends Resource
                     ->searchable(),
                 Tables\Columns\TextColumn::make('warehouse.name')
                     ->sortable(),
-                Tables\Columns\TextColumn::make('product.name')
+                Tables\Columns\TextColumn::make('product.catName')
                     ->sortable(),
                 Tables\Columns\TextColumn::make('agent.name')
                     ->numeric()
@@ -157,13 +161,14 @@ class ProdOrderResource extends Resource
                         RoleType::PLANNING_MANAGER,
                         RoleType::PRODUCTION_MANAGER,
                     ]))
-                    ->action(function (ProdOrder $record) {
+                    ->action(function (ProdOrder $record, $livewire) {
                         try {
                             $record->confirm();
                             showSuccess('Order confirmed successfully');
                         } catch (Throwable $e) {
                             showError($e->getMessage());
                         }
+                        $livewire->dispatch('$refresh');
                     })
                     ->requiresConfirmation(),
 

@@ -21,14 +21,14 @@ class TransactionService
     public function addStock(
         $productId,
         $quantity,
+        $warehouseId,
         $cost = null,
-        $warehouseId = null,
         $storageLocationId = null,
         $workStationId = null,
         $withTransaction = true
-    ): void {
+    ): InventoryItem {
         if ($quantity <= 0) {
-            return;
+            throw new Exception('Quantity must be greater than zero.');
         }
 
         $inventory = $this->inventoryService->getInventory($productId, $warehouseId);
@@ -53,7 +53,7 @@ class TransactionService
 
         /** @var InventoryItem $inventoryItem */
         $inventoryItem = $inventoryItems->first();
-        $inventoryItem->quantity += $quantity;
+        $inventoryItem->quantity = $inventoryItem->quantity + $quantity;
         $inventoryItem->save();
 
         if ($withTransaction) {
@@ -67,6 +67,8 @@ class TransactionService
                 'cost' => $cost ?? 0,
             ]);
         }
+
+        return $inventoryItem;
     }
 
     public function checkStock($productId, $quantity, $warehouseId = null): bool {
@@ -80,7 +82,7 @@ class TransactionService
         $quantity,
         $warehouseId = null,
         $storageLocationId = null
-    ): ?int {
+    ): ?float {
         /** @var Collection<InventoryItem> $inventoryItems */
         $inventory = $this->inventoryService->getInventory($productId, $warehouseId);
         $inventoryItems = $this->inventoryService->getInventoryItems($inventory, $storageLocationId);
@@ -91,9 +93,11 @@ class TransactionService
             if ($inventoryItem->quantity <= 0) {
                 continue;
             }
+
             if ($lackQuantity <= 0) {
                 break;
             }
+
             if ($inventoryItem->quantity >= $lackQuantity) {
                 return null;
             }
@@ -110,7 +114,7 @@ class TransactionService
         $warehouseId = null,
         $workStationId = null,
         $storageLocationId = null
-    ): ?int {
+    ): ?float {
         /** @var Collection<InventoryItem> $inventoryItems */
         $inventory = $this->inventoryService->getInventory($productId, $warehouseId);
         $inventoryItems = $this->inventoryService->getInventoryItems($inventory, $storageLocationId);

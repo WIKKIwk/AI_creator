@@ -50,6 +50,7 @@ class ConfirmSupplyModal extends Component
             showError($e->getMessage());
         } finally {
             $this->dispatch('close-modal', id: 'confirm-supply-modal');
+            $this->dispatch('refresh-page');
         }
     }
 

@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources\ProdOrderGroupResource\Pages;
 
+use App\Events\ProdOrderChanged;
 use Filament\Forms;
 use App\Models\Product;
 use Filament\Forms\Form;
@@ -23,6 +24,11 @@ class CreateProdOrderGroup extends CreateRecord
         $data['created_by'] = auth()->user()->id;
 
         return parent::mutateFormDataBeforeCreate($data);
+    }
+
+    protected function afterCreate(): void
+    {
+        ProdOrderChanged::dispatch($this->record);
     }
 
     public function form(Form $form): Form
@@ -80,6 +86,10 @@ class CreateProdOrderGroup extends CreateRecord
                                                 ->whereNotIn('id', $existProductIds);
                                         }
                                     )
+                                    ->getOptionLabelFromRecordUsing(function($record) {
+                                        /** @var Product $record */
+                                        return $record->ready_product_id ? $record->name : $record->catName;
+                                    })
                                     ->required()
                                     ->reactive(),
 
@@ -100,20 +110,18 @@ class CreateProdOrderGroup extends CreateRecord
                             ])
 
                         ])
-                        ->mutateRelationshipDataBeforeCreateUsing(
-                            function(array $data, $get): array {
-                                $data['status'] = OrderStatus::Pending;
+                        ->mutateRelationshipDataBeforeCreateUsing(function(array $data, $get): array {
+                            $data['status'] = OrderStatus::Pending;
 
-                                $data['total_cost'] = app(ProdOrderService::class)->calculateTotalCost(
-                                    $data['product_id'],
-                                    $get('warehouse_id')
-                                );
-                                $data['deadline'] = app(ProdOrderService::class)->calculateDeadline(
-                                    $data['product_id']
-                                );
-                                return $data;
-                            }
-                        )
+                            $data['total_cost'] = app(ProdOrderService::class)->calculateTotalCost(
+                                $data['product_id'],
+                                $get('warehouse_id')
+                            );
+                            $data['deadline'] = app(ProdOrderService::class)->calculateDeadline(
+                                $data['product_id']
+                            );
+                            return $data;
+                        })
                 ]),
             ]);
     }

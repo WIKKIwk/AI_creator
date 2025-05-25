@@ -30,15 +30,6 @@ trait TgBotTrait
         return $promise;
     }
 
-    public function sendMsgAsync(array $params): PromiseInterface
-    {
-        if (Arr::get($params, 'message_id')) {
-            return $this->sendRequestAsync('editMessageText', $params);
-        }
-
-        return $this->sendRequestAsync('sendMessage', $params);
-    }
-
     public function settlePromises(): array
     {
         $responses = Utils::settle($this->promises)->wait();
@@ -56,18 +47,20 @@ trait TgBotTrait
     /**
      * @throws GuzzleException
      */
-    public function sendMsg(array $params): array
+    public function sendMsg(array $params, bool $async = false): array
     {
+        $method = $async ? 'sendRequestAsync' : 'sendRequest';
         if (Arr::has($params, 'message_id')) {
-            return $this->sendRequest('editMessageText', $params);
+            return $this->{$method}('editMessageText', $params);
         }
 
-        return $this->sendRequest('sendMessage', $params);
+        return $this->{$method}('sendMessage', $params);
     }
 
-    public function answerMsg(array $params): array
+    public function answerMsg(array $params, bool $async = false): array
     {
-        return $this->sendRequest('sendMessage', array_merge($params, [
+        $method = $async ? 'sendRequestAsync' : 'sendRequest';
+        return $this->{$method}('sendMessage', array_merge($params, [
             'chat_id' => $this->chatId,
         ]));
     }
@@ -75,19 +68,17 @@ trait TgBotTrait
     /**
      * @throws GuzzleException
      */
-    public function answerCbQuery(array $params = []): array
+    public function answerCbQuery(array $params = [], bool $async = false)
     {
-        return $this->sendRequest('answerCallbackQuery', array_merge([
+        $method = $async ? 'sendRequestAsync' : 'sendRequest';
+        return $this->{$method}('answerCallbackQuery', array_merge([
             'callback_query_id' => Arr::get($this->update, 'callback_query.id')
         ], $params));
     }
 
     public function getChatId()
     {
-        return Arr::get($this->update, 'message.chat.id') ??
-            Arr::get($this->update, 'callback_query.message.chat.id') ??
-            Arr::get($this->update, 'edited_message.chat.id') ??
-            Arr::get($this->update, 'channel_post.chat.id');  // If no chat_id found
+        return self::getChatIdByUpdate($this->update);  // If no chat_id found
     }
 
     public static function getChatIdByUpdate(array $update)
@@ -114,6 +105,13 @@ trait TgBotTrait
 
     public function getMessageId()
     {
-        return Arr::get($this->update, 'message.message_id');
+        return self::getMessageIdUpdate($this->update);  // If no chat_id found
+    }
+
+    public static function getMessageIdUpdate(array $update)
+    {
+        return Arr::get($update, 'message.message_id') ??
+            Arr::get($update, 'callback_query.message.message_id') ??
+            Arr::get($update, 'edited_message.message_id');  // If no chat_id found
     }
 }

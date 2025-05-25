@@ -55,7 +55,7 @@ class ProdOrderStepActual extends Component implements HasForms, HasTable
                                 ->relationship('product', 'name')
                                 ->getOptionLabelFromRecordUsing(function($record) {
                                     /** @var Product $record */
-                                    return $record->catName;
+                                    return $record->ready_product_id ? $record->name : $record->catName;
                                 })
                                 ->searchable()
                                 ->reactive()
@@ -104,6 +104,7 @@ class ProdOrderStepActual extends Component implements HasForms, HasTable
                                 );
                                 showSuccess('Material added successfully');
                             }
+                            $livewire->dispatch('$refresh');
                         } catch (Throwable $e) {
                             showError($e->getMessage());
                         }
@@ -123,12 +124,12 @@ class ProdOrderStepActual extends Component implements HasForms, HasTable
                 TextColumn::make('max_quantity')
                     ->label('Available quantity')
                     ->formatStateUsing(function (ProdOrderStepProduct $record) {
-                        return $record->max_quantity . ' ' . $record->product->category?->measure_unit?->getLabel();
+                        return $record->available_quantity . ' ' . $record->product->category?->measure_unit?->getLabel();
                     }),
                 TextColumn::make('quantity')
                     ->label('Used quantity')
                     ->formatStateUsing(function (ProdOrderStepProduct $record) {
-                        return $record->quantity . ' ' . $record->product->category?->measure_unit?->getLabel();
+                        return $record->required_quantity . ' ' . $record->product->category?->measure_unit?->getLabel();
                     }),
             ])
             ->filters([
@@ -143,6 +144,10 @@ class ProdOrderStepActual extends Component implements HasForms, HasTable
                                 ->label('Product')
                                 ->native(false)
                                 ->relationship('product', 'name')
+                                ->getOptionLabelFromRecordUsing(function($record) {
+                                    /** @var Product $record */
+                                    return $record->ready_product_id ? $record->name : $record->catName;
+                                })
                                 ->searchable()
                                 ->preload()
                                 ->reactive()
@@ -190,6 +195,7 @@ class ProdOrderStepActual extends Component implements HasForms, HasTable
                                 );
                                 showSuccess('Material edited successfully');
                             }
+                            $livewire->dispatch('$refresh');
                         } catch (Throwable $e) {
                             showError($e->getMessage());
                         }

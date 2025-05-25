@@ -95,7 +95,7 @@ class ViewSupplyOrder extends ViewRecord
                         )
                         ->columns(3)
                 ])
-                ->action(function (array $data) {
+                ->action(function (array $data, $livewire) {
                     try {
                         app(SupplyOrderService::class)->compareProducts(
                             $this->record,
@@ -103,6 +103,7 @@ class ViewSupplyOrder extends ViewRecord
                         );
 
                         showSuccess('Supply order sent for Supply Department approval.');
+                        $livewire->dispatch('$refresh');
                     } catch (Throwable $e) {
                         showError($e->getMessage());
                     }

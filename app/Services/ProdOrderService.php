@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Enums\DurationUnit;
 use App\Enums\OrderStatus;
+use App\Enums\ProdOrderStepProductStatus;
 use App\Enums\ProdOrderStepStatus;
 use App\Enums\RoleType;
 use App\Enums\StepProductType;
@@ -13,6 +14,7 @@ use App\Models\InventoryItem;
 use App\Models\MiniInventory;
 use App\Models\PerformanceRate;
 use App\Models\ProdOrder;
+use App\Models\ProdOrderGroup;
 use App\Models\ProdOrderStep;
 use App\Models\ProdOrderStepProduct;
 use App\Models\ProdTemplate;
@@ -40,16 +42,19 @@ class ProdOrderService
         $firstStep = $prodTemplate->steps()->first();
 
         $insufficientAssetsByCat = [];
-        foreach ($firstStep->requiredItems as $item) {
+        foreach ($firstStep->materials as $item) {
             $lackQuantity = $this->transactionService->getStockLackQty(
                 $item->product_id,
-                $item->quantity * $prodOrder->quantity,
+                $item->required_quantity * $prodOrder->quantity,
                 $prodOrder->group->warehouse_id
             );
 
             // If there's still lack of quantity, create SupplyOrder and Block the ProdOrder
             if ($lackQuantity > 0) {
-                $insufficientAssetsByCat[$item->product->category->id][$item->product_id] = $this->getInsufficientItemObj($item->product, $lackQuantity);
+                $insufficientAssetsByCat[$item->product->category->id][$item->product_id] = $this->getInsufficientItemObj(
+                    $item->product,
+                    $lackQuantity
+                );
             }
         }
 
@@ -74,36 +79,43 @@ class ProdOrderService
             foreach ($prodTemplate->steps as $templateStep) {
                 /** @var ProdOrderStep $prodOrderStep */
                 $prodOrderStep = $prodOrder->steps()->create([
-                    'work_station_id' => $templateStep->work_station_id,
                     'sequence' => $templateStep->sequence,
                     'status' => ProdOrderStepStatus::InProgress,
+                    'work_station_id' => $templateStep->work_station_id,
                     'output_product_id' => $templateStep->output_product_id,
                     'expected_quantity' => $templateStep->expected_quantity * $prodOrder->quantity,
                 ]);
 
-                foreach ($templateStep->requiredItems as $item) {
-                    $prodOrderStep->productItems()->create([
+                foreach ($templateStep->materials as $item) {
+                    $requiredQuantity = $item->required_quantity * $prodOrder->quantity;
+
+                    $availableQuantity = 0;
+                    if ($prodOrderStep->sequence == 1) {
+                        $firstStepId = $prodOrderStep->id;
+
+                        $lackQuantity = $this->transactionService->removeStock(
+                            $item->product_id,
+                            $requiredQuantity,
+                            $prodOrder->group->warehouse_id,
+                            $prodOrderStep->work_station_id
+                        );
+
+                        $availableQuantity = $requiredQuantity - $lackQuantity;
+                        // If there's still lack of quantity, create SupplyOrder and Block the ProdOrder
+                        if ($lackQuantity > 0) {
+                            $insufficientAssetsByCat[$item->product->category->id][$item->product_id] = $this->getInsufficientItemObj(
+                                $item->product,
+                                $lackQuantity
+                            );
+                        }
+                    }
+
+                    $prodOrderStep->materials()->create([
+                        'status' => ProdOrderStepProductStatus::InProgress,
                         'product_id' => $item->product_id,
-                        'quantity' => $item->quantity * $prodOrder->quantity,
-                        'type' => StepProductType::Required,
+                        'required_quantity' => $requiredQuantity,
+                        'available_quantity' => $availableQuantity,
                     ]);
-
-                    if ($prodOrderStep->sequence != 1) {
-                        continue;
-                    }
-
-                    $firstStepId = $prodOrderStep->id;
-
-                    $lackQuantity = $this->createActualItem(
-                        $prodOrderStep,
-                        $item->product_id,
-                        $item->quantity * $prodOrder->quantity
-                    );
-
-                    // If there's still lack of quantity, create SupplyOrder and Block the ProdOrder
-                    if ($lackQuantity > 0) {
-                        $insufficientAssetsByCat[$item->product->category->id][$item->product_id] = $this->getInsufficientItemObj($item->product, $lackQuantity);
-                    }
                 }
             }
 
@@ -153,7 +165,10 @@ class ProdOrderService
             /** @var Product $lackProduct */
             $lackProduct = Product::query()->find($productId);
             if ($lackProduct) {
-                $insufficientAssetsByCat[$lackProduct->category->id][$lackProduct->id] = $this->getInsufficientItemObj($lackProduct, $lackQuantity);
+                $insufficientAssetsByCat[$lackProduct->category->id][$lackProduct->id] = $this->getInsufficientItemObj(
+                    $lackProduct,
+                    $lackQuantity
+                );
             }
         }
 
@@ -201,7 +216,10 @@ class ProdOrderService
 
                 // If there's still lack of quantity, create SupplyOrder and Block the ProdOrder
                 if ($lackQuantity > 0) {
-                    $insufficientAssetsByCat[$targetProduct->category->id][$targetProduct->id] = $this->getInsufficientItemObj($targetProduct, $lackQuantity);
+                    $insufficientAssetsByCat[$targetProduct->category->id][$targetProduct->id] = $this->getInsufficientItemObj(
+                        $targetProduct,
+                        $lackQuantity
+                    );
                     /** @var SupplyOrderService $supplyService */
                     $supplyService = app(SupplyOrderService::class);
                     $supplyService->storeForProdOrder($prodOrder, $insufficientAssetsByCat);
@@ -213,7 +231,11 @@ class ProdOrderService
                         $prodOrderStep->work_station_id
                     );
 
-                    $this->transactionService->addMiniStock($targetProduct->id, $diffQty, $prodOrderStep->work_station_id);
+                    $this->transactionService->addMiniStock(
+                        $targetProduct->id,
+                        $diffQty,
+                        $prodOrderStep->work_station_id
+                    );
                 }
             }
 
@@ -261,7 +283,7 @@ class ProdOrderService
             foreach ($actualMaterials as $actualMaterial) {
                 $this->transactionService->removeMiniStock(
                     $actualMaterial->product_id,
-                    $actualMaterial->quantity,
+                    $actualMaterial->required_quantity,
                     $prodOrderStep->work_station_id
                 );
             }
@@ -372,8 +394,8 @@ class ProdOrderService
             $this->transactionService->addStock(
                 $lastStep->output_product_id,
                 $lastStep->output_quantity,
-                0,
                 $prodOrder->group->warehouse_id,
+                0,
                 workStationId: $lastStep->work_station_id,
             );
 
@@ -391,23 +413,17 @@ class ProdOrderService
      * @throws Exception
      * TESTED
      */
-    public function createActualItem(ProdOrderStep $prodOrderStep, $productId, $quantity): int
+    public function addMaterialAvailable(ProdOrderStep $prodOrderStep, $productId, $quantity): float
     {
-        $exist = $prodOrderStep->productItems()
-            ->where('product_id', $productId)
-            ->where('type', StepProductType::Actual)
-            ->exists();
-
-        if ($exist) {
-            return 0;
+        $existedMaterial = $prodOrderStep->materials()->where('product_id', $productId)->first();
+        if (!$existedMaterial) {
+            throw new Exception('Material not found in ProdOrderStep');
         }
-
-        $prodOrder = $prodOrderStep->prodOrder;
 
         $lackQuantity = $this->transactionService->removeStock(
             $productId,
             $quantity,
-            $prodOrder->group->warehouse_id,
+            $prodOrderStep->prodOrder->group->warehouse_id,
             $prodOrderStep->work_station_id
         );
 
@@ -415,18 +431,8 @@ class ProdOrderService
         $takeQuantity = $quantity - $lackQuantity;
 
         if ($takeQuantity > 0) {
-            $this->transactionService->addMiniStock(
-                $productId,
-                $takeQuantity,
-                $prodOrderStep->work_station_id
-            );
-
-            $prodOrderStep->productItems()->create([
-                'product_id' => $productId,
-                'max_quantity' => $takeQuantity,
-                'quantity' => 0,
-                'type' => StepProductType::Actual,
-            ]);
+            $this->transactionService->addMiniStock($productId, $takeQuantity, $prodOrderStep->work_station_id);
+            $existedMaterial->increment('available_quantity', $takeQuantity);
         }
 
         return $lackQuantity;
@@ -450,23 +456,22 @@ class ProdOrderService
         $totalDays = 0;
         foreach ($prodTemplate->steps as $step) {
             /** @var PerformanceRate $rate */
-            $rate = $step->workStation->performanceRates()
-                ->where('product_id', $step->output_product_id)
-                ->first();
-
-            if ($rate) {
-                $quantityPerUnit = $rate->quantity / $rate->duration;
-
-                $quantityPerDay = match ($rate->duration_unit) {
-                    DurationUnit::Hour => $quantityPerUnit * 12,
-                    DurationUnit::Day => $quantityPerUnit,
-                    DurationUnit::Week => $quantityPerUnit / 7,
-                    DurationUnit::Month => $quantityPerUnit / 30,
-                    DurationUnit::Year => $quantityPerUnit / 365,
-                };
-
-                $totalDays += ceil($step->expected_quantity / $quantityPerDay);
+            $rate = $step->workStation->performanceRates()->where('product_id', $step->output_product_id)->first();
+            if (!$rate) {
+                continue;
             }
+
+            $quantityPerUnit = $rate->quantity / $rate->duration;
+
+            $quantityPerDay = match ($rate->duration_unit) {
+                DurationUnit::Hour => $quantityPerUnit * 12,
+                DurationUnit::Day => $quantityPerUnit,
+                DurationUnit::Week => $quantityPerUnit / 7,
+                DurationUnit::Month => $quantityPerUnit / 30,
+                DurationUnit::Year => $quantityPerUnit / 365,
+            };
+
+            $totalDays += ceil($step->expected_quantity / $quantityPerDay);
         }
 
         return $totalDays;
@@ -479,10 +484,10 @@ class ProdOrderService
 
         $totalCost = 0;
         foreach ($prodTemplate->steps as $step) {
-            foreach ($step->requiredItems as $requiredItem) {
-                $inventory = $this->inventoryService->getInventory($requiredItem->product_id, $warehouseId);
+            foreach ($step->materials as $material) {
+                $inventory = $this->inventoryService->getInventory($material->product_id, $warehouseId);
                 if ($inventory->unit_cost > 0) {
-                    $totalCost += $inventory->unit_cost * $requiredItem->quantity;
+                    $totalCost += $inventory->unit_cost * $material->required_quantity;
                 }
             }
         }
@@ -495,7 +500,7 @@ class ProdOrderService
      */
     protected function guardAlreadyStarted(ProdOrder $prodOrder): void
     {
-        if ($prodOrder->status == OrderStatus::Processing) {
+        if ($prodOrder->started_at || $prodOrder->steps->isNotEmpty()) {
             throw new Exception('Order is already in processing');
         }
     }
@@ -546,5 +551,28 @@ class ProdOrderService
         }
 
         return $prodTemplate;
+    }
+
+    public function confirmOrderGroup(ProdOrderGroup $prodOrderGroup): void
+    {
+        foreach ($prodOrderGroup->prodOrders as $prodOrder) {
+            $this->confirmOrder($prodOrder);
+        }
+    }
+
+    public function confirmOrder(ProdOrder $prodOrder): void
+    {
+        if (!$prodOrder->confirmed_at) {
+            $prodOrder->confirmed_at = now();
+            $prodOrder->confirmed_by = auth()->user()->id;
+            $prodOrder->save();
+        }
+    }
+
+    public function getOrderGroupById($id): ?ProdOrderGroup
+    {
+        /** @var ProdOrderGroup $order */
+        $order = ProdOrderGroup::query()->find($id);
+        return $order;
     }
 }

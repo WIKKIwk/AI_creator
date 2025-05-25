@@ -46,7 +46,7 @@ class Inventory extends Model
         return $this->hasMany(InventoryItem::class);
     }
 
-    public function getQuantityAttribute(): int
+    public function getQuantityAttribute(): float
     {
         return $this->items->sum('quantity');
     }

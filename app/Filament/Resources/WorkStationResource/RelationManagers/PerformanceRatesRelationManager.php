@@ -3,6 +3,7 @@
 namespace App\Filament\Resources\WorkStationResource\RelationManagers;
 
 use App\Enums\DurationUnit;
+use App\Models\Product;
 use Filament\Forms;
 use Filament\Forms\Form;
 use Filament\Resources\RelationManagers\RelationManager;
@@ -23,6 +24,10 @@ class PerformanceRatesRelationManager extends RelationManager
                     Forms\Components\Select::make('product_id')
                         ->native(false)
                         ->relationship('product', 'name')
+                        ->getOptionLabelFromRecordUsing(function($record) {
+                            /** @var Product $record */
+                            return $record->ready_product_id ? $record->name : $record->catName;
+                        })
                         ->reactive()
                         ->preload()
                         ->required(),
@@ -45,7 +50,7 @@ class PerformanceRatesRelationManager extends RelationManager
                 $query->with('product');
             })
             ->columns([
-                Tables\Columns\TextColumn::make('product.name'),
+                Tables\Columns\TextColumn::make('product.catName'),
                 Tables\Columns\TextColumn::make('duration')
                     ->label('Duration')
                     ->formatStateUsing(function ($record) {

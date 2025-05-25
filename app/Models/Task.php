@@ -11,8 +11,8 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 /**
  * @property int $id
  * @property int $from_user_id
- * @property int $to_user_id
- * @property RoleType $to_user_role
+ * @property array $to_user_ids
+ * @property array $to_user_roles
  * @property int $related_id
  * @property string $related_type
  * @property string $action
@@ -34,16 +34,13 @@ class Task extends Model
     protected $casts = [
         'created_at' => 'datetime',
         'updated_at' => 'datetime',
-        'action' => TaskAction::class
+        'action' => TaskAction::class,
+        'to_user_ids' => 'array',
+        'to_user_roles' => 'array',
     ];
 
     public function fromUser(): BelongsTo
     {
         return $this->belongsTo(User::class, 'from_user_id');
-    }
-
-    public function toUser(): BelongsTo
-    {
-        return $this->belongsTo(User::class, 'to_user_id');
     }
 }

@@ -16,7 +16,6 @@ class WorkStationFactory extends Factory
     {
         return [
             'name' => fake()->name(),
-            'product_category_id' => ProductCategory::query()->first()->id,
             'organization_id' => Organization::query()->first()->id,
         ];
     }

@@ -50,6 +50,10 @@ class InventoryTransactionResource extends Resource
             Forms\Components\Select::make('product_id')
                 ->native(false)
                 ->relationship('product', 'name')
+                ->getOptionLabelFromRecordUsing(function($record) {
+                    /** @var Product $record */
+                    return $record->ready_product_id ? $record->name : $record->catName;
+                })
                 ->reactive()
                 ->preload()
                 ->required(),

@@ -13,6 +13,7 @@ use App\Models\ProdOrderStep;
 use App\Services\ProdOrderService;
 use App\Services\WorkStationService;
 use Exception;
+use Tests\Feature\Traits\HasProdTemplate;
 use Tests\TestCase;
 
 class ProdOrderApproveTest extends TestCase

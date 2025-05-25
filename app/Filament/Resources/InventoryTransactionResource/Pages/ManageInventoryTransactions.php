@@ -29,8 +29,8 @@ class ManageInventoryTransactions extends ManageRecords
                         $transactionService->addStock(
                             $data['product_id'],
                             $data['quantity'],
+                            $data['warehouse_id'],
                             $data['cost'] ?? null,
-                            $data['warehouse_id'] ?? null,
                             $data['storage_location_id'] ?? null,
                             withTransaction: false
                         );

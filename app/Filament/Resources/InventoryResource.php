@@ -3,6 +3,7 @@
 namespace App\Filament\Resources;
 
 use App\Enums\RoleType;
+use App\Models\Product;
 use App\Services\UserService;
 use App\Filament\Resources\InventoryResource\Actions\InventoryItemsAction;
 use App\Filament\Resources\InventoryResource\Pages;
@@ -40,6 +41,8 @@ class InventoryResource extends Resource
             RoleType::PRODUCTION_MANAGER,
             RoleType::SENIOR_STOCK_MANAGER,
             RoleType::STOCK_MANAGER,
+            RoleType::SENIOR_SUPPLY_MANAGER,
+            RoleType::SUPPLY_MANAGER,
         ]);
     }
 
@@ -52,6 +55,10 @@ class InventoryResource extends Resource
                     ->required(),
                 Forms\Components\Select::make('product_id')
                     ->relationship('product', 'name')
+                    ->getOptionLabelFromRecordUsing(function($record) {
+                        /** @var Product $record */
+                        return $record->ready_product_id ? $record->name : $record->catName;
+                    })
                     ->required(),
                 Forms\Components\TextInput::make('quantity')
                     ->required()

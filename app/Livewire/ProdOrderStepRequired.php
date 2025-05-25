@@ -37,7 +37,7 @@ class ProdOrderStepRequired extends Component implements HasForms, HasTable
                     ->width('500px'),
                 TextColumn::make('quantity')
                     ->formatStateUsing(function(ProdOrderStepProduct $record) {
-                        return $record->quantity . ' ' . $record->product->category?->measure_unit?->getLabel();
+                        return $record->required_quantity . ' ' . $record->product->category?->measure_unit?->getLabel();
                     }),
             ])
             ->filters([

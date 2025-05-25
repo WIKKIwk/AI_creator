@@ -48,7 +48,7 @@ class MiniInventoriesRelationManager extends RelationManager
                 $query->with('product');
             })
             ->columns([
-                Tables\Columns\TextColumn::make('product.name'),
+                Tables\Columns\TextColumn::make('product.catName'),
                 Tables\Columns\TextColumn::make('quantity')
                     ->formatStateUsing(function ($record) {
                         return $record->quantity . ' ' . $record->product->category?->measure_unit?->getLabel();

@@ -16,7 +16,7 @@ class ProductsRelationManager extends RelationManager
 {
     protected static string $relationship = 'products';
 
-    protected $listeners = ['refreshRelationTable' => '$refresh'];
+    protected $listeners = ['refresh-page' => '$refresh'];
 
     public function form(Form $form): Form
     {
@@ -33,6 +33,10 @@ class ProductsRelationManager extends RelationManager
                                 $query->where('product_category_id', $this->getOwnerRecord()->product_category_id);
                             }
                         )
+                        ->getOptionLabelFromRecordUsing(function($record) {
+                            /** @var Product $record */
+                            return $record->ready_product_id ? $record->name : $record->catName;
+                        })
                         ->rules([
                             fn(Forms\Get $get): Closure => function (string $attribute, $value, $fail) use ($get) {
                                 /** @var SupplyOrder $supplyOrder */
@@ -111,7 +115,7 @@ class ProductsRelationManager extends RelationManager
             ->recordTitleAttribute('product_id')
             ->modifyQueryUsing(fn($query) => $query->with('product'))
             ->columns([
-                Tables\Columns\TextColumn::make('product.name')
+                Tables\Columns\TextColumn::make('product.catName')
                     ->width('500px'),
                 Tables\Columns\TextColumn::make('expected_quantity')
                     ->formatStateUsing(function ($record) {

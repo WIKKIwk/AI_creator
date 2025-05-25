@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Enums\OrderStatus;
+use App\Observers\ProdOrderObserver;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -14,6 +15,7 @@ use Illuminate\Support\Carbon;
 /**
  * @property int $id
  * @property string $number
+ * @property int $group_id
  * @property int $product_id
  * @property int $quantity
  * @property OrderStatus $status
@@ -60,10 +62,10 @@ class ProdOrder extends Model
 
     protected static function booted(): void
     {
-        self::creating(function(ProdOrder $model) {
+        self::creating(function (ProdOrder $model) {
             $model->number = 'PO-' . $model->group->organization->code . $model->product->code . now()->format('dmy');
         });
-        static::updating(function(ProdOrder $model) {
+        static::updating(function (ProdOrder $model) {
             $model->number = 'PO-' . $model->group->organization->code . $model->product->code . now()->format('dmy');
         });
     }

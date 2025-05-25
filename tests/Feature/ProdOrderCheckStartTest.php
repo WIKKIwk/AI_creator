@@ -2,13 +2,17 @@
 
 namespace Tests\Feature;
 
-use App\Enums\StepProductType;
+use App\Models\Inventory;
+use App\Models\InventoryItem;
 use App\Models\ProdOrder;
+use App\Models\ProdOrderStepProduct;
 use App\Models\ProdTemplate;
 use App\Models\ProdTemplateStep;
 use App\Models\WorkStation;
 use App\Services\ProdOrderService;
+use App\Services\TransactionService;
 use App\Services\WorkStationService;
+use Tests\Feature\Traits\HasProdTemplate;
 use Tests\TestCase;
 
 class ProdOrderCheckStartTest extends TestCase
@@ -18,11 +22,14 @@ class ProdOrderCheckStartTest extends TestCase
     protected ProdTemplate $prodTemplate;
     protected ProdOrder $prodOrder;
     protected ProdOrderService $prodOrderService;
+    protected TransactionService $transactionService;
     protected WorkStationService $workStationService;
 
     protected function setUp(): void
     {
         parent::setUp();
+
+        $this->actingAs($this->user);
 
         $this->workStationFirst = WorkStation::factory()->create(['name' => 'First Work Station']);
         $this->workStationSecond = WorkStation::factory()->create(['name' => 'Second Work Station']);
@@ -36,6 +43,7 @@ class ProdOrderCheckStartTest extends TestCase
         $prodTemplate = ProdTemplate::query()->create([
             'name' => 'Test Template',
             'product_id' => $this->readyProduct->id,
+            'organization_id' => $this->organization->id,
         ]);
         $this->prodTemplate = $prodTemplate;
 
@@ -46,15 +54,13 @@ class ProdOrderCheckStartTest extends TestCase
             'output_product_id' => $this->semiFinishedMaterial->id,
             'expected_quantity' => 1,
         ]);
-        $stepFirstTemplate->productItems()->create([
+        $stepFirstTemplate->materials()->create([
             'product_id' => $this->rawMaterial->id,
-            'quantity' => 4,
-            'type' => StepProductType::Required
+            'required_quantity' => 4
         ]);
-        $stepFirstTemplate->productItems()->create([
+        $stepFirstTemplate->materials()->create([
             'product_id' => $this->rawMaterial2->id,
-            'quantity' => 3,
-            'type' => StepProductType::Required
+            'required_quantity' => 3,
         ]);
 
         /** @var ProdTemplateStep $stepSecondTemplate */
@@ -64,15 +70,12 @@ class ProdOrderCheckStartTest extends TestCase
             'output_product_id' => $this->readyProduct->id,
             'expected_quantity' => 1,
         ]);
-        $stepSecondTemplate->productItems()->create([
+        $stepSecondTemplate->materials()->create([
             'product_id' => $this->semiFinishedMaterial->id,
-            'quantity' => 1,
-            'type' => StepProductType::Required
+            'required_quantity' => 1,
         ]);
 
         $this->prodOrder = ProdOrder::factory()->create([
-            'agent_id' => $this->agent->id,
-            'warehouse_id' => $this->warehouse->id,
             'product_id' => $this->readyProduct->id,
             'quantity' => 3,
             'offer_price' => 100,
@@ -84,23 +87,44 @@ class ProdOrderCheckStartTest extends TestCase
 
         $this->prodOrderService = app(ProdOrderService::class);
         $this->workStationService = app(WorkStationService::class);
+        $this->transactionService = app(TransactionService::class);
     }
 
-    public function test_check_start_prod_order(): void
+    public function test_check_start_basic(): void
     {
-        $this->actingAs($this->user);
-        $result = $this->prodOrderService->checkStart($this->prodOrder);
+        $insufficientAssetsByCat = $this->prodOrderService->checkStart($this->prodOrder);
+        $insufficientAssets = $insufficientAssetsByCat[$this->productCategory->id];
 
-        $this->assertNotEmpty($result);
-        $this->assertCount(2, $result);
+        $this->assertNotEmpty($insufficientAssets);
+        $this->assertCount(2, $insufficientAssets);
 
         $firstStep = $this->prodTemplate->firstStep;
+        foreach ($insufficientAssets as $productId => $item) {
+            /** @var ProdOrderStepProduct $stepMaterial */
+            $stepMaterial = $firstStep->materials()->where('product_id', $productId)->first();
+            $this->assertEquals($stepMaterial->required_quantity * $this->prodOrder->quantity, $item['quantity']);
+        }
+    }
 
-        $this->assertCount(2, $result);
+    public function test_check_start_partial(): void
+    {
+        $this->transactionService->addStock($this->rawMaterial->id, $existed = 10, $this->warehouse->id);
 
-        foreach ($result as $productId => $item) {
-            $actualStepProduct = $firstStep->requiredItems()->where('product_id', $productId)->first();
-            $this->assertEquals($actualStepProduct->quantity * $this->prodOrder->quantity, $item['quantity']);
+        $insufficientAssetsByCat = $this->prodOrderService->checkStart($this->prodOrder);
+        $insufficientAssets = $insufficientAssetsByCat[$this->productCategory->id];
+
+        $this->assertNotEmpty($insufficientAssets);
+        $this->assertCount(2, $insufficientAssets);
+
+        $firstStep = $this->prodTemplate->firstStep;
+        foreach ($insufficientAssets as $productId => $item) {
+            /** @var ProdOrderStepProduct $stepMaterial */
+            $stepMaterial = $firstStep->materials()->where('product_id', $productId)->first();
+            $expected = $stepMaterial->required_quantity * $this->prodOrder->quantity;
+            if ($productId === $this->rawMaterial->id) {
+                $expected -= $existed;
+            }
+            $this->assertEquals($expected, $item['quantity']);
         }
     }
 }

@@ -50,6 +50,10 @@ class ProdTemplateResource extends Resource
                             'name',
                             fn ($query) => $query->where('type', ProductType::ReadyProduct)
                         )
+                        ->getOptionLabelFromRecordUsing(function($record) {
+                            /** @var Product $record */
+                            return $record->ready_product_id ? $record->name : $record->catName;
+                        })
                         ->searchable()
                         ->preload()
                         ->required(),
@@ -67,7 +71,7 @@ class ProdTemplateResource extends Resource
                 Tables\Columns\TextColumn::make('name')
                     ->searchable()
                     ->sortable(),
-                Tables\Columns\TextColumn::make('product.name')
+                Tables\Columns\TextColumn::make('product.catName')
                     ->label('Product')
                     ->searchable()
                     ->sortable(),

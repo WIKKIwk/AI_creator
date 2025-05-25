@@ -101,18 +101,7 @@ HTML,
 
     public function handleStart(): void
     {
-        $this->tgBot->answerMsg([
-            'text' => <<<HTML
-<b>User details:</b>
-
-Name: <b>{$this->user->name}</b>
-Email: <b>{$this->user->email}</b>
-Role: <b>{$this->user->role->getLabel()}</b>
-Work station: <b>{$this->user->workStation->name}</b>
-HTML,
-            'reply_markup' => $this->getMainKb(),
-            'parse_mode' => 'HTML',
-        ]);
+        $this->sendMainMenu();
     }
 
     public function handleHelp(): void
@@ -120,45 +109,16 @@ HTML,
         $this->tgBot->answerMsg(['text' => "What do you need help with?"]);
     }
 
-    /**
-     * @throws GuzzleException
-     * @throws Exception
-     */
-    public function handleCbQuery($cbData): void
-    {
-        if (preg_match('/^(.*)_(\d+)$/', $cbData, $matches)) {
-            $base = $matches[1];   // e.g., 'completeMaterial'
-            $id = (int)$matches[2]; // e.g., 98
-
-            $callback = $base . 'Callback';
-            if (method_exists($this, $callback)) {
-                call_user_func([$this, $callback], $id);
-            } else {
-                throw new Exception("Method '$callback' does not exist.");
-            }
-
-            return;
-        }
-
-
-        if (method_exists($this, $cbData)) {
-            call_user_func([$this, $cbData]);
-        } else {
-            $this->tgBot->answerCbQuery(['text' => "Invalid callback data."]);
-        }
-    }
-
     public function sendMainMenu(): void
     {
+        $msg = self::getUserDetailsMsg($this->user);
+
         $this->tgBot->sendRequestAsync('sendMessage', [
             'chat_id' => $this->tgBot->chatId,
             'text' => <<<HTML
-<b>User details:</b>
+<b>Your details:</b>
 
-Name: <b>{$this->user->name}</b>
-Email: <b>{$this->user->email}</b>
-Role: <b>{$this->user->role->getLabel()}</b>
-Work station: <b>{$this->user->workStation->name}</b>
+$msg
 HTML,
             'reply_markup' => $this->getMainKb(),
             'parse_mode' => 'HTML',
@@ -426,12 +386,12 @@ HTML,
             return;
         }
 
-        if ($quantity > $actualMaterial->max_quantity) {
+        if ($quantity > $actualMaterial->available_quantity) {
             $this->tgBot->sendRequestAsync('editMessageText', [
                 'chat_id' => $this->tgBot->chatId,
                 'message_id' => $this->cache->get($this->getCacheKey('edit_msg_id')),
                 'text' => strtr(self::templates['completeMaterialInput'], [
-                    '{errorMsg}' => "<i>Quantity cannot be greater than {$actualMaterial->max_quantity} {$actualMaterial->product->category?->measure_unit?->getLabel()}</i>",
+                    '{errorMsg}' => "<i>Quantity cannot be greater than {$actualMaterial->available_quantity} {$actualMaterial->product->category?->measure_unit?->getLabel()}</i>",
                     '{actualUsedMaterials}' => $this->getActualMaterialsStr(),
                     '{product}' => $actualMaterial->product->catName,
                 ]),
@@ -528,7 +488,7 @@ HTML,
         $step = $this->getStep();
         $requiredMaterials = $step->requiredItems
             ->map(function (ProdOrderStepProduct $item) {
-                return "{$item->product->catName} ({$item->quantity} {$item->product->category?->measure_unit?->getLabel()})";
+                return "{$item->product->catName} ({$item->required_quantity} {$item->product->category?->measure_unit?->getLabel()})";
             })
             ->implode("\n");
 
@@ -552,10 +512,10 @@ HTML,
         foreach ($actualMaterials as $actualMaterial) {
             $properQty = Arr::get($formData, $actualMaterial->id);
             if (empty($properQty)) {
-                $properQty = $actualMaterial->quantity;
+                $properQty = $actualMaterial->required_quantity;
             }
             $measureUnit = $actualMaterial->product->category?->measure_unit?->getLabel();
-            $actualMaterialsStr .= "{$actualMaterial->product->catName}: $properQty $measureUnit (available: $actualMaterial->max_quantity $measureUnit)\n";
+            $actualMaterialsStr .= "{$actualMaterial->product->catName}: $properQty $measureUnit (available: $actualMaterial->available_quantity $measureUnit)\n";
         }
 
         return $actualMaterialsStr;

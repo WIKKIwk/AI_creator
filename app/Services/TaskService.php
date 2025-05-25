@@ -6,8 +6,8 @@ use App\Models\Task;
 
 class TaskService
 {
-    public function createTask(
-        $toUserId,
+    public static function createTask(
+        array $toUserIds,
         $relatedType,
         $relatedId,
         $action,
@@ -15,7 +15,7 @@ class TaskService
     ): void {
         Task::query()->create([
             'from_user_id' => auth()->user()->id,
-            'to_user_id' => $toUserId,
+            'to_user_ids' => $toUserIds,
             'related_type' => $relatedType,
             'related_id' => $relatedId,
             'action' => $action,
@@ -23,8 +23,8 @@ class TaskService
         ]);
     }
 
-    public function createTaskForRole(
-        $toUserRole,
+    public static function createTaskForRoles(
+        array $toUserRoles,
         $relatedType,
         $relatedId,
         $action,
@@ -32,7 +32,7 @@ class TaskService
     ): void {
         Task::query()->create([
             'from_user_id' => auth()->user()->id,
-            'to_user_role' => $toUserRole,
+            'to_user_roles' => $toUserRoles,
             'related_type' => $relatedType,
             'related_id' => $relatedId,
             'action' => $action,

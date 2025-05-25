@@ -7,6 +7,7 @@ use App\Enums\TaskAction;
 use App\Filament\Resources\TaskResource\Pages;
 use App\Filament\Resources\TaskResource\RelationManagers;
 use App\Models\ProdOrder;
+use App\Models\ProdOrderGroup;
 use App\Models\SupplyOrder;
 use App\Models\Task;
 use Filament\Forms;
@@ -45,8 +46,8 @@ class TaskResource extends Resource
         }
 
         return parent::getEloquentQuery()
-            ->where('to_user_id', auth()->user()->id)
-            ->orWhere('to_user_role', auth()->user()->role);
+            ->whereJsonContains('to_user_ids', auth()->user()->id)
+            ->orWhereJsonContains('to_user_roles', auth()->user()->role);
     }
 
     public static function getNavigationBadge(): ?string
@@ -97,12 +98,20 @@ class TaskResource extends Resource
                 Tables\Columns\TextColumn::make('related')
                     ->getStateUsing(function (Task $record) {
                         switch ($record->related_type) {
-                            case 'App\Models\ProdOrder':
-                                $prodOrder = ProdOrder::query()->find($record->related_id);
-                                $text = !empty($prodOrder->number) ? $prodOrder->number : "PO-$record->related_id";
-                                $link = "<a href='/admin/prod-orders/$record->related_id' target='_blank'>$text</a>";
+                            case ProdOrderGroup::class:
+                                $text = "PO-$record->related_id";
+                                $link = "<a href='/admin/prod-order-groups/$record->related_id/edit' target='_blank'>$text</a>";
                                 break;
-                            case 'App\Models\SupplyOrder':
+                            case ProdOrder::class:
+                                /** @var ProdOrder $prodOrder */
+                                $prodOrder = ProdOrder::query()->find($record->related_id);
+                                if (!$prodOrder) {
+                                    return null;
+                                }
+                                $text = !empty($prodOrder->number) ? $prodOrder->number : "PO-$record->related_id";
+                                $link = "<a href='/admin/prod-order-groups/{$prodOrder->group_id}' target='_blank'>$text</a>";
+                                break;
+                            case SupplyOrder::class:
                                 $supplyOrder = SupplyOrder::query()->find($record->related_id);
                                 if (in_array(auth()->user()->role, [
                                     RoleType::ADMIN,

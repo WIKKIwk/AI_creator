@@ -4,6 +4,7 @@ namespace App\Console\Commands;
 
 use App\Models\User;
 use App\Services\Cache\Cache;
+use App\Services\Handler\BaseHandler;
 use App\Services\Handler\HandlerFactory;
 use App\Services\TelegramService;
 use App\Services\TgBot\TgBot;
@@ -89,6 +90,7 @@ class BotCommand extends Command
                 if ($this->cache->has($loginKey)) {
                     /** @var User $userByAuthCode */
                     $userByAuthCode = User::query()->where('auth_code', $text)->first();
+
                     if (!$userByAuthCode) {
                         $this->tgBot->answerMsg(['text' => 'Invalid auth code.']);
                         $this->cache->forget($loginKey);
@@ -98,17 +100,13 @@ class BotCommand extends Command
                     $user?->update(['chat_id' => null]);
                     $userByAuthCode->update(['chat_id' => $chatId]);
 
-                    $this->tgBot->answerMsg([
-                        'text' => <<<HTML
-<b>You logged in:</b>
+                    Auth::login($userByAuthCode);
+                    $userByAuthCode->loadMissing(['organization', 'warehouse', 'workStation']);
 
-Name: <b>{$userByAuthCode->name}</b>
-Email: <b>{$userByAuthCode->email}</b>
-Role: <b>{$userByAuthCode->role->getLabel()}</b>
-HTML,
-                        'parse_mode' => 'HTML',
-                    ]);
+                    $message = "<b>You logged in.</b>\n\n";
+                    $message .= BaseHandler::getUserDetailsMsg($userByAuthCode);
 
+                    $this->tgBot->answerMsg(['text' => $message, 'parse_mode' => 'HTML']);
                     $this->cache->forget($loginKey);
                     continue;
                 }

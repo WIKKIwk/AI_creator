@@ -25,10 +25,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
  * @property ProdOrder $prodOrder
  * @property Product $outputProduct
  * @property WorkStation $workStation
- * @property Collection<ProdOrderStepProduct> $productItems
- * @property Collection<ProdOrderStepProduct> $requiredItems
- * @property Collection<ProdOrderStepProduct> $expectedItems
- * @property Collection<ProdOrderStepProduct> $actualItems
+ * @property Collection<ProdOrderStepProduct> $materials
  */
 class ProdOrderStep extends Model
 {
@@ -55,29 +52,8 @@ class ProdOrderStep extends Model
         return $this->belongsTo(Product::class, 'output_product_id');
     }
 
-    public function productItems(): HasMany
+    public function materials(): HasMany
     {
         return $this->hasMany(ProdOrderStepProduct::class);
-    }
-
-    public function requiredItems(): HasMany
-    {
-        return $this->hasMany(ProdOrderStepProduct::class)
-            ->where('type', StepProductType::Required)
-            ->orderBy('created_at');
-    }
-
-    public function expectedItems(): HasMany
-    {
-        return $this->hasMany(ProdOrderStepProduct::class)
-            ->where('type', StepProductType::Expected)
-            ->orderBy('created_at');
-    }
-
-    public function actualItems(): HasMany
-    {
-        return $this->hasMany(ProdOrderStepProduct::class)
-            ->where('type', StepProductType::Actual)
-            ->orderBy('created_at');
     }
 }

@@ -2,7 +2,7 @@
 
 namespace App\Models;
 
-use App\Enums\ProdOrderProductType;
+use App\Enums\ProdOrderStepProductStatus;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -11,14 +11,14 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * @property int $id
  * @property int $prod_order_step_id
  * @property int $product_id
- * @property float $quantity
- * @property float $max_quantity
- * @property ProdOrderProductType $type
- * @property int $status
+ * @property float $required_quantity
+ * @property float $available_quantity
+ * @property float $used_quantity
+ * @property ProdOrderStepProductStatus $status
  * @property string $created_at
  * @property string $updated_at
  *
- * @property ProdOrderStep $prodOrderStep
+ * @property ProdOrderStep $step
  * @property Product $product
  */
 class ProdOrderStepProduct extends Model
@@ -28,12 +28,12 @@ class ProdOrderStepProduct extends Model
     protected $guarded = ['id'];
 
     protected $casts = [
-        'type' => ProdOrderProductType::class,
+        'status' => ProdOrderStepProductStatus::class,
     ];
 
-    public function prodOrderStep(): BelongsTo
+    public function step(): BelongsTo
     {
-        return $this->belongsTo(ProdOrderStep::class);
+        return $this->belongsTo(ProdOrderStep::class, 'prod_order_step_id');
     }
 
     public function product(): BelongsTo

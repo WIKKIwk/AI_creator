@@ -11,8 +11,9 @@ class HandlerFactory
     public static function make(User $user): HandlerInterface
     {
         return match ($user->role) {
+            RoleType::PRODUCTION_MANAGER => app(ProductionManagerHandler::class),
             RoleType::WORK_STATION_WORKER => app(WorkStationWorkerHandler::class),
-            default => null,
+            default => app(BaseHandler::class),
         };
     }
 }

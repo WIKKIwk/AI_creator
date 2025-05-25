@@ -20,20 +20,31 @@ abstract class TestCase extends BaseTestCase
 
     protected User $user;
     protected Organization $organization;
+    protected Organization $organization2;
+    protected Organization $organization3;
     protected Warehouse $warehouse;
     protected ProductCategory $productCategory;
-    protected Agent $agent;
 
     protected function setUp(): void
     {
         parent::setUp();
 
-        $this->agent = Agent::query()->create(['name' => 'test_agent', 'type' => 1]);
         $this->organization = Organization::query()->create(['name' => 'test_organization']);
-        $this->productCategory = ProductCategory::factory()->create(['name' => 'test_category']);
+        $this->organization2 = Organization::query()->create(['name' => 'test_organization_2']);
+        $this->organization3 = Organization::query()->create(['name' => 'test_organization_3']);
 
-        $this->user = User::factory()->create(['name' => 'test_user']);
-        $this->warehouse = Warehouse::factory()->create(['name' => 'test_warehouse']);
+        $this->productCategory = ProductCategory::factory()->create([
+            'name' => 'test_category',
+            'organization_id' => $this->organization->id
+        ]);
+        $this->user = User::factory()->create([
+            'name' => 'test_user',
+            'organization_id' => $this->organization->id
+        ]);
+        $this->warehouse = Warehouse::factory()->create([
+            'name' => 'test_warehouse',
+            'organization_id' => $this->organization->id
+        ]);
     }
 
     protected function createProduct(array $data = []): Product

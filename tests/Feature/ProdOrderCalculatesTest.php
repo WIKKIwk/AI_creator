@@ -3,7 +3,6 @@
 namespace Tests\Feature;
 
 use App\Enums\DurationUnit;
-use App\Enums\StepProductType;
 use App\Models\Inventory;
 use App\Models\PerformanceRate;
 use App\Models\ProdTemplate;
@@ -40,6 +39,7 @@ class ProdOrderCalculatesTest extends TestCase
         $prodTemplate = ProdTemplate::query()->create([
             'name' => 'Test Template',
             'product_id' => $readyProduct->id,
+            'organization_id' => $this->organization->id,
         ]);
 
         /** @var ProdTemplateStep $firstStep */
@@ -47,10 +47,9 @@ class ProdOrderCalculatesTest extends TestCase
             'sequence' => 1,
             'work_station_id' => $this->workStationFirst->id
         ]);
-        $firstStep->productItems()->create([
+        $firstStep->materials()->create([
             'product_id' => $productOne->id,
-            'quantity' => $qtyOne = 7,
-            'type' => StepProductType::Required
+            'required_quantity' => $qtyOne = 7,
         ]);
 
         /** @var ProdTemplateStep $secondStep */
@@ -58,10 +57,9 @@ class ProdOrderCalculatesTest extends TestCase
             'sequence' => 1,
             'work_station_id' => $this->workStationSecond->id
         ]);
-        $secondStep->productItems()->create([
+        $secondStep->materials()->create([
             'product_id' => $productTwo->id,
-            'quantity' => $qtyTwo = 3,
-            'type' => StepProductType::Required
+            'required_quantity' => $qtyTwo = 3,
         ]);
 
         Inventory::query()->create([
@@ -95,17 +93,15 @@ class ProdOrderCalculatesTest extends TestCase
         $prodTemplate = ProdTemplate::query()->create([
             'name' => 'Test Template',
             'product_id' => $readyProduct->id,
+            'organization_id' => $this->organization->id,
         ]);
 
         /** @var ProdTemplateStep $firstStep */
         $firstStep = $prodTemplate->steps()->create([
             'sequence' => 1,
-            'work_station_id' => $this->workStationFirst->id
-        ]);
-        $firstStep->productItems()->create([
-            'product_id' => $productOne->id,
-            'quantity' => $qtyOne = 120,
-            'type' => StepProductType::Expected
+            'work_station_id' => $this->workStationFirst->id,
+            'output_product_id' => $productOne->id,
+            'expected_quantity' => $qtyOne = 120,
         ]);
         PerformanceRate::query()->create([
             'work_station_id' => $this->workStationFirst->id,
@@ -115,15 +111,14 @@ class ProdOrderCalculatesTest extends TestCase
             'duration_unit' => DurationUnit::Day
         ]);
 
+        $firstExpected = ceil($qtyOne / (300 / 30));
+
         /** @var ProdTemplateStep $secondStep */
         $secondStep = $prodTemplate->steps()->create([
             'sequence' => 1,
-            'work_station_id' => $this->workStationSecond->id
-        ]);
-        $secondStep->productItems()->create([
-            'product_id' => $productTwo->id,
-            'quantity' => $qtyTwo = 80,
-            'type' => StepProductType::Expected
+            'work_station_id' => $this->workStationSecond->id,
+            'output_product_id' => $productTwo->id,
+            'expected_quantity' => $qtyTwo = 100,
         ]);
         PerformanceRate::query()->create([
             'work_station_id' => $this->workStationSecond->id,
@@ -132,8 +127,9 @@ class ProdOrderCalculatesTest extends TestCase
             'duration' => 5,
             'duration_unit' => DurationUnit::Week
         ]);
+        $secondExpected = ceil($qtyTwo / (370 / 5 / 7));
 
-        $expectedDeadline = 12 + 8;
+        $expectedDeadline = $firstExpected + $secondExpected;
         $result = $this->prodOrderService->calculateDeadline($readyProduct->id);
 
         $this->assertEquals($expectedDeadline, $result);

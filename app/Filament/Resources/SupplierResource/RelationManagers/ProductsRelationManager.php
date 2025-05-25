@@ -3,6 +3,7 @@
 namespace App\Filament\Resources\SupplierResource\RelationManagers;
 
 use App\Enums\Currency;
+use App\Models\Product;
 use Filament\Forms;
 use Filament\Forms\Form;
 use Filament\Resources\RelationManagers\RelationManager;
@@ -20,6 +21,10 @@ class ProductsRelationManager extends RelationManager
                 Forms\Components\Grid::make(3)->schema([
                     Forms\Components\Select::make('product_id')
                         ->relationship('product', 'name')
+                        ->getOptionLabelFromRecordUsing(function($record) {
+                            /** @var Product $record */
+                            return $record->ready_product_id ? $record->name : $record->catName;
+                        })
                         ->required(),
                     Forms\Components\TextInput::make('unit_price')
                         ->required()
@@ -38,7 +43,7 @@ class ProductsRelationManager extends RelationManager
                 $query->with(['product']);
             })
             ->columns([
-                Tables\Columns\TextColumn::make('product.name')
+                Tables\Columns\TextColumn::make('product.catName')
                     ->searchable(),
                 Tables\Columns\TextColumn::make('unit_price')
                     ->formatStateUsing(fn ($record) => $record->unit_price . ' ' . $record->currency?->getLabel())
