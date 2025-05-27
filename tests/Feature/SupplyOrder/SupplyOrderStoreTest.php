@@ -1,0 +1,140 @@
+<?php
+
+namespace Tests\Feature\SupplyOrder;
+
+use App\Enums\SupplyOrderState;
+use App\Models\Organization;
+use App\Models\ProdOrder;
+use App\Models\ProductCategory;
+use App\Models\SupplyOrder;
+use App\Services\SupplyOrderService;
+use Tests\TestCase;
+
+class SupplyOrderStoreTest extends TestCase
+{
+    protected SupplyOrderService $supplyOrderService;
+
+    protected function setUp(): void
+    {
+        parent::setUp();
+
+        $this->actingAs($this->user);
+
+        $this->supplyOrderService = app(SupplyOrderService::class);
+    }
+
+    public function test_number_generation(): void
+    {
+        $cat = ProductCategory::factory()->create([
+            'name' => 'Test Category',
+            'code' => 'TEST-CAT',
+            'organization_id' => $this->organization->id,
+        ]);
+        $supplier = Organization::query()->create(['name' => 'test_organization', 'code' => 'SUPP']);
+
+        $supplyOrder = SupplyOrder::factory()->create([
+            'warehouse_id' => $this->warehouse->id,
+            'supplier_organization_id' => $supplier->id,
+            'product_category_id' => $cat->id,
+            'created_by' => $this->user->id,
+        ]);
+
+        $this->assertEquals('SO-SUPPTEST-CAT' . now()->format('dmy'), $supplyOrder->number);
+    }
+
+    public function test_store_for_prod_order(): void
+    {
+        $cat1 = ProductCategory::factory()->create([
+            'name' => 'Category 1',
+            'organization_id' => $this->organization->id
+        ]);
+        $product1 = $this->createProduct(['name' => 'Product 1', 'product_category_id' => $cat1->id]);
+        $product2 = $this->createProduct(['name' => 'Product 2', 'product_category_id' => $cat1->id]);
+
+        $cat2 = ProductCategory::factory()->create([
+            'name' => 'Category 2',
+            'organization_id' => $this->organization->id
+        ]);
+        $product3 = $this->createProduct(['name' => 'Product 3', 'product_category_id' => $cat2->id]);
+        $product4 = $this->createProduct(['name' => 'Product 4', 'product_category_id' => $cat2->id]);
+
+        $insufficientAssetsByCat = [
+            $cat1->id => [
+                $product1->id => ['quantity' => $prod1Qty = 5],
+                $product2->id => ['quantity' => $prod2Qty = 4]
+            ],
+            $cat2->id => [
+                $product3->id => ['quantity' => $prod3Qty = 3],
+                $product4->id => ['quantity' => $prod4Qty = 2]
+            ],
+        ];
+
+        $prodOrder = ProdOrder::factory()->create([
+            'product_id' => $product1->id,
+            'quantity' => 3,
+            'offer_price' => 100,
+
+            // Confirmed
+            'confirmed_at' => now(),
+            'confirmed_by' => $this->user->id,
+        ]);
+
+        $supplyOrders = $this->supplyOrderService->storeForProdOrder($prodOrder, $insufficientAssetsByCat);
+
+        $supplyOrderFirst = $supplyOrders->first();
+        $this->assertDatabaseHas('supply_orders', [
+            'id' => $supplyOrderFirst->id,
+            'prod_order_id' => $prodOrder->id,
+            'warehouse_id' => $prodOrder->group->warehouse_id,
+            'product_category_id' => $cat1->id,
+            'state' => SupplyOrderState::Created,
+            'status' => null,
+            'created_by' => $this->user->id,
+        ]);
+        $this->assertDatabaseHas('supply_order_steps', [
+            'supply_order_id' => $supplyOrderFirst->id,
+            'state' => SupplyOrderState::Created->value,
+            'status' => null,
+        ]);
+        $this->assertDatabaseHas('supply_order_products', [
+            'supply_order_id' => $supplyOrderFirst->id,
+            'product_id' => $product1->id,
+            'expected_quantity' => $prod1Qty,
+            'actual_quantity' => 0,
+        ]);
+        $this->assertDatabaseHas('supply_order_products', [
+            'supply_order_id' => $supplyOrderFirst->id,
+            'product_id' => $product2->id,
+            'expected_quantity' => $prod2Qty,
+            'actual_quantity' => 0,
+        ]);
+
+        $supplyOrderSecond = $supplyOrders->last();
+        $this->assertDatabaseHas('supply_orders', [
+            'id' => $supplyOrderSecond->id,
+            'prod_order_id' => $prodOrder->id,
+            'warehouse_id' => $prodOrder->group->warehouse_id,
+            'product_category_id' => $cat2->id,
+            'state' => SupplyOrderState::Created,
+            'status' => null,
+            'created_by' => $this->user->id,
+        ]);
+        $this->assertDatabaseHas('supply_order_steps', [
+            'supply_order_id' => $supplyOrderSecond->id,
+            'state' => SupplyOrderState::Created->value,
+            'status' => null,
+        ]);
+        $this->assertDatabaseHas('supply_order_products', [
+            'supply_order_id' => $supplyOrderSecond->id,
+            'product_id' => $product3->id,
+            'expected_quantity' => $prod3Qty,
+            'actual_quantity' => 0,
+        ]);
+        $this->assertDatabaseHas('supply_order_products', [
+            'supply_order_id' => $supplyOrderSecond->id,
+            'product_id' => $product4->id,
+            'expected_quantity' => $prod4Qty,
+            'actual_quantity' => 0,
+        ]);
+    }
+}

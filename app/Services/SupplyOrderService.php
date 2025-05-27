@@ -2,16 +2,16 @@
 
 namespace App\Services;
 
-use App\Enums\OrderStatus;
 use App\Enums\RoleType;
 use App\Enums\SupplyOrderState;
 use App\Enums\SupplyOrderStatus;
 use App\Enums\TaskAction;
+use App\Events\SupplyOrderClosed;
 use App\Models\ProdOrder;
-use App\Models\Product;
 use App\Models\SupplyOrder;
 use Exception;
 use Illuminate\Support\Arr;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Throwable;
 
@@ -27,13 +27,14 @@ class SupplyOrderService
     /**
      * @throws Exception
      */
-    public function storeForProdOrder(ProdOrder $prodOrder, $insufficientAssetsByCat): void
+    public function storeForProdOrder(ProdOrder $prodOrder, $insufficientAssetsByCat): Collection
     {
+        $result = collect();
+
         try {
             DB::beginTransaction();
 
             foreach ($insufficientAssetsByCat as $categoryId => $insufficientAssets) {
-
                 /** @var SupplyOrder $supplyOrder */
                 $supplyOrder = SupplyOrder::query()->create([
                     'prod_order_id' => $prodOrder->id,
@@ -51,12 +52,50 @@ class SupplyOrderService
                     ]);
                 }
 
+                $result->push($supplyOrder);
             }
 
             DB::commit();
+            return $result;
         } catch (Throwable $e) {
             DB::rollBack();
             throw new Exception('Error creating supply order: ' . $e->getMessage());
+        }
+    }
+
+    /**
+     * @throws Throwable
+     */
+    public function closeOrder(SupplyOrder $supplyOrder): void
+    {
+        $this->guardCloseOrder($supplyOrder);
+
+        try {
+            DB::beginTransaction();
+
+            foreach ($supplyOrder->products as $product) {
+                if ($product->actual_quantity == 0) {
+                    throw new Exception("Product {$product->product->name} has 0 actual quantity");
+                }
+
+                $this->transactionService->addStock(
+                    $product->product_id,
+                    $product->actual_quantity,
+                    $supplyOrder->warehouse_id
+                );
+            }
+
+            $supplyOrder->setStatus(SupplyOrderState::Closed);
+            $supplyOrder->closed_at = now();
+            $supplyOrder->closed_by = auth()->user()->id;
+            $supplyOrder->save();
+
+            SupplyOrderClosed::dispatch($supplyOrder);
+
+            DB::commit();
+        } catch (Throwable $th) {
+            DB::rollBack();
+            throw $th;
         }
     }
 
@@ -67,9 +106,7 @@ class SupplyOrderService
 
             $isProper = true;
             foreach ($supplyOrder->products as $product) {
-                $productItem = Arr::first($products, function ($item) use ($product) {
-                    return $item['product_id'] == $product->product_id;
-                });
+                $productItem = Arr::first($products, fn($item) => $item['product_id'] == $product->product_id);
                 $actualQty = Arr::get($productItem, 'actual_quantity', 0);
                 if ($actualQty != $product->expected_quantity) {
                     $isProper = false;
@@ -103,12 +140,12 @@ class SupplyOrderService
     }
 
     /**
-     * @throws Throwable
+     * @throws Exception
      */
-    public function closeOrder(SupplyOrder $supplyOrder): void
+    protected function guardCloseOrder(SupplyOrder $supplyOrder): void
     {
         if ($supplyOrder->closed_at) {
-            return;
+            throw new Exception('Supply order is already closed');
         }
 
         if (!$supplyOrder->supplier_organization_id) {
@@ -117,51 +154,6 @@ class SupplyOrderService
 
         if ($supplyOrder->products->isEmpty()) {
             throw new Exception('No products in supply order');
-        }
-
-        try {
-            DB::beginTransaction();
-
-            foreach ($supplyOrder->products as $product) {
-
-                if ($product->actual_quantity == 0) {
-                    throw new Exception("Product {$product->product->name} has 0 actual quantity");
-                }
-
-                $this->transactionService->addStock(
-                    $product->product_id,
-                    $product->actual_quantity,
-                    $supplyOrder->warehouse_id,
-                    $supplyOrder->total_price,
-                );
-            }
-
-            $prodOrder = $supplyOrder->prodOrder;
-            if ($prodOrder && $prodOrder->status == OrderStatus::Blocked) {
-                $prodOrder->update([
-                    'status' => OrderStatus::Processing,
-                    'confirmed_at' => now(),
-                    'confirmed_by' => auth()->user()->id,
-                ]);
-
-                foreach ($prodOrder->currentStep->requiredItems as $requiredItem) {
-                    $this->prodOrderService->addMaterialAvailable(
-                        $prodOrder->currentStep,
-                        $requiredItem->product_id,
-                        $requiredItem->required_quantity,
-                    );
-                }
-            }
-
-            $supplyOrder->setStatus(SupplyOrderState::Closed);
-            $supplyOrder->closed_at = now();
-            $supplyOrder->closed_by = auth()->user()->id;
-            $supplyOrder->save();
-
-            DB::commit();
-        } catch (Throwable $th) {
-            DB::rollBack();
-            throw $th;
         }
     }
 }

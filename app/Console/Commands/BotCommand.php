@@ -8,7 +8,6 @@ use App\Services\Handler\BaseHandler;
 use App\Services\Handler\HandlerFactory;
 use App\Services\TelegramService;
 use App\Services\TgBot\TgBot;
-use backend\services\tg_bot\TgHelper;
 use GuzzleHttp\Exception\GuzzleException;
 use Illuminate\Console\Command;
 use Illuminate\Support\Arr;
@@ -78,53 +77,58 @@ class BotCommand extends Command
                     $offset = Arr::get($lastUpdate, 'update_id', 0) + 1;
                 }
 
-                $this->tgBot->setUpdate($update);
+                $this->info('New update: ' . TgBot::getMessageIdUpdate($update));
 
-                $chatId = $this->tgBot->getChatId();
-                $text = $this->tgBot->getText();
-                $user = User::findByChatId($chatId);
-
-                $this->info('New update: ' . $text);
-
-                $loginKey = "login_$chatId";
-                if ($this->cache->has($loginKey)) {
-                    /** @var User $userByAuthCode */
-                    $userByAuthCode = User::query()->where('auth_code', $text)->first();
-
-                    if (!$userByAuthCode) {
-                        $this->tgBot->answerMsg(['text' => 'Invalid auth code.']);
-                        $this->cache->forget($loginKey);
-                        continue;
-                    }
-
-                    $user?->update(['chat_id' => null]);
-                    $userByAuthCode->update(['chat_id' => $chatId]);
-
-                    Auth::login($userByAuthCode);
-                    $userByAuthCode->loadMissing(['organization', 'warehouse', 'workStation']);
-
-                    $message = "<b>You logged in.</b>\n\n";
-                    $message .= BaseHandler::getUserDetailsMsg($userByAuthCode);
-
-                    $this->tgBot->answerMsg(['text' => $message, 'parse_mode' => 'HTML']);
-                    $this->cache->forget($loginKey);
-                    continue;
-                }
-
-                if ($text == '/login') {
-                    $this->cache->put($loginKey, 0);
-                    $this->tgBot->answerMsg(['text' => 'Send auth code:']);
-                    continue;
-                }
-
-                if ($user) {
-                    Auth::login($user);
-                    $handlerByRole = HandlerFactory::make($user);
-                    $handlerByRole->handle($user, $update);
-                }
+                $this->handleUpdate($update);
             } catch (Throwable $e) {
                 $this->error($e->getMessage() . " Line: {$e->getLine()}, File: {$e->getFile()}");
             }
+        }
+    }
+
+    public function handleUpdate(array $update)
+    {
+        $this->tgBot->setUpdate($update);
+
+        $chatId = $this->tgBot->getChatId();
+        $text = $this->tgBot->getText();
+        $user = User::findByChatId($chatId);
+
+        $loginKey = "login_$chatId";
+        if ($this->cache->has($loginKey)) {
+            /** @var User $userByAuthCode */
+            $userByAuthCode = User::query()->where('auth_code', $text)->first();
+
+            if (!$userByAuthCode) {
+                $this->tgBot->answerMsg(['text' => 'Invalid auth code.']);
+                $this->cache->forget($loginKey);
+                return null;
+            }
+
+            $user?->update(['chat_id' => null]);
+            $userByAuthCode->update(['chat_id' => $chatId]);
+
+            Auth::login($userByAuthCode);
+            $userByAuthCode->loadMissing(['organization', 'warehouse', 'workStation']);
+
+            $message = "<b>You logged in.</b>\n\n";
+            $message .= BaseHandler::getUserDetailsMsg($userByAuthCode);
+
+            $this->tgBot->answerMsg(['text' => $message, 'parse_mode' => 'HTML']);
+            $this->cache->forget($loginKey);
+            return null;
+        }
+
+        if ($text == '/login') {
+            $this->cache->put($loginKey, 0);
+            $this->tgBot->answerMsg(['text' => 'Send auth code:']);
+            return null;
+        }
+
+        if ($user) {
+            Auth::login($user);
+            $handlerByRole = HandlerFactory::make($user);
+            $handlerByRole->handle($user, $update);
         }
     }
 

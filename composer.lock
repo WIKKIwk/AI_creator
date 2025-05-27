@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "bc2ed79c2e6784ace5f5543d2f88b6e4",
+    "content-hash": "487a339ab9d6781bfcd6a4d3662be8bb",
     "packages": [
         {
             "name": "anourvalar/eloquent-serialize",
@@ -2151,6 +2151,67 @@
             "time": "2025-02-03T10:55:03+00:00"
         },
         {
+            "name": "josiasmontag/laravel-redis-mock",
+            "version": "1.3.5",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/josiasmontag/laravel-redis-mock.git",
+                "reference": "20a8d138ffa9015e998286772e47d34b275eb791"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/josiasmontag/laravel-redis-mock/zipball/20a8d138ffa9015e998286772e47d34b275eb791",
+                "reference": "20a8d138ffa9015e998286772e47d34b275eb791",
+                "shasum": ""
+            },
+            "require": {
+                "laravel/framework": "^5.8.30|^6.0|^7.0|^8.0|^9.0|^10.0|^11.0|^12.0",
+                "m6web/redis-mock": "^4.2|^5.0",
+                "php": ">=7.1.0",
+                "predis/predis": "^1.1|^2.0|^3.0"
+            },
+            "require-dev": {
+                "orchestra/testbench": "~3.8.0|^4.0|^5.0|^6.0|^7.0|^8.0|^9.0|^10.0",
+                "phpunit/phpunit": "^7.0|^8.0|^9.5.10|^10.5|^11.5.3"
+            },
+            "type": "library",
+            "extra": {
+                "laravel": {
+                    "providers": [
+                        "Lunaweb\\RedisMock\\Providers\\RedisMockServiceProvider"
+                    ]
+                }
+            },
+            "autoload": {
+                "psr-4": {
+                    "Lunaweb\\RedisMock\\": "src"
+                }
+            },
+            "notification-url": "https://packagist.org/downloads/",
+            "license": [
+                "MIT"
+            ],
+            "authors": [
+                {
+                    "name": "Josias Montag",
+                    "email": "josias@montag.info"
+                }
+            ],
+            "description": "This Laravel package provides a Redis mock for your tests",
+            "homepage": "https://github.com/josiasmontag/laravel-redis-mock",
+            "keywords": [
+                "language",
+                "laravel",
+                "localization",
+                "php"
+            ],
+            "support": {
+                "issues": "https://github.com/josiasmontag/laravel-redis-mock/issues",
+                "source": "https://github.com/josiasmontag/laravel-redis-mock/tree/1.3.5"
+            },
+            "time": "2025-05-05T11:00:34+00:00"
+        },
+        {
             "name": "kirschbaum-development/eloquent-power-joins",
             "version": "4.1.0",
             "source": {
@@ -3388,6 +3449,55 @@
                 }
             ],
             "time": "2025-04-12T22:26:52+00:00"
+        },
+        {
+            "name": "m6web/redis-mock",
+            "version": "v5.6.0",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/BedrockStreaming/RedisMock.git",
+                "reference": "fdef627f640c63e95d804c11ac44d90d0baf2f99"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/BedrockStreaming/RedisMock/zipball/fdef627f640c63e95d804c11ac44d90d0baf2f99",
+                "reference": "fdef627f640c63e95d804c11ac44d90d0baf2f99",
+                "shasum": ""
+            },
+            "require": {
+                "php": ">=7.1.0"
+            },
+            "require-dev": {
+                "atoum/atoum": "~3.4||~4.0",
+                "predis/predis": "~1.1"
+            },
+            "type": "library",
+            "autoload": {
+                "psr-0": {
+                    "M6Web\\Component\\RedisMock": "src/"
+                }
+            },
+            "notification-url": "https://packagist.org/downloads/",
+            "license": [
+                "MIT"
+            ],
+            "authors": [
+                {
+                    "name": "M6Web",
+                    "email": "opensource@m6web.fr",
+                    "homepage": "http://tech.m6web.fr/"
+                }
+            ],
+            "description": "Library providing a PHP mock for Redis",
+            "keywords": [
+                "mock",
+                "redis"
+            ],
+            "support": {
+                "issues": "https://github.com/BedrockStreaming/RedisMock/issues",
+                "source": "https://github.com/BedrockStreaming/RedisMock/tree/v5.6.0"
+            },
+            "time": "2023-05-02T19:20:41+00:00"
         },
         {
             "name": "masterminds/html5",
@@ -10364,12 +10474,12 @@
     ],
     "aliases": [],
     "minimum-stability": "stable",
-    "stability-flags": {},
+    "stability-flags": [],
     "prefer-stable": true,
     "prefer-lowest": false,
     "platform": {
         "php": "^8.1"
     },
-    "platform-dev": {},
-    "plugin-api-version": "2.6.0"
+    "platform-dev": [],
+    "plugin-api-version": "2.3.0"
 }

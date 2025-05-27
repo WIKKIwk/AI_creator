@@ -21,7 +21,7 @@ class ProdOrderFactory extends Factory
 
         return [
             'group_id' => $group->id,
-            'product_id' => Product::query()->first()->id,
+            'product_id' => Product::factory()->create()->id,
             'quantity' => 1,
             'offer_price' => 10,
             'status' => OrderStatus::Pending,

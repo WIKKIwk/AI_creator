@@ -1,9 +1,7 @@
 <?php
 
-namespace Tests\Feature;
+namespace Tests\Feature\ProdOrder;
 
-use App\Models\Inventory;
-use App\Models\InventoryItem;
 use App\Models\ProdOrder;
 use App\Models\ProdOrderStepProduct;
 use App\Models\ProdTemplate;

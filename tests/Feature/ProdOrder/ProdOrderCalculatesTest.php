@@ -1,6 +1,6 @@
 <?php
 
-namespace Tests\Feature;
+namespace Tests\Feature\ProdOrder;
 
 use App\Enums\DurationUnit;
 use App\Models\Inventory;

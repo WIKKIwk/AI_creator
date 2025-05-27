@@ -1,12 +1,13 @@
 <?php
 
-namespace Tests\Feature;
+namespace Tests\Feature\ProdOrder;
 
 use App\Enums\OrderStatus;
 use App\Enums\ProdOrderStepProductStatus;
 use App\Enums\ProdOrderStepStatus;
 use App\Enums\SupplyOrderState;
 use App\Models\ProdOrder;
+use App\Models\ProductCategory;
 use App\Services\ProdOrderService;
 use App\Services\TransactionService;
 use App\Services\WorkStationService;
@@ -46,6 +47,28 @@ class ProdOrderStartTest extends TestCase
         $this->transactionService = app(TransactionService::class);
     }
 
+    public function test_number_generation(): void
+    {
+        $cat = ProductCategory::factory()->create([
+            'name' => 'Test Category',
+            'code' => 'TEST-CAT',
+            'organization_id' => $this->organization->id,
+        ]);
+        $product = $this->createProduct([
+            'name' => 'Red Widget',
+            'code' => 'RED-123',
+            'product_category_id' => $cat->id,
+        ]);
+
+        $prodOrder = ProdOrder::factory()->create([
+            'product_id' => $product->id,
+            'quantity' => 5,
+            'offer_price' => 200,
+        ]);
+
+        $this->assertEquals('PO-ORGRED-123' . now()->format('dmy'), $prodOrder->number);
+    }
+
     public function test_start_not_confirmed(): void
     {
         $this->prodOrder->update(['confirmed_at' => null]);
@@ -80,6 +103,7 @@ class ProdOrderStartTest extends TestCase
         ]);
         $this->assertDatabaseHas('prod_order_step_products', [
             'prod_order_step_id' => $firstStep->id,
+            'product_id' => $this->rawMaterial->id,
             'status' => ProdOrderStepProductStatus::InProgress,
             'required_quantity' => 3,
             'available_quantity' => 0,
@@ -95,6 +119,7 @@ class ProdOrderStartTest extends TestCase
         ]);
         $this->assertDatabaseHas('prod_order_step_products', [
             'prod_order_step_id' => $secondStep->id,
+            'product_id' => $this->semiFinishedMaterial->id,
             'status' => ProdOrderStepProductStatus::InProgress,
             'required_quantity' => 3,
             'available_quantity' => 0,
@@ -105,6 +130,11 @@ class ProdOrderStartTest extends TestCase
             'prod_order_id' => $this->prodOrder->id,
             'state' => SupplyOrderState::Created->value,
             'product_category_id' => $this->rawMaterial->product_category_id,
+        ]);
+        $this->assertDatabaseHas('supply_order_products', [
+            'product_id' => $this->rawMaterial->id,
+            'expected_quantity' => 3,
+            'actual_quantity' => 0,
         ]);
     }
 
@@ -139,8 +169,8 @@ class ProdOrderStartTest extends TestCase
         ]);
         $this->assertDatabaseHas('prod_order_step_products', [
             'prod_order_step_id' => $firstStep->id,
-            'status' => ProdOrderStepProductStatus::InProgress,
             'product_id' => $this->rawMaterial->id,
+            'status' => ProdOrderStepProductStatus::InProgress,
             'required_quantity' => 3,
             'available_quantity' => 3,
         ]);
@@ -155,8 +185,8 @@ class ProdOrderStartTest extends TestCase
         ]);
         $this->assertDatabaseMissing('prod_order_step_products', [
             'prod_order_step_id' => $secondStep->id,
-            'status' => ProdOrderStepProductStatus::InProgress,
             'product_id' => $this->semiFinishedMaterial->id,
+            'status' => ProdOrderStepProductStatus::InProgress,
             'required_quantity' => 3,
             'available_quantity' => 3,
         ]);

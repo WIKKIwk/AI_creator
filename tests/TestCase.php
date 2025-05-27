@@ -9,6 +9,7 @@ use App\Models\Product;
 use App\Models\ProductCategory;
 use App\Models\User;
 use App\Models\Warehouse;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Testing\TestResponse;
 use Illuminate\Foundation\Testing\LazilyRefreshDatabase;
 use Illuminate\Foundation\Testing\TestCase as BaseTestCase;
@@ -29,7 +30,11 @@ abstract class TestCase extends BaseTestCase
     {
         parent::setUp();
 
-        $this->organization = Organization::query()->create(['name' => 'test_organization']);
+        $this->app->bind(Cache::class, function () {
+            return Cache::store('array');
+        });
+
+        $this->organization = Organization::query()->create(['name' => 'test_organization', 'code' => 'ORG']);
         $this->organization2 = Organization::query()->create(['name' => 'test_organization_2']);
         $this->organization3 = Organization::query()->create(['name' => 'test_organization_3']);
 
