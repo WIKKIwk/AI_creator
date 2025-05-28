@@ -2,8 +2,7 @@
 
 namespace App\Observers;
 
-use App\Events\ProdOrderChanged;
-use App\Models\ProdOrderGroup;
+use App\Models\ProdOrder\ProdOrderGroup;
 
 class ProdOrderGroupObserver
 {

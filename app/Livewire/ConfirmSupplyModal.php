@@ -2,13 +2,12 @@
 
 namespace App\Livewire;
 
-use App\Models\ProdOrderStep;
-use Throwable;
-use Livewire\Component;
-use Illuminate\View\View;
-use App\Models\ProdOrder;
+use App\Models\ProdOrder\ProdOrder;
+use App\Models\ProdOrder\ProdOrderStep;
 use App\Services\ProdOrderService;
-use Filament\Notifications\Notification;
+use Illuminate\View\View;
+use Livewire\Component;
+use Throwable;
 
 class ConfirmSupplyModal extends Component
 {

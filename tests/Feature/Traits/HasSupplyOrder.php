@@ -2,12 +2,7 @@
 
 namespace Tests\Feature\Traits;
 
-use App\Models\Inventory;
-use App\Models\ProdTemplate;
-use App\Models\ProdTemplateStep;
-use App\Models\Product;
-use App\Models\SupplyOrder;
-use App\Models\WorkStation;
+use App\Models\SupplyOrder\SupplyOrder;
 
 trait HasSupplyOrder
 {

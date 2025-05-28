@@ -4,9 +4,9 @@ namespace SupplyOrder;
 
 use App\Enums\OrderStatus;
 use App\Enums\ProdOrderStepStatus;
-use App\Models\ProdOrder;
-use App\Models\ProdOrderStep;
-use App\Models\ProdOrderStepProduct;
+use App\Models\ProdOrder\ProdOrder;
+use App\Models\ProdOrder\ProdOrderStep;
+use App\Models\ProdOrder\ProdOrderStepProduct;
 use App\Services\SupplyOrderService;
 use Exception;
 use Tests\Feature\Traits\HasProdOrder;

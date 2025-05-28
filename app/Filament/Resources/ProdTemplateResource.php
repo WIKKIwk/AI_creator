@@ -2,15 +2,11 @@
 
 namespace App\Filament\Resources;
 
-use App\Enums\RoleType;
 use App\Enums\ProductType;
-use Illuminate\Support\Arr;
-use App\Models\WorkStation;
-use App\Enums\StepProductType;
-use Illuminate\Database\Eloquent\Builder;
+use App\Enums\RoleType;
 use App\Filament\Resources\ProdTemplateResource\Pages;
 use App\Filament\Resources\ProdTemplateResource\RelationManagers;
-use App\Models\ProdTemplate;
+use App\Models\ProdTemplate\ProdTemplate;
 use App\Models\Product;
 use Filament\Forms;
 use Filament\Forms\Form;

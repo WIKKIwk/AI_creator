@@ -4,18 +4,18 @@ namespace App\Livewire;
 
 use App\Enums\ProdOrderStepStatus;
 use App\Enums\RoleType;
-use App\Enums\StepProductType;
-use App\Exceptions\InsufficientAssetsException;
-use App\Models\ProdOrderStep;
-use App\Models\ProdOrderStepProduct;
+use App\Models\ProdOrder\ProdOrderStep;
+use App\Models\ProdOrder\ProdOrderStepProduct;
 use App\Models\Product;
 use App\Services\ProdOrderService;
+use Filament\Forms\Components\Fieldset;
 use Filament\Forms\Components\Grid;
+use Filament\Forms\Components\Placeholder;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\TextInput;
+use Filament\Forms\Components\View as ViewField;
 use Filament\Forms\Concerns\InteractsWithForms;
 use Filament\Forms\Contracts\HasForms;
-use Filament\Notifications\Notification;
 use Filament\Tables\Actions\Action;
 use Filament\Tables\Actions\EditAction;
 use Filament\Tables\Columns\TextColumn;
@@ -26,12 +26,41 @@ use Illuminate\View\View;
 use Livewire\Component;
 use Throwable;
 
-class ProdOrderStepActual extends Component implements HasForms, HasTable
+class ProdOrderStepView extends Component implements HasForms, HasTable
 {
     use InteractsWithTable;
     use InteractsWithForms;
 
     public ProdOrderStep $step;
+
+    protected function getFormSchema(): array
+    {
+        return [
+            Grid::make(3)->schema([
+                Fieldset::make('Step Details')
+                    ->columns(4)
+                    ->schema([
+                        Placeholder::make('ads')
+                            ->label('Output Product')
+                            ->content(fn() => '$this->activeStep->outputProduct?->name'),
+
+                        Placeholder::make('expected_quantity')
+                            ->content(function () {
+                                return '$this->activeStep->expected_quantity';
+                            }),
+
+                        Placeholder::make('output_quantity')
+                            ->content(function () {
+                                return 'asd';
+                            }),
+
+                        Placeholder::make('status')
+                            ->label('Status')
+                            ->content(fn() => '$this->activeStep->status?->getLabel()'),
+                    ]),
+            ]),
+        ];
+    }
 
     public function table(Table $table): Table
     {
@@ -40,13 +69,6 @@ class ProdOrderStepActual extends Component implements HasForms, HasTable
             ->headerActions([
                 Action::make('add')
                     ->label('Add material')
-                    ->hidden(
-                        fn() => $this->step->status == ProdOrderStepStatus::Completed ||
-                            !in_array(auth()->user()->role, [
-                                RoleType::ADMIN,
-                                RoleType::ALLOCATION_MANAGER,
-                            ])
-                    )
                     ->form([
                         Grid::make()->schema([
                             Select::make('product_id')
@@ -67,10 +89,7 @@ class ProdOrderStepActual extends Component implements HasForms, HasTable
                                 ->suffix(function ($get) {
                                     /** @var Product|null $product */
                                     $product = $get('product_id') ? Product::query()->find($get('product_id')) : null;
-                                    if ($product?->category?->measure_unit) {
-                                        return $product->category->measure_unit->getLabel();
-                                    }
-                                    return null;
+                                    return $product?->getMeasureUnit()->getLabel();
                                 })
                                 ->required(),
                         ])
@@ -115,8 +134,6 @@ class ProdOrderStepActual extends Component implements HasForms, HasTable
             ->query(
                 ProdOrderStepProduct::query()
                     ->with(['product.category'])
-                    ->where('prod_order_step_id', $this->step->id)
-                    ->where('type', StepProductType::Actual)
             )
             ->columns([
                 TextColumn::make('product.catName')
@@ -137,7 +154,6 @@ class ProdOrderStepActual extends Component implements HasForms, HasTable
             ])
             ->actions([
                 EditAction::make()
-                    ->hidden(fn() => $this->step->status == ProdOrderStepStatus::Completed)
                     ->form([
                         Grid::make()->schema([
                             Select::make('product_id')
@@ -158,10 +174,7 @@ class ProdOrderStepActual extends Component implements HasForms, HasTable
                                 ->suffix(function ($get) {
                                     /** @var Product|null $product */
                                     $product = $get('product_id') ? Product::query()->find($get('product_id')) : null;
-                                    if ($product?->category?->measure_unit) {
-                                        return $product->category->measure_unit->getLabel();
-                                    }
-                                    return null;
+                                    return $product?->getMeasureUnit()->getLabel();
                                 })
                                 ->required(),
                         ])
@@ -208,6 +221,6 @@ class ProdOrderStepActual extends Component implements HasForms, HasTable
 
     public function render(): View
     {
-        return view('livewire.prod-order-step-required');
+        return view('filament.resources.prod-orders.prod-order-step-view');
     }
 }

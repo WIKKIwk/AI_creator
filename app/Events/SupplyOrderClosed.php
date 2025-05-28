@@ -2,8 +2,7 @@
 
 namespace App\Events;
 
-use App\Models\ProdOrderGroup;
-use App\Models\SupplyOrder;
+use App\Models\SupplyOrder\SupplyOrder;
 use Illuminate\Foundation\Events\Dispatchable;
 use Illuminate\Queue\SerializesModels;
 

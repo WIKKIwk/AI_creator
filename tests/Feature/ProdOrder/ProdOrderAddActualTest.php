@@ -3,9 +3,9 @@
 namespace Tests\Feature\ProdOrder;
 
 use App\Enums\OrderStatus;
-use App\Models\MiniInventory;
-use App\Models\ProdOrder;
-use App\Models\ProdOrderStep;
+use App\Models\Inventory\MiniInventory;
+use App\Models\ProdOrder\ProdOrder;
+use App\Models\ProdOrder\ProdOrderStep;
 use App\Services\ProdOrderService;
 use App\Services\TransactionService;
 use App\Services\WorkStationService;
@@ -53,10 +53,8 @@ class ProdOrderAddActualTest extends TestCase
         $inventoryItem = $this->transactionService->addStock(
             $anotherProduct->id,
             $stockQty = 5,
-            $this->prodOrder->group->warehouse_id
+            $this->prodOrder->getWarehouseId()
         );
-
-        $insufficientQty = $qty > $stockQty;
 
         /** @var ProdOrderStep $firstStep */
         $firstStep = $this->prodOrder->steps()->create([
@@ -70,6 +68,8 @@ class ProdOrderAddActualTest extends TestCase
             'required_quantity' => $requiredQty = 1,
             'available_quantity' => 0,
         ]);
+
+        $insufficientQty = $qty > $stockQty;
 
         $lackQuantity = $this->prodOrderService->addMaterialAvailable($firstStep, $anotherProduct->id, $qty);
         $this->assertEquals($insufficientQty ? ($qty - $stockQty) : 0, $lackQuantity);
@@ -92,14 +92,14 @@ class ProdOrderAddActualTest extends TestCase
     }
 
     /**
-     * @dataProvider lessMoreQtyProvider
+     * @ddataProvider lessMoreQtyProvider
      */
-    public function test_edit_actual_materials($qty): void
+    public function test_edit_actual_materials($qty = 4): void
     {
         $inventoryItem = $this->transactionService->addStock(
             $this->rawMaterial->id,
             $stockQty = 5,
-            $this->prodOrder->group->warehouse_id
+            $this->prodOrder->getWarehouseId()
         );
 
         /** @var ProdOrderStep $firstStep */
@@ -118,14 +118,14 @@ class ProdOrderAddActualTest extends TestCase
         /** @var MiniInventory $miniStock */
         $miniStock = $this->workStationFirst->miniInventories()->create([
             'product_id' => $this->rawMaterial->id,
-            'quantity' => $requiredQty,
+            'quantity' => $miniStockQty = 6,
             'unit_cost' => 0
         ]);
 
-        $insufficientQty = $qty > $stockQty;
+        $insufficientQty = $qty > $miniStockQty && ($qty - $miniStockQty) > $stockQty;
 
         $lackQuantity = $this->prodOrderService->addMaterialAvailable($firstStep, $this->rawMaterial->id, $qty);
-        $this->assertEquals($insufficientQty ? ($qty - $stockQty) : 0, $lackQuantity);
+        $this->assertEquals($insufficientQty ? ($qty - $miniStockQty - $stockQty) : 0, $lackQuantity);
 
         $this->assertDatabaseHas('prod_order_step_products', [
             'id' => $firstStepMaterial->id,
@@ -134,11 +134,11 @@ class ProdOrderAddActualTest extends TestCase
         ]);
         $this->assertDatabaseHas('inventory_items', [
             'id' => $inventoryItem->id,
-            'quantity' => max($stockQty - $qty, 0),
+            'quantity' => $miniStockQty > $qty ? $stockQty : $stockQty - ($qty - $miniStockQty),
         ]);
         $this->assertDatabaseHas('mini_inventories', [
             'id' => $miniStock->id,
-            'quantity' => $requiredQty + min($qty, $stockQty),
+            'quantity' => $miniStockQty > $qty ? ($miniStockQty - $qty) : 0,
         ]);
     }
 

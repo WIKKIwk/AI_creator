@@ -3,13 +3,12 @@
 namespace App\Filament\Resources\ProdOrderResource\Pages;
 
 use App\Filament\Resources\ProdOrderResource;
-use App\Models\ProdOrder;
-use App\Models\ProdOrderStep;
+use App\Models\ProdOrder\ProdOrder;
+use App\Models\ProdOrder\ProdOrderStep;
 use App\Services\ProdOrderService;
 use Filament\Forms\Components\Fieldset;
 use Filament\Forms\Components\Grid;
 use Filament\Forms\Components\Placeholder;
-use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\View as ViewField;
 use Filament\Forms\Concerns\InteractsWithForms;
 use Filament\Notifications\Notification;

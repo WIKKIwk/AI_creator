@@ -1,9 +1,10 @@
 <?php
 
-namespace App\Models;
+namespace App\Models\SupplyOrder;
 
 use App\Enums\SupplyOrderState;
 use App\Enums\SupplyOrderStatus;
+use App\Models\User;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;

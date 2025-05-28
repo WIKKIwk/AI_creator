@@ -3,8 +3,8 @@
 namespace App\Filament\Resources\ProdOrderResource\Pages;
 
 use App\Filament\Resources\ProdOrderResource;
-use App\Models\ProdOrder;
-use App\Models\ProdOrderStep;
+use App\Models\ProdOrder\ProdOrder;
+use App\Models\ProdOrder\ProdOrderStep;
 use App\Services\ProdOrderService;
 use Filament\Forms\Components\Grid;
 use Filament\Forms\Components\TextInput;

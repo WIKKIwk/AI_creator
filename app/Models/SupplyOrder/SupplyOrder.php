@@ -1,10 +1,15 @@
 <?php
 
-namespace App\Models;
+namespace App\Models\SupplyOrder;
 
 use App\Enums\SupplyOrderState;
 use App\Enums\SupplyOrderStatus;
+use App\Models\Organization;
+use App\Models\ProdOrder\ProdOrder;
+use App\Models\ProductCategory;
 use App\Models\Scopes\OwnWarehouseScope;
+use App\Models\User;
+use App\Models\Warehouse;
 use Illuminate\Database\Eloquent\Attributes\ScopedBy;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Factories\HasFactory;

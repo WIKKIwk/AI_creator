@@ -2,7 +2,9 @@
 
 namespace App\Models;
 
+use App\Enums\MeasureUnit;
 use App\Enums\ProductType;
+use App\Models\Inventory\Inventory;
 use App\Services\ProductService;
 use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Builder;
@@ -61,6 +63,11 @@ class Product extends Model
         }
 
         return $this->name;
+    }
+
+    public function getMeasureUnit(): MeasureUnit
+    {
+        return $this->category->measure_unit;
     }
 
     public function category(): BelongsTo

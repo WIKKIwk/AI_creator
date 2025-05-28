@@ -1,9 +1,8 @@
 <?php
 
-namespace App\Models;
+namespace App\Models\Inventory;
 
-use App\Models\Scopes\OwnWarehouseScope;
-use Illuminate\Database\Eloquent\Attributes\ScopedBy;
+use App\Models\StorageLocation;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;

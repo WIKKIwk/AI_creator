@@ -1,8 +1,8 @@
 <?php
 
-namespace Database\Factories;
+namespace Database\Factories\SupplyOrder;
 
-use App\Models\SupplyOrder;
+use App\Models\SupplyOrder\SupplyOrder;
 use Illuminate\Database\Eloquent\Factories\Factory;
 
 /**

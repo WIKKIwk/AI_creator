@@ -3,7 +3,7 @@
 namespace App\Filament\Resources\SupplyOrderResource\RelationManagers;
 
 use App\Models\Product;
-use App\Models\SupplyOrder;
+use App\Models\SupplyOrder\SupplyOrder;
 use Closure;
 use Filament\Forms;
 use Filament\Forms\Form;
@@ -63,10 +63,7 @@ class ProductsRelationManager extends RelationManager
                         ->suffix(function ($get) {
                             /** @var Product|null $product */
                             $product = $get('product_id') ? Product::query()->find($get('product_id')) : null;
-                            if ($product?->category?->measure_unit) {
-                                return $product->category->measure_unit->getLabel();
-                            }
-                            return null;
+                            return $product?->getMeasureUnit()->getLabel();
                         })
                         ->required()
                         ->numeric(),
@@ -76,10 +73,7 @@ class ProductsRelationManager extends RelationManager
                         ->suffix(function ($get) {
                             /** @var Product|null $product */
                             $product = $get('product_id') ? Product::query()->find($get('product_id')) : null;
-                            if ($product?->category?->measure_unit) {
-                                return $product->category->measure_unit->getLabel();
-                            }
-                            return null;
+                            return $product?->getMeasureUnit()->getLabel();
                         })
                         ->numeric(),
                 ]),

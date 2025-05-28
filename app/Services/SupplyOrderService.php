@@ -7,8 +7,8 @@ use App\Enums\SupplyOrderState;
 use App\Enums\SupplyOrderStatus;
 use App\Enums\TaskAction;
 use App\Events\SupplyOrderClosed;
-use App\Models\ProdOrder;
-use App\Models\SupplyOrder;
+use App\Models\ProdOrder\ProdOrder;
+use App\Models\SupplyOrder\SupplyOrder;
 use Exception;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Collection;
@@ -38,7 +38,7 @@ class SupplyOrderService
                 /** @var SupplyOrder $supplyOrder */
                 $supplyOrder = SupplyOrder::query()->create([
                     'prod_order_id' => $prodOrder->id,
-                    'warehouse_id' => $prodOrder->group->warehouse_id,
+                    'warehouse_id' => $prodOrder->getWarehouseId(),
                     'product_category_id' => $categoryId,
                     'created_by' => auth()->user()->id,
                 ]);

@@ -2,8 +2,8 @@
 
 namespace Tests\Feature\Traits;
 
-use App\Models\ProdTemplate;
-use App\Models\ProdTemplateStep;
+use App\Models\ProdTemplate\ProdTemplate;
+use App\Models\ProdTemplate\ProdTemplateStep;
 use App\Models\Product;
 use App\Models\WorkStation;
 

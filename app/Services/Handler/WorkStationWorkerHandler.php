@@ -3,8 +3,8 @@
 namespace App\Services\Handler;
 
 use App\Enums\ProdOrderStepStatus;
-use App\Models\ProdOrderStep;
-use App\Models\ProdOrderStepProduct;
+use App\Models\ProdOrder\ProdOrderStep;
+use App\Models\ProdOrder\ProdOrderStepProduct;
 use App\Models\User;
 use App\Services\Cache\Cache;
 use App\Services\ProdOrderService;

@@ -2,10 +2,10 @@
 
 namespace App\Services;
 
-use App\Models\Product;
 use App\Enums\ProductType;
+use App\Models\ProdTemplate\ProdTemplate;
+use App\Models\Product;
 use App\Models\WorkStation;
-use App\Models\ProdTemplate;
 
 class ProductService
 {

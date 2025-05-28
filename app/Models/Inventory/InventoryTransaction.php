@@ -1,12 +1,18 @@
 <?php
 
-namespace App\Models;
+namespace App\Models\Inventory;
 
 use App\Enums\TransactionType;
+use App\Models\Agent;
+use App\Models\ProdOrder\ProdOrder;
+use App\Models\Product;
 use App\Models\Scopes\OwnWarehouseScope;
+use App\Models\StorageLocation;
+use App\Models\Supplier;
+use App\Models\Warehouse;
+use App\Models\WorkStation;
 use App\Observers\InventoryTransactionObserver;
 use Carbon\Carbon;
-use Illuminate\Database\Eloquent\Attributes\ObservedBy;
 use Illuminate\Database\Eloquent\Attributes\ScopedBy;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;

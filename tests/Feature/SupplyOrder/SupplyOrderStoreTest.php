@@ -4,9 +4,9 @@ namespace Tests\Feature\SupplyOrder;
 
 use App\Enums\SupplyOrderState;
 use App\Models\Organization;
-use App\Models\ProdOrder;
+use App\Models\ProdOrder\ProdOrder;
 use App\Models\ProductCategory;
-use App\Models\SupplyOrder;
+use App\Models\SupplyOrder\SupplyOrder;
 use App\Services\SupplyOrderService;
 use Tests\TestCase;
 
@@ -85,7 +85,7 @@ class SupplyOrderStoreTest extends TestCase
         $this->assertDatabaseHas('supply_orders', [
             'id' => $supplyOrderFirst->id,
             'prod_order_id' => $prodOrder->id,
-            'warehouse_id' => $prodOrder->group->warehouse_id,
+            'warehouse_id' => $prodOrder->getWarehouseId(),
             'product_category_id' => $cat1->id,
             'state' => SupplyOrderState::Created,
             'status' => null,
@@ -113,7 +113,7 @@ class SupplyOrderStoreTest extends TestCase
         $this->assertDatabaseHas('supply_orders', [
             'id' => $supplyOrderSecond->id,
             'prod_order_id' => $prodOrder->id,
-            'warehouse_id' => $prodOrder->group->warehouse_id,
+            'warehouse_id' => $prodOrder->getWarehouseId(),
             'product_category_id' => $cat2->id,
             'state' => SupplyOrderState::Created,
             'status' => null,

@@ -6,7 +6,7 @@ use App\Enums\ProdOrderGroupType;
 use App\Enums\RoleType;
 use App\Enums\TaskAction;
 use App\Events\ProdOrderChanged;
-use App\Models\ProdOrderGroup;
+use App\Models\ProdOrder\ProdOrderGroup;
 use App\Models\User;
 use App\Services\TaskService;
 use App\Services\TelegramService;

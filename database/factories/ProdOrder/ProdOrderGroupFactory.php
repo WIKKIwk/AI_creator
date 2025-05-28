@@ -1,10 +1,10 @@
 <?php
 
-namespace Database\Factories;
+namespace Database\Factories\ProdOrder;
 
 use App\Enums\ProdOrderGroupType;
 use App\Models\Organization;
-use App\Models\ProdOrderGroup;
+use App\Models\ProdOrder\ProdOrderGroup;
 use App\Models\User;
 use App\Models\Warehouse;
 use Illuminate\Database\Eloquent\Factories\Factory;

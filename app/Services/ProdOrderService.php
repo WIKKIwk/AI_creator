@@ -7,17 +7,15 @@ use App\Enums\OrderStatus;
 use App\Enums\ProdOrderStepProductStatus;
 use App\Enums\ProdOrderStepStatus;
 use App\Enums\RoleType;
-use App\Enums\StepProductType;
-use App\Enums\SupplyOrderState;
 use App\Enums\TaskAction;
-use App\Models\InventoryItem;
-use App\Models\MiniInventory;
+use App\Models\Inventory\InventoryItem;
+use App\Models\Inventory\MiniInventory;
 use App\Models\PerformanceRate;
-use App\Models\ProdOrder;
-use App\Models\ProdOrderGroup;
-use App\Models\ProdOrderStep;
-use App\Models\ProdOrderStepProduct;
-use App\Models\ProdTemplate;
+use App\Models\ProdOrder\ProdOrder;
+use App\Models\ProdOrder\ProdOrderGroup;
+use App\Models\ProdOrder\ProdOrderStep;
+use App\Models\ProdOrder\ProdOrderStepProduct;
+use App\Models\ProdTemplate\ProdTemplate;
 use App\Models\Product;
 use Exception;
 use Illuminate\Database\Eloquent\Collection;
@@ -46,7 +44,8 @@ class ProdOrderService
             $lackQuantity = $this->transactionService->getStockLackQty(
                 $item->product_id,
                 $item->required_quantity * $prodOrder->quantity,
-                $prodOrder->group->warehouse_id
+                $prodOrder->getWarehouseId(),
+                $firstStep->work_station_id
             );
 
             // If there's still lack of quantity, create SupplyOrder and Block the ProdOrder
@@ -96,7 +95,7 @@ class ProdOrderService
                         $lackQuantity = $this->transactionService->removeStock(
                             $item->product_id,
                             $requiredQuantity,
-                            $prodOrder->group->warehouse_id,
+                            $prodOrder->getWarehouseId(),
                             $prodOrderStep->work_station_id
                         );
 
@@ -154,11 +153,7 @@ class ProdOrderService
             return $insufficientAssetsByCat;
         }
 
-        $lackQuantity = $this->transactionService->getStockLackQty(
-            $productId,
-            $diffQty,
-            $prodOrder->group->warehouse_id
-        );
+        $lackQuantity = $this->transactionService->getStockLackQty($productId, $diffQty, $prodOrder->getWarehouseId());
 
         // If there's still lack of quantity, stop iteration and return the insufficient assets
         if ($lackQuantity > 0) {
@@ -211,7 +206,7 @@ class ProdOrderService
                 $lackQuantity = $this->transactionService->getStockLackQty(
                     $targetProduct->id,
                     $diffQty,
-                    $prodOrder->group->warehouse_id
+                    $prodOrder->getWarehouseId()
                 );
 
                 // If there's still lack of quantity, create SupplyOrder and Block the ProdOrder
@@ -227,7 +222,7 @@ class ProdOrderService
                     $this->transactionService->removeStock(
                         $targetProduct->id,
                         $diffQty,
-                        $prodOrder->group->warehouse_id,
+                        $prodOrder->getWarehouseId(),
                         $prodOrderStep->work_station_id
                     );
 
@@ -338,12 +333,12 @@ class ProdOrderService
                     $nextStep->work_station_id
                 );
 
-                $nextStep->productItems()->create([
+                /*$nextStep->productItems()->create([
                     'product_id' => $currentStep->output_product_id,
                     'max_quantity' => $currentStep->output_quantity,
                     'quantity' => 0,
                     'type' => StepProductType::Actual,
-                ]);
+                ]);*/
 
                 $nextStep->workStation->update(['prod_order_id' => $prodOrder->id]);
 
@@ -394,7 +389,7 @@ class ProdOrderService
             $this->transactionService->addStock(
                 $lastStep->output_product_id,
                 $lastStep->output_quantity,
-                $prodOrder->group->warehouse_id,
+                $prodOrder->getWarehouseId(),
                 0,
                 workStationId: $lastStep->work_station_id,
             );
@@ -420,19 +415,11 @@ class ProdOrderService
             throw new Exception('Material not found in ProdOrderStep');
         }
 
-        $lackQuantity = $this->transactionService->removeStock(
-            $productId,
-            $quantity,
-            $prodOrderStep->prodOrder->group->warehouse_id,
-            $prodOrderStep->work_station_id
-        );
+        $miniInventory = $this->inventoryService->getMiniInventory($productId, $prodOrderStep->work_station_id);
+        if ($miniInventory->quantity >= $quantity) {
+            $miniInventory->decrement('quantity', $quantity);
+        } else {
 
-        // Create ProdOrderStepProducts and add to WorkStation's mini Stock
-        $takeQuantity = $quantity - $lackQuantity;
-
-        if ($takeQuantity > 0) {
-            $this->transactionService->addMiniStock($productId, $takeQuantity, $prodOrderStep->work_station_id);
-            $existedMaterial->increment('available_quantity', $takeQuantity);
         }
 
         return $lackQuantity;

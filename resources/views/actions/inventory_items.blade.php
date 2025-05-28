@@ -1,5 +1,5 @@
 @php
-    use App\Models\Inventory;
+    use App\Models\Inventory\Inventory;
 
     /** @var Inventory $record */
     $record->loadMissing('items');

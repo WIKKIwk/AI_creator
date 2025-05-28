@@ -5,7 +5,7 @@ namespace App\Filament\Resources\SupplyOrderResource\Pages;
 use App\Enums\SupplyOrderState;
 use App\Enums\SupplyOrderStatus;
 use App\Filament\Resources\SupplyOrderResource;
-use App\Models\SupplyOrder;
+use App\Models\SupplyOrder\SupplyOrder;
 use App\Services\SupplyOrderService;
 use Filament\Actions\Action;
 use Filament\Forms\Components\Placeholder;

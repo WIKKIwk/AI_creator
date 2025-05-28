@@ -1,0 +1,108 @@
+@import '/vendor/filament/filament/resources/css/theme.css';
+
+@config 'tailwind.config.js';
+
+.fi-ta-table > tbody {
+    @apply divide-none
+}
+
+.fi-ta-text {
+    @apply py-1
+}
+.fi-ta-table > .whitespace-nowrap {
+    @apply py-1
+}
+.fi-ta-cell > div:has(.flex) {
+    @apply py-1
+}
+input {
+    @apply py-1
+}
+select {
+    @apply py-1
+}
+.fi-input {
+    @apply py-0.5
+}
+.fi-select-input {
+    @apply py-0.5
+}
+.fi-fo-date-time-picker-display-text-input {
+    @apply py-0.5
+}
+.choices__inner {
+    @apply py-0.5
+}
+
+.fi-ta-filters {
+    @apply px-4 py-3
+}
+.fi-section-content {
+    @apply px-4 py-3
+}
+
+.gap-6 {
+    @apply gap-4
+}
+.gap-y-8 {
+    @apply gap-6
+}
+.gap-y-2 {
+    @apply gap-1
+}
+.gap-y-4 {
+    @apply gap-2
+}
+
+.fi-fieldset {
+    @apply px-3 py-3
+}
+.fi-btn {
+    @apply py-1
+}
+.fi-section-header {
+    @apply py-1.5
+}
+.fi-fo-repeater-item-header {
+    @apply py-1.5
+}
+.fi-fo-repeater-item-content {
+    @apply py-2 px-4
+}
+.fi-icon-btn {
+    @apply w-7 h-7
+}
+
+.fi-ta-header-cell {
+    @apply px-2 py-2
+}
+
+.fi-modal-content {
+    @apply px-4 py-3
+}
+.fi-modal-header {
+    @apply px-4 py-3
+}
+.fi-modal-footer {
+    @apply px-4 py-3
+}
+
+.h-16 {
+    @apply h-12
+}
+.fi-main {
+    @apply px-6
+}
+.fi-pagination {
+    @apply px-3 py-3
+}
+.fi-ta-filters-above-content-ctn {
+    @apply px-2 py-2
+}
+.fi-ta-filters {
+    @apply gap-y-2
+}
+
+.fi-sidebar-nav {
+    @apply px-4 py-3
+}

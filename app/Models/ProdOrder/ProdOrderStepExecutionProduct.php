@@ -1,30 +1,32 @@
 <?php
 
-namespace App\Models;
+namespace App\Models\ProdOrder;
 
+use App\Models\Product;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 /**
  * @property int $id
- * @property int $supply_order_id
+ * @property int $prod_order_step_execution_id
  * @property int $product_id
- * @property double $expected_quantity
- * @property double $actual_quantity
+ * @property float $used_quantity
  *
- * @property SupplyOrder $supplyOrder
+ * @property ProdOrderStepExecution $prodOrderStepExecution
  * @property Product $product
  */
-class SupplyOrderProduct extends Model
+class ProdOrderStepExecutionProduct extends Model
 {
     use HasFactory;
 
+    public $timestamps = false;
+
     protected $guarded = ['id'];
 
-    public function supplyOrder(): BelongsTo
+    public function prodOrderStepExecution(): BelongsTo
     {
-        return $this->belongsTo(SupplyOrder::class);
+        return $this->belongsTo(ProdOrderStepExecution::class);
     }
 
     public function product(): BelongsTo

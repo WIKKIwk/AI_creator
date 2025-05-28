@@ -2,9 +2,9 @@
 
 namespace App\Services;
 
-use App\Models\Inventory;
-use App\Models\InventoryItem;
-use App\Models\MiniInventory;
+use App\Models\Inventory\Inventory;
+use App\Models\Inventory\InventoryItem;
+use App\Models\Inventory\MiniInventory;
 use Illuminate\Database\Eloquent\Collection;
 
 class InventoryService

@@ -2,17 +2,17 @@
 
 namespace App\Filament\Resources;
 
-use Filament\Forms;
-use Filament\Tables;
-use App\Enums\RoleType;
-use Filament\Forms\Form;
-use Filament\Tables\Table;
-use App\Models\ProdOrderGroup;
-use Filament\Resources\Resource;
 use App\Enums\ProdOrderGroupType;
-use Filament\Forms\Components\Grid;
+use App\Enums\RoleType;
 use App\Filament\Resources\ProdOrderGroupResource\Pages;
 use App\Filament\Resources\ProdOrderGroupResource\RelationManagers\ProdOrdersRelationManager;
+use App\Models\ProdOrder\ProdOrderGroup;
+use Filament\Forms;
+use Filament\Forms\Components\Grid;
+use Filament\Forms\Form;
+use Filament\Resources\Resource;
+use Filament\Tables;
+use Filament\Tables\Table;
 
 class ProdOrderGroupResource extends Resource
 {
@@ -117,6 +117,7 @@ class ProdOrderGroupResource extends Resource
             'create' => Pages\CreateProdOrderGroup::route('/create'),
             'edit' => Pages\EditProdOrderGroup::route('/{record}/edit'),
             'details' => Pages\ProdOrderDetails::route('/{record}/orders/{id}/details'),
+            'view' => Pages\ProdOrderView::route('/{record}/orders/{id}/view'),
         ];
     }
 }

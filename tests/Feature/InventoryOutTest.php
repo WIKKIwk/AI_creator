@@ -3,10 +3,8 @@
 namespace Tests\Feature;
 
 use App\Enums\TransactionType;
-use App\Models\Inventory;
-use App\Models\InventoryItem;
+use App\Models\Inventory\Inventory;
 use App\Models\Product;
-use App\Models\StorageLocation;
 use App\Services\InventoryService;
 use App\Services\TransactionService;
 use Tests\TestCase;

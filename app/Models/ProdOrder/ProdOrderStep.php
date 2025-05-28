@@ -1,9 +1,10 @@
 <?php
 
-namespace App\Models;
+namespace App\Models\ProdOrder;
 
 use App\Enums\ProdOrderStepStatus;
-use App\Enums\StepProductType;
+use App\Models\Product;
+use App\Models\WorkStation;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -26,6 +27,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
  * @property Product $outputProduct
  * @property WorkStation $workStation
  * @property Collection<ProdOrderStepProduct> $materials
+ * @property Collection<ProdOrderStepExecution> $executions
  */
 class ProdOrderStep extends Model
 {
@@ -55,5 +57,10 @@ class ProdOrderStep extends Model
     public function materials(): HasMany
     {
         return $this->hasMany(ProdOrderStepProduct::class);
+    }
+
+    public function executions(): HasMany
+    {
+        return $this->hasMany(ProdOrderStepExecution::class);
     }
 }

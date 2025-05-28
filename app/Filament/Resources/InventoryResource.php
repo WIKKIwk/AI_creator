@@ -3,12 +3,12 @@
 namespace App\Filament\Resources;
 
 use App\Enums\RoleType;
-use App\Models\Product;
-use App\Services\UserService;
 use App\Filament\Resources\InventoryResource\Actions\InventoryItemsAction;
 use App\Filament\Resources\InventoryResource\Pages;
 use App\Filament\Resources\InventoryResource\RelationManagers;
-use App\Models\Inventory;
+use App\Models\Inventory\Inventory;
+use App\Models\Product;
+use App\Services\UserService;
 use Filament\Forms;
 use Filament\Forms\Form;
 use Filament\Resources\Resource;
@@ -16,7 +16,6 @@ use Filament\Tables;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\SoftDeletingScope;
 
 class InventoryResource extends Resource
 {

@@ -2,19 +2,17 @@
 
 namespace App\Filament\Resources\ProdTemplateResource\RelationManagers;
 
-use Filament\Forms;
-use Filament\Tables;
-use App\Models\Product;
-use Filament\Forms\Form;
-use Filament\Tables\Table;
 use App\Enums\ProductType;
-use App\Enums\MeasureUnit;
+use App\Models\ProdTemplate\ProdTemplate;
+use App\Models\ProdTemplate\ProdTemplateStep;
+use App\Models\Product;
 use App\Models\WorkStation;
-use App\Models\ProdTemplate;
-use App\Enums\StepProductType;
-use App\Models\ProdTemplateStep;
 use App\Services\ProductService;
+use Filament\Forms;
+use Filament\Forms\Form;
 use Filament\Resources\RelationManagers\RelationManager;
+use Filament\Tables;
+use Filament\Tables\Table;
 
 class StepsRelationManager extends RelationManager
 {
@@ -147,7 +145,7 @@ class StepsRelationManager extends RelationManager
                         ]),
                     ])
                     ->mutateRelationshipDataBeforeCreateUsing(function($data) {
-                        $data['type'] = StepProductType::Required;
+//                        $data['type'] = StepProductType::Required;
                         return $data;
                     }),
             ]);

@@ -2,7 +2,7 @@
 
 namespace App\Events;
 
-use App\Models\ProdOrderGroup;
+use App\Models\ProdOrder\ProdOrderGroup;
 use Illuminate\Foundation\Events\Dispatchable;
 use Illuminate\Queue\SerializesModels;
 

@@ -2,8 +2,10 @@
 
 namespace App\Models;
 
-use App\Enums\MeasureUnit;
 use App\Enums\DurationUnit;
+use App\Enums\MeasureUnit;
+use App\Models\Inventory\MiniInventory;
+use App\Models\ProdOrder\ProdOrder;
 use App\Models\Scopes\OwnOrganizationScope;
 use Illuminate\Database\Eloquent\Attributes\ScopedBy;
 use Illuminate\Database\Eloquent\Collection;

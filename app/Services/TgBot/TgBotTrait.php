@@ -59,7 +59,6 @@ trait TgBotTrait
 
     public function answerMsg(array $params, bool $async = false): array
     {
-        dd('dqw');
         $method = $async ? 'sendRequestAsync' : 'sendRequest';
         return $this->{$method}('sendMessage', array_merge($params, [
             'chat_id' => $this->chatId,

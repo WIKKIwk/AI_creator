@@ -1,13 +1,11 @@
 <?php
 
-namespace Database\Factories;
+namespace Database\Factories\ProdOrder;
 
 use App\Enums\OrderStatus;
-use App\Models\Agent;
-use App\Models\ProdOrder;
-use App\Models\ProdOrderGroup;
+use App\Models\ProdOrder\ProdOrder;
+use App\Models\ProdOrder\ProdOrderGroup;
 use App\Models\Product;
-use App\Models\Warehouse;
 use Illuminate\Database\Eloquent\Factories\Factory;
 
 /**

@@ -3,8 +3,9 @@
 namespace App\Services;
 
 use App\Enums\TransactionType;
-use App\Models\InventoryItem;
-use App\Models\InventoryTransaction;
+use App\Models\Inventory\InventoryItem;
+use App\Models\Inventory\InventoryTransaction;
+use App\Models\Inventory\MiniInventory;
 use Exception;
 use Illuminate\Database\Eloquent\Collection;
 
@@ -71,18 +72,17 @@ class TransactionService
         return $inventoryItem;
     }
 
-    public function checkStock($productId, $quantity, $warehouseId = null): bool {
-        /** @var Collection<InventoryItem> $inventoryItems */
-        $inventory = $this->inventoryService->getInventory($productId, $warehouseId);
-        return $inventory->quantity >= $quantity;
-    }
-
     public function getStockLackQty(
         $productId,
         $quantity,
-        $warehouseId = null,
+        $warehouseId,
+        $workStationId = null,
         $storageLocationId = null
     ): ?float {
+        if ($workStationId) {
+            $quantity = $this->getMiniStockLackQty($productId, $quantity, $workStationId);
+        }
+
         /** @var Collection<InventoryItem> $inventoryItems */
         $inventory = $this->inventoryService->getInventory($productId, $warehouseId);
         $inventoryItems = $this->inventoryService->getInventoryItems($inventory, $storageLocationId);
@@ -93,13 +93,11 @@ class TransactionService
             if ($inventoryItem->quantity <= 0) {
                 continue;
             }
-
             if ($lackQuantity <= 0) {
                 break;
             }
-
             if ($inventoryItem->quantity >= $lackQuantity) {
-                return null;
+                return 0;
             }
 
             $lackQuantity -= $inventoryItem->quantity;
@@ -111,7 +109,7 @@ class TransactionService
     public function removeStock(
         $productId,
         $quantity,
-        $warehouseId = null,
+        $warehouseId,
         $workStationId = null,
         $storageLocationId = null
     ): ?float {
@@ -148,14 +146,13 @@ class TransactionService
         return $lackQuantity;
     }
 
-    public function addMiniStock(
-        $productId,
-        $quantity,
-        $workStationId = null,
-        $cost = null
-    ): void {
+    /**
+     * @throws Exception
+     */
+    public function addMiniStock($productId, $quantity, $workStationId, $cost = null): MiniInventory
+    {
         if ($quantity <= 0) {
-            return;
+            throw new Exception('Quantity must be greater than zero.');
         }
 
         $miniInventory = $this->inventoryService->getMiniInventory($productId, $workStationId);
@@ -164,12 +161,20 @@ class TransactionService
             $totalCost = $miniInventory->quantity * $miniInventory->unit_cost + $cost;
             $totalQuantity = $miniInventory->quantity + $quantity;
             $averageCost = $totalCost / $totalQuantity;
-
             $miniInventory->unit_cost = round($averageCost, 2);
         }
 
         $miniInventory->quantity += $quantity;
         $miniInventory->save();
+
+        return $miniInventory;
+    }
+
+    public function getMiniStockLackQty($productId, $quantity, $workStationId): ?float
+    {
+        $miniInventory = $this->inventoryService->getMiniInventory($productId, $workStationId);
+
+        return max(0, $quantity - $miniInventory->quantity);
     }
 
     /**
@@ -178,14 +183,22 @@ class TransactionService
     public function removeMiniStock($productId, $quantity, $workStationId): void
     {
         $miniInventory = $this->inventoryService->getMiniInventory($productId, $workStationId);
-
         if ($miniInventory->quantity < $quantity) {
             throw new Exception(
                 "Insufficient quantity. Product: " . $miniInventory->product->name . ". Actual quantity: " . $miniInventory->quantity
             );
         }
-
         $miniInventory->quantity -= $quantity;
         $miniInventory->save();
+    }
+
+    public function removeMiniStockForce($productId, $quantity, $workStationId): ?float
+    {
+        $miniInventory = $this->inventoryService->getMiniInventory($productId, $workStationId);
+        $prevQty = $miniInventory->quantity;
+        $miniInventory->quantity -= min($prevQty, $quantity);
+        $miniInventory->save();
+
+        return max(0, $quantity - $prevQty);
     }
 }

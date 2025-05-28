@@ -1,8 +1,10 @@
 <?php
 
-namespace App\Models;
+namespace App\Models\Inventory;
 
+use App\Models\Product;
 use App\Models\Scopes\OwnWarehouseScope;
+use App\Models\Warehouse;
 use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Attributes\ScopedBy;
 use Illuminate\Database\Eloquent\Collection;

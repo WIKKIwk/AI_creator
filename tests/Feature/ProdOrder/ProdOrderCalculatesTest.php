@@ -3,10 +3,10 @@
 namespace Tests\Feature\ProdOrder;
 
 use App\Enums\DurationUnit;
-use App\Models\Inventory;
+use App\Models\Inventory\Inventory;
 use App\Models\PerformanceRate;
-use App\Models\ProdTemplate;
-use App\Models\ProdTemplateStep;
+use App\Models\ProdTemplate\ProdTemplate;
+use App\Models\ProdTemplate\ProdTemplateStep;
 use App\Models\WorkStation;
 use App\Services\ProdOrderService;
 use Tests\TestCase;

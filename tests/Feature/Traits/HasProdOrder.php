@@ -2,7 +2,7 @@
 
 namespace Tests\Feature\Traits;
 
-use App\Models\Inventory;
+use App\Models\Inventory\Inventory;
 use App\Models\Product;
 
 trait HasProdOrder

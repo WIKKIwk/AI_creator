@@ -9,7 +9,7 @@ use App\Enums\SupplyOrderStatus;
 use App\Filament\Resources\SupplyOrderResource\Pages;
 use App\Filament\Resources\SupplyOrderResource\RelationManagers;
 use App\Models\SupplierProduct;
-use App\Models\SupplyOrder;
+use App\Models\SupplyOrder\SupplyOrder;
 use Filament\Forms;
 use Filament\Forms\Form;
 use Filament\Resources\Resource;

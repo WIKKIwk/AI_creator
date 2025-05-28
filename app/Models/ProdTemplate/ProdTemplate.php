@@ -1,8 +1,12 @@
 <?php
 
-namespace App\Models;
+namespace App\Models\ProdTemplate;
 
+use App\Models\Organization;
+use App\Models\ProdOrder\ProdOrderStep;
+use App\Models\Product;
 use App\Models\Scopes\OwnOrganizationScope;
+use App\Models\WorkStation;
 use Illuminate\Database\Eloquent\Attributes\ScopedBy;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Factories\HasFactory;

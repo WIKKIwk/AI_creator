@@ -2,13 +2,13 @@
 
 namespace App\Filament\Resources\ProdTemplateResource\Pages;
 
-use Throwable;
+use App\Filament\Resources\ProdTemplateResource;
+use App\Models\ProdTemplate\ProdTemplateStep;
+use App\Services\ProductService;
 use Exception;
 use Filament\Actions;
-use App\Services\ProductService;
-use App\Models\ProdTemplateStep;
 use Filament\Resources\Pages\EditRecord;
-use App\Filament\Resources\ProdTemplateResource;
+use Throwable;
 
 class EditProdTemplate extends EditRecord
 {

@@ -2,17 +2,16 @@
 
 namespace Tests;
 
-use App\Models\Agent;
 use App\Models\Organization;
-use App\Models\ProdOrder;
+use App\Models\ProdOrder\ProdOrder;
 use App\Models\Product;
 use App\Models\ProductCategory;
 use App\Models\User;
 use App\Models\Warehouse;
-use Illuminate\Support\Facades\Cache;
-use Illuminate\Testing\TestResponse;
 use Illuminate\Foundation\Testing\LazilyRefreshDatabase;
 use Illuminate\Foundation\Testing\TestCase as BaseTestCase;
+use Illuminate\Support\Facades\Cache;
+use Illuminate\Testing\TestResponse;
 
 abstract class TestCase extends BaseTestCase
 {

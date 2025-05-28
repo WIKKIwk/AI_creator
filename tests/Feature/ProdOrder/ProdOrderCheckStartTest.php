@@ -2,10 +2,10 @@
 
 namespace Tests\Feature\ProdOrder;
 
-use App\Models\ProdOrder;
-use App\Models\ProdOrderStepProduct;
-use App\Models\ProdTemplate;
-use App\Models\ProdTemplateStep;
+use App\Models\ProdOrder\ProdOrder;
+use App\Models\ProdOrder\ProdOrderStepProduct;
+use App\Models\ProdTemplate\ProdTemplate;
+use App\Models\ProdTemplate\ProdTemplateStep;
 use App\Models\WorkStation;
 use App\Services\ProdOrderService;
 use App\Services\TransactionService;
@@ -107,6 +107,28 @@ class ProdOrderCheckStartTest extends TestCase
     public function test_check_start_partial(): void
     {
         $this->transactionService->addStock($this->rawMaterial->id, $existed = 10, $this->warehouse->id);
+
+        $insufficientAssetsByCat = $this->prodOrderService->checkStart($this->prodOrder);
+        $insufficientAssets = $insufficientAssetsByCat[$this->productCategory->id];
+
+        $this->assertNotEmpty($insufficientAssets);
+        $this->assertCount(2, $insufficientAssets);
+
+        $firstStep = $this->prodTemplate->firstStep;
+        foreach ($insufficientAssets as $productId => $item) {
+            /** @var ProdOrderStepProduct $stepMaterial */
+            $stepMaterial = $firstStep->materials()->where('product_id', $productId)->first();
+            $expected = $stepMaterial->required_quantity * $this->prodOrder->quantity;
+            if ($productId === $this->rawMaterial->id) {
+                $expected -= $existed;
+            }
+            $this->assertEquals($expected, $item['quantity']);
+        }
+    }
+
+    public function test_check_start_partial_mini_inventory(): void
+    {
+        $this->transactionService->addMiniStock($this->rawMaterial->id, $existed = 10, $this->workStationFirst->id);
 
         $insufficientAssetsByCat = $this->prodOrderService->checkStart($this->prodOrder);
         $insufficientAssets = $insufficientAssetsByCat[$this->productCategory->id];

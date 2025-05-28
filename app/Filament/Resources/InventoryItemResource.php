@@ -2,11 +2,10 @@
 
 namespace App\Filament\Resources;
 
-use App\Enums\RoleType;
 use App\Filament\Resources\InventoryItemResource\Pages;
 use App\Filament\Resources\InventoryItemResource\RelationManagers;
-use App\Models\Inventory;
-use App\Models\InventoryItem;
+use App\Models\Inventory\Inventory;
+use App\Models\Inventory\InventoryItem;
 use Filament\Forms;
 use Filament\Forms\Form;
 use Filament\Resources\Resource;

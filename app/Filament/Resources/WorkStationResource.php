@@ -2,12 +2,12 @@
 
 namespace App\Filament\Resources;
 
-use App\Enums\MeasureUnit;
 use App\Enums\DurationUnit;
+use App\Enums\MeasureUnit;
 use App\Enums\RoleType;
 use App\Filament\Resources\WorkStationResource\Pages;
 use App\Filament\Resources\WorkStationResource\RelationManagers;
-use App\Models\ProdOrder;
+use App\Models\ProdOrder\ProdOrder;
 use App\Models\ProductCategory;
 use App\Models\WorkStation;
 use Filament\Forms;
