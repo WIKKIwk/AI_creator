@@ -35,6 +35,10 @@ class SupplyOrderService
             DB::beginTransaction();
 
             foreach ($insufficientAssetsByCat as $categoryId => $insufficientAssets) {
+                if ($prodOrder->supplyOrders()->where('product_category_id', $categoryId)->exists()) {
+                    continue;
+                }
+
                 /** @var SupplyOrder $supplyOrder */
                 $supplyOrder = SupplyOrder::query()->create([
                     'prod_order_id' => $prodOrder->id,

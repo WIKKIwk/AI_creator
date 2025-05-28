@@ -4,6 +4,7 @@ namespace App\Models\ProdOrder;
 
 use App\Enums\OrderStatus;
 use App\Models\Product;
+use App\Models\SupplyOrder\SupplyOrder;
 use App\Models\User;
 use App\Observers\ProdOrderObserver;
 use Illuminate\Database\Eloquent\Collection;
@@ -48,6 +49,7 @@ use Illuminate\Support\Carbon;
  * @property ProdOrderStep $firstStep
  * @property ProdOrderStep $lastStep
  * @property ProdOrderStep $currentStep
+ * @property Collection<SupplyOrder> $supplyOrders
  */
 class ProdOrder extends Model
 {
@@ -115,6 +117,11 @@ class ProdOrder extends Model
     public function confirmedBy(): BelongsTo
     {
         return $this->belongsTo(User::class, 'confirmed_by');
+    }
+
+    public function supplyOrders(): HasMany
+    {
+        return $this->hasMany(SupplyOrder::class, 'prod_order_id');
     }
 
     public function confirm(): void

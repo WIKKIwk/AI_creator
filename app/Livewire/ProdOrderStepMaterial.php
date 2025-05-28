@@ -43,7 +43,7 @@ class ProdOrderStepMaterial extends Component implements HasForms, HasTable
                 Action::make('add')
                     ->label('Add available')
                     ->form($this->changeAvailableForm())
-                    ->action(fn ($data, $livewire) => $this->onChangeAvailable($data, $livewire))
+                    ->action(fn ($data, $record, $livewire) => $this->onChangeAvailable($data, $record, $livewire))
                     ->icon('heroicon-o-plus'),
             ])
             ->columns([
@@ -75,7 +75,7 @@ class ProdOrderStepMaterial extends Component implements HasForms, HasTable
                 EditAction::make()
                     ->hidden(fn() => $this->step->status == ProdOrderStepStatus::Completed)
                     ->form($this->changeAvailableForm())
-                    ->action(fn ($data, $livewire) => $this->onChangeAvailable($data, $livewire))
+                    ->action(fn ($data, $record, $livewire) => $this->onChangeAvailable($data, $record, $livewire))
             ])
             ->bulkActions([
                 // ...
@@ -103,7 +103,7 @@ class ProdOrderStepMaterial extends Component implements HasForms, HasTable
                     ->preload()
                     ->required(),
 
-                TextInput::make('max_quantity')
+                TextInput::make('available_quantity')
                     ->label('Available quantity')
                     ->suffix(function ($get) {
                         /** @var Product|null $product */
@@ -115,7 +115,7 @@ class ProdOrderStepMaterial extends Component implements HasForms, HasTable
         ];
     }
 
-    public function onChangeAvailable(array $data, self $livewire): void
+    public function onChangeAvailable(array $data, ProdOrderStepProduct $record, self $livewire): void
     {
         /** @var ProdOrderService $prodOrderService */
         $prodOrderService = app(ProdOrderService::class);
@@ -123,7 +123,8 @@ class ProdOrderStepMaterial extends Component implements HasForms, HasTable
             $insufficientAssets = $prodOrderService->checkMaterials(
                 $this->step,
                 $data['product_id'],
-                $data['max_quantity']
+                $data['available_quantity'],
+                true
             );
             if (!empty($insufficientAssets)) {
                 $livewire->dispatch(
@@ -134,14 +135,15 @@ class ProdOrderStepMaterial extends Component implements HasForms, HasTable
                     [
                         $this->step->id,
                         $data['product_id'],
-                        $data['max_quantity']
+                        $data['available_quantity']
                     ]
                 );
             } else {
-                $prodOrderService->editMaterials(
+                $prodOrderService->changeMaterialAvailable(
                     $this->step,
                     $data['product_id'],
-                    $data['max_quantity']
+                    $data['available_quantity'],
+                    true
                 );
                 showSuccess('Material added successfully');
             }
