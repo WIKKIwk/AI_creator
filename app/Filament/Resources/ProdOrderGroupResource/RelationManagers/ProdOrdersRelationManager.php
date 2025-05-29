@@ -135,10 +135,15 @@ class ProdOrdersRelationManager extends RelationManager
                         ProdOrderChanged::dispatch($prodOrderGroup, false);
                     }),
             ])
-            ->recordUrl(fn($record) => ProdOrderGroupResource::getUrl('details', [
-                'record' => $this->getOwnerRecord(),
-                'id' => $record->id,
-            ]))
+            ->recordUrl(function($record) {
+                if ($record->status->value < OrderStatus::Processing->value) {
+                    return null;
+                }
+                return ProdOrderGroupResource::getUrl('details', [
+                    'record' => $this->getOwnerRecord(),
+                    'id' => $record->id,
+                ]);
+            })
             ->actions([
                 Tables\Actions\Action::make('confirm')
                     ->label('Confirm')

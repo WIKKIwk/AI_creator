@@ -48,8 +48,8 @@ class EditSupplyOrder extends EditRecord
                 }
 
                 if ($state == SupplyOrderState::Delivered->value && $status == SupplyOrderStatus::AwaitingWarehouseApproval->value) {
-                    app(TaskService::class)->createTaskForRole(
-                        toUserRole: RoleType::SENIOR_STOCK_MANAGER,
+                    TaskService::createTaskForRoles(
+                        toUserRoles: [RoleType::SENIOR_STOCK_MANAGER->value],
                         relatedType: SupplyOrder::class,
                         relatedId: $supplyOrder->id,
                         action: TaskAction::Check,

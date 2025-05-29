@@ -242,21 +242,6 @@ class SupplyOrderResource extends Resource
             ])
 //            ->recordUrl(fn($record) => null)
             ->actions([
-//                Tables\Actions\Action::make('complete')
-//                    ->label('Complete')
-//                    ->hidden(fn($record) => $record?->status == OrderStatus::Completed && self::canAction())
-//                    ->requiresConfirmation()
-//                    ->action(function (SupplyOrder $supplyOrder) {
-//                        try {
-//                            app(SupplyOrderService::class)->completeOrder($supplyOrder);
-//                        } catch (\Throwable $e) {
-//                            Notification::make()
-//                                ->title('Error')
-//                                ->body($e->getMessage())
-//                                ->danger()
-//                                ->send();
-//                        }
-//                    }),
                 Tables\Actions\EditAction::make()
                     ->hidden(fn($record) => $record?->status == OrderStatus::Completed),
             ])

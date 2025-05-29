@@ -97,12 +97,6 @@ class ProdOrderAddActualTest extends TestCase
     {
         $anotherProduct = $this->createProduct(['name' => 'Another Product']);
 
-        $inventoryItem = $this->transactionService->addStock(
-            $anotherProduct->id,
-            $stockQty = 9,
-            $this->prodOrder->getWarehouseId()
-        );
-
         /** @var ProdOrderStep $firstStep */
         $firstStep = $this->prodOrder->steps()->create([
             'sequence' => 1,
@@ -113,23 +107,28 @@ class ProdOrderAddActualTest extends TestCase
         $firstStep->materials()->create([
             'product_id' => $anotherProduct->id,
             'required_quantity' => $requiredQty = 1,
-            'available_quantity' => 80,
+            'available_quantity' => $availableQty = 100,
         ]);
 
+        $inventoryItem = $this->transactionService->addStock(
+            $anotherProduct->id,
+            $stockQty = 0,
+            $this->prodOrder->getWarehouseId()
+        );
         $miniInventory = $this->transactionService->addMiniStock(
             $anotherProduct->id,
-            $miniStockQty = 91,
+            $miniStockQty = 100,
             $firstStep->work_station_id,
         );
 
-        $insufficientAssetsByCat = $this->prodOrderService->checkMaterials($firstStep, $anotherProduct->id, 100, true);
+        $insufficientAssetsByCat = $this->prodOrderService->checkMaterials($firstStep, $anotherProduct->id, 110, true);
         $this->assertEmpty($insufficientAssetsByCat);
     }
 
     /**
      * @dataProvider lessMoreQtyProvider
      */
-    public function test_edit_actual_materials($quantity = 4): void
+    public function test_edit_actual_materials($quantity): void
     {
         $inventoryItem = $this->transactionService->addStock(
             $this->rawMaterial->id,
