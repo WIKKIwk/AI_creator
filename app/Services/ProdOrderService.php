@@ -41,11 +41,17 @@ class ProdOrderService
 
         $insufficientAssetsByCat = [];
         foreach ($firstStep->materials as $item) {
+            $requiredQuantity = $item->required_quantity * $prodOrder->quantity;
+            $requiredQuantity = $this->transactionService->getMiniStockLackQty(
+                $item->product_id,
+                $requiredQuantity,
+                $firstStep->work_station_id
+            );
+
             $lackQuantity = $this->transactionService->getStockLackQty(
                 $item->product_id,
-                $item->required_quantity * $prodOrder->quantity,
-                $prodOrder->getWarehouseId(),
-                $firstStep->work_station_id
+                $requiredQuantity,
+                $prodOrder->getWarehouseId()
             );
 
             // If there's still lack of quantity, create SupplyOrder and Block the ProdOrder
@@ -76,8 +82,8 @@ class ProdOrderService
             $firstStepId = null;
             $prodTemplate = $this->getTemplate($prodOrder->product_id);
             foreach ($prodTemplate->steps as $templateStep) {
-                /** @var ProdOrderStep $prodOrderStep */
-                $prodOrderStep = $prodOrder->steps()->create([
+                /** @var ProdOrderStep $poStep */
+                $poStep = $prodOrder->steps()->create([
                     'sequence' => $templateStep->sequence,
                     'status' => ProdOrderStepStatus::InProgress,
                     'work_station_id' => $templateStep->work_station_id,
@@ -89,20 +95,20 @@ class ProdOrderService
                     $requiredQuantity = $item->required_quantity * $prodOrder->quantity;
 
                     $availableQuantity = 0;
-                    if ($prodOrderStep->sequence == 1) {
-                        $firstStepId = $prodOrderStep->id;
+                    if ($poStep->sequence == 1) {
+                        $firstStepId = $poStep->id;
 
                         $lackMiniStockQty = $this->transactionService->removeMiniStockForce(
                             $item->product_id,
                             $requiredQuantity,
-                            $prodOrderStep->work_station_id
+                            $poStep->work_station_id
                         );
 
                         $lackStockQty = $this->transactionService->removeStock(
                             $item->product_id,
                             $lackMiniStockQty,
                             $prodOrder->getWarehouseId(),
-                            $prodOrderStep->work_station_id
+                            $poStep->work_station_id
                         );
 
                         $availableQuantity = $requiredQuantity - $lackStockQty;
@@ -115,7 +121,7 @@ class ProdOrderService
                         }
                     }
 
-                    $prodOrderStep->materials()->create([
+                    $poStep->materials()->create([
                         'status' => ProdOrderStepProductStatus::InProgress,
                         'product_id' => $item->product_id,
                         'required_quantity' => $requiredQuantity,
@@ -147,9 +153,9 @@ class ProdOrderService
      * @throws Exception
      * TESTED
      */
-    public function completeWork(ProdOrderStep $prodOrderStep, $outputQty): void
+    public function completeWork(ProdOrderStep $poStep, $outputQty): void
     {
-        if ($prodOrderStep->status == ProdOrderStepStatus::Completed) {
+        if ($poStep->status == ProdOrderStepStatus::Completed) {
             throw new Exception('Step is already completed');
         }
 
@@ -161,22 +167,22 @@ class ProdOrderService
             DB::beginTransaction();
 
             /** @var Collection<ProdOrderStepProduct> $actualMaterials */
-            $actualMaterials = $prodOrderStep->actualItems()->get();
+            $actualMaterials = $poStep->actualItems()->get();
             foreach ($actualMaterials as $actualMaterial) {
                 $this->transactionService->removeMiniStock(
                     $actualMaterial->product_id,
                     $actualMaterial->required_quantity,
-                    $prodOrderStep->work_station_id
+                    $poStep->work_station_id
                 );
             }
 
             $this->transactionService->addMiniStock(
-                $prodOrderStep->output_product_id,
+                $poStep->output_product_id,
                 $outputQty,
-                $prodOrderStep->work_station_id
+                $poStep->work_station_id
             );
 
-            $prodOrderStep->update([
+            $poStep->update([
                 'status' => ProdOrderStepStatus::Completed,
                 'output_quantity' => $outputQty,
             ]);
@@ -294,31 +300,27 @@ class ProdOrderService
     /**
      * @throws Exception
      */
-    public function checkMaterials(ProdOrderStep $prodOrderStep, $productId, $quantity, $exact = false): array
+    public function checkMaterialsExact(ProdOrderStep $poStep, $productId, $quantity): array
     {
-        /** @var ProdOrderStepProduct $existedMaterial */
-        $existedMaterial = $prodOrderStep->materials()->where('product_id', $productId)->first();
-        if (!$existedMaterial) {
-            throw new Exception('Material not found in ProdOrderStep');
-        }
+        return $this->checkMaterials($poStep, $productId, $quantity, false);
+    }
 
+    /**
+     * @throws Exception
+     */
+    public function checkMaterials(ProdOrderStep $poStep, $productId, $quantity, $adding = true): array
+    {
         $insufficientAssetsByCat = [];
-
-        if ($exact) {
-            if ($quantity <= $existedMaterial->available_quantity) {
-                $existedMaterial->available_quantity = $quantity;
-                $existedMaterial->save();
-                return $insufficientAssetsByCat; // No lack of quantity
-            }
-
-            $quantity -= $existedMaterial->available_quantity;
+        $existedMaterial = $this->getExistedMaterial($poStep, $productId);
+        if ($adding) {
+            $quantity += $existedMaterial->available_quantity;
         }
 
+        $quantity = $this->transactionService->getMiniStockLackQty($productId, $quantity, $poStep->work_station_id);
         $lackQuantity = $this->transactionService->getStockLackQty(
             $productId,
             $quantity,
-            $prodOrderStep->prodOrder->getWarehouseId(),
-            $prodOrderStep->work_station_id
+            $poStep->prodOrder->getWarehouseId()
         );
 
         // If there's still lack of quantity, stop iteration and return the insufficient assets
@@ -336,65 +338,75 @@ class ProdOrderService
 
     /**
      * @throws Exception
+     */
+    public function changeMaterialAvailableExact(ProdOrderStep $poStep, $productId, $quantity): float
+    {
+        return $this->changeMaterialAvailable($poStep, $productId, $quantity, false);
+    }
+
+    /**
+     * @throws Exception
      * TESTED
      */
-    public function changeMaterialAvailable(ProdOrderStep $prodOrderStep, $productId, $quantity, $exact = false): float
+    public function changeMaterialAvailable(ProdOrderStep $poStep, $productId, $quantity, $adding = true): float
     {
-        /** @var ProdOrderStepProduct $existedMaterial */
-        $existedMaterial = $prodOrderStep->materials()->where('product_id', $productId)->first();
-        if (!$existedMaterial) {
-            throw new Exception('Material not found in ProdOrderStep');
+        $existedMaterial = $this->getExistedMaterial($poStep, $productId);
+        if ($adding) {
+            $quantity += $existedMaterial->available_quantity;
         }
 
-        if ($exact) {
-            if ($quantity <= $existedMaterial->available_quantity) {
-                $existedMaterial->available_quantity = $quantity;
-                $existedMaterial->save();
-                return 0; // No lack of quantity
-            }
-
-            $quantity -= $existedMaterial->available_quantity;
+        if ($quantity <= $existedMaterial->available_quantity) {
+            $existedMaterial->update(['available_quantity' => $quantity]);
+            return 0; // No lack of stock
         }
 
-        $miniStock = $this->inventoryService->getMiniInventory($productId, $prodOrderStep->work_station_id);
-        $takenMiniStock = $miniStock->quantity - $existedMaterial->available_quantity;
+        $miniStock = $this->inventoryService->getMiniInventory($productId, $poStep->work_station_id);
+        $lackMiniStock = max($quantity - $miniStock->quantity, 0);
 
-        // First take from mini if there is free stock
-        if ($takenMiniStock >= $quantity) {
-            $existedMaterial->increment('available_quantity', $quantity);
-            return 0;
+        $lackStock = 0;
+        if ($lackMiniStock > 0) {
+            $lackStock = $this->transactionService->removeStock(
+                $productId,
+                $lackMiniStock,
+                $poStep->prodOrder->getWarehouseId(),
+                $poStep->work_station_id
+            );
         }
 
-        $quantity -= $takenMiniStock;
-
-        $lackQuantity = $this->transactionService->removeStock(
-            $productId,
-            $quantity,
-            $prodOrderStep->prodOrder->getWarehouseId(),
-            $prodOrderStep->work_station_id
-        );
-
-        $takenStock = ($quantity - $lackQuantity);
-        $totalTakenQty = $takenMiniStock + $takenStock;
-
-        if ($totalTakenQty > 0) {
-            $this->transactionService->addMiniStock($productId, $takenStock, $prodOrderStep->work_station_id);
-            $existedMaterial->increment('available_quantity', $totalTakenQty);
+        $takenStock = $lackMiniStock - $lackStock;
+        if ($takenStock > 0) {
+            $this->transactionService->addMiniStock($productId, $takenStock, $poStep->work_station_id);
+            $existedMaterial->update([
+                'available_quantity' => $existedMaterial->available_quantity + $takenStock,
+            ]);
         }
 
-        if ($lackQuantity > 0) {
+        if ($lackStock > 0) {
             /** @var Product $targetProduct */
             $targetProduct = Product::query()->find($productId);
             $insufficientAssetsByCat[$targetProduct->category->id][$targetProduct->id] = $this->getInsufficientItemObj(
                 $targetProduct,
-                $lackQuantity
+                $lackStock
             );
             /** @var SupplyOrderService $supplyService */
             $supplyService = app(SupplyOrderService::class);
-            $supplyService->storeForProdOrder($prodOrderStep->prodOrder, $insufficientAssetsByCat);
+            $supplyService->storeForProdOrder($poStep->prodOrder, $insufficientAssetsByCat);
         }
 
-        return $lackQuantity;
+        return $lackStock;
+    }
+
+    /**
+     * @throws Exception
+     */
+    protected function getExistedMaterial(ProdOrderStep $poStep, $productId): ProdOrderStepProduct
+    {
+        /** @var ProdOrderStepProduct $existedMaterial */
+        $existedMaterial = $poStep->materials()->where('product_id', $productId)->first();
+        if (!$existedMaterial) {
+            throw new Exception('Material not found in ProdOrderStep');
+        }
+        return $existedMaterial;
     }
 
     protected function getInsufficientItemObj(Product $product, $lackQuantity): array

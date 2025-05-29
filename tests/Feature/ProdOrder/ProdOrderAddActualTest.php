@@ -4,6 +4,8 @@ namespace Tests\Feature\ProdOrder;
 
 use App\Enums\OrderStatus;
 use App\Enums\SupplyOrderState;
+use App\Models\Inventory\Inventory;
+use App\Models\Inventory\InventoryItem;
 use App\Models\Inventory\MiniInventory;
 use App\Models\ProdOrder\ProdOrder;
 use App\Models\ProdOrder\ProdOrderStep;
@@ -93,6 +95,36 @@ class ProdOrderAddActualTest extends TestCase
         ]);
     }
 
+    public function test_check_materials_custom(): void
+    {
+        $anotherProduct = $this->createProduct(['name' => 'Another Product']);
+
+        /** @var ProdOrderStep $firstStep */
+        $firstStep = $this->prodOrder->steps()->create([
+            'sequence' => 1,
+            'work_station_id' => $this->workStationFirst->id,
+            'output_product_id' => $this->semiFinishedMaterial->id,
+            'expected_quantity' => 1,
+        ]);
+        $firstStep->materials()->create([
+            'product_id' => $anotherProduct->id,
+            'required_quantity' => 1,
+            'available_quantity' => 100,
+        ]);
+
+        $this->transactionService->addMiniStock($anotherProduct->id, 100, $firstStep->work_station_id);
+
+        $insufficientAssetsByCat = $this->prodOrderService->checkMaterialsExact(
+            $firstStep,
+            $anotherProduct->id,
+            $quantity = 110
+        );
+        $this->assertCount(1, $insufficientAssetsByCat);
+
+        $data = $insufficientAssetsByCat[$anotherProduct->product_category_id][$anotherProduct->id];
+        $this->assertEquals(10, $data['quantity']);
+    }
+
     public function test_change_actual_custom(): void
     {
         $anotherProduct = $this->createProduct(['name' => 'Another Product']);
@@ -110,25 +142,71 @@ class ProdOrderAddActualTest extends TestCase
             'available_quantity' => $availableQty = 100,
         ]);
 
-        $inventoryItem = $this->transactionService->addStock(
-            $anotherProduct->id,
-            $stockQty = 0,
-            $this->prodOrder->getWarehouseId()
-        );
+        $inventory = Inventory::query()->create([
+            'product_id' => $anotherProduct->id,
+            'warehouse_id' => $this->prodOrder->getWarehouseId(),
+            'unit_cost' => 0,
+            'quantity' => 0,
+        ]);
+        $inventoryItem = InventoryItem::query()->create([
+            'inventory_id' => $inventory->id,
+            'quantity' => 0,
+        ]);
+
         $miniInventory = $this->transactionService->addMiniStock(
             $anotherProduct->id,
             $miniStockQty = 100,
             $firstStep->work_station_id,
         );
 
-        $insufficientAssetsByCat = $this->prodOrderService->checkMaterials($firstStep, $anotherProduct->id, 110, true);
-        $this->assertEmpty($insufficientAssetsByCat);
+        $lackQuantity = $this->prodOrderService->changeMaterialAvailableExact(
+            $firstStep,
+            $anotherProduct->id,
+            $quantity = 110
+        );
+        $this->assertEquals(10, $lackQuantity);
+
+        $this->assertDatabaseHas('prod_order_step_products', [
+            'prod_order_step_id' => $firstStep->id,
+            'product_id' => $anotherProduct->id,
+            'required_quantity' => $requiredQty,
+            'available_quantity' => $availableQty
+        ]);
+        $this->assertDatabaseHas('inventory_items', [
+            'id' => $inventoryItem->id,
+            'quantity' => 0
+        ]);
+        $this->assertDatabaseHas('mini_inventories', [
+            'work_station_id' => $this->workStationFirst->id,
+            'product_id' => $anotherProduct->id,
+            'quantity' => 100
+        ]);
+
+        if ($lackQuantity > 0) {
+            /** @var SupplyOrder $supplyOrder */
+            $supplyOrder = SupplyOrder::query()
+                ->where('prod_order_id', $this->prodOrder->id)
+                ->where('product_category_id', $anotherProduct->product_category_id)
+                ->first();
+
+            $this->assertDatabaseHas('supply_orders', [
+                'id' => $supplyOrder->id,
+                'state' => SupplyOrderState::Created,
+                'status' => null,
+            ]);
+            $this->assertDatabaseHas('supply_order_products', [
+                'supply_order_id' => $supplyOrder->id,
+                'product_id' => $anotherProduct->id,
+                'expected_quantity' => $lackQuantity,
+                'actual_quantity' => 0,
+            ]);
+        }
     }
 
     /**
      * @dataProvider lessMoreQtyProvider
      */
-    public function test_edit_actual_materials($quantity): void
+    public function test_change_actual_materials($quantity): void
     {
         $inventoryItem = $this->transactionService->addStock(
             $this->rawMaterial->id,

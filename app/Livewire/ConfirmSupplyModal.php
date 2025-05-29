@@ -42,7 +42,7 @@ class ConfirmSupplyModal extends Component
 
                 /** @var ProdOrderStep $step */
                 $step = ProdOrderStep::query()->find($stepId);
-                $prodOrderService->changeMaterialAvailable($step, $productId, $qty);
+                $prodOrderService->changeMaterialAvailableExact($step, $productId, $qty);
 //                showSuccess('Material edited successfully');
             }
         } catch (Throwable $e) {

@@ -76,13 +76,8 @@ class TransactionService
         $productId,
         $quantity,
         $warehouseId,
-        $workStationId = null,
         $storageLocationId = null
     ): ?float {
-        if ($workStationId) {
-            $quantity = $this->getMiniStockLackQty($productId, $quantity, $workStationId);
-        }
-
         /** @var Collection<InventoryItem> $inventoryItems */
         $inventory = $this->inventoryService->getInventory($productId, $warehouseId);
         $inventoryItems = $this->inventoryService->getInventoryItems($inventory, $storageLocationId);
@@ -104,6 +99,13 @@ class TransactionService
         }
 
         return $lackQuantity;
+    }
+
+    public function getMiniStockLackQty($productId, $quantity, $workStationId): ?float
+    {
+        $miniInventory = $this->inventoryService->getMiniInventory($productId, $workStationId);
+
+        return max(0, $quantity - $miniInventory->quantity);
     }
 
     public function removeStock(
@@ -168,13 +170,6 @@ class TransactionService
         $miniInventory->save();
 
         return $miniInventory;
-    }
-
-    public function getMiniStockLackQty($productId, $quantity, $workStationId): ?float
-    {
-        $miniInventory = $this->inventoryService->getMiniInventory($productId, $workStationId);
-
-        return max(0, $quantity - $miniInventory->quantity);
     }
 
     /**

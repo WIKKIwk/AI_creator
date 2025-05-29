@@ -1,13 +1,16 @@
 <?php
 
-namespace App\Livewire;
+namespace App\Livewire\ProdOrder;
 
 use App\Enums\ProdOrderStepStatus;
 use App\Models\ProdOrder\ProdOrderStep;
+use App\Models\ProdOrder\ProdOrderStepExecution;
 use App\Models\ProdOrder\ProdOrderStepProduct;
 use App\Models\Product;
 use App\Services\ProdOrderService;
 use Filament\Forms\Components\Grid;
+use Filament\Forms\Components\Placeholder;
+use Filament\Forms\Components\Repeater;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\TextInput;
 use Filament\Forms\Concerns\InteractsWithForms;
@@ -22,7 +25,7 @@ use Illuminate\View\View;
 use Livewire\Component;
 use Throwable;
 
-class ProdOrderStepMaterial extends Component implements HasForms, HasTable
+class StepExecution extends Component implements HasForms, HasTable
 {
     use InteractsWithTable;
     use InteractsWithForms;
@@ -32,18 +35,18 @@ class ProdOrderStepMaterial extends Component implements HasForms, HasTable
     public function table(Table $table): Table
     {
         return $table
-            ->heading('Materials')
+            ->heading('Executions')
             ->paginated(false)
             ->query(
-                ProdOrderStepProduct::query()
+                ProdOrderStepExecution::query()
                     ->with(['product.category'])
                     ->where('prod_order_step_id', $this->step->id)
             )
             ->headerActions([
                 Action::make('add')
-                    ->label('Add available')
-                    ->form($this->changeAvailableForm())
-                    ->action(fn ($data, $record, $livewire) => $this->onChangeAvailable($data, $record, $livewire))
+                    ->label('Add execution')
+                    ->form($this->executionForm())
+                    ->action(fn($data, $record, $livewire) => $this->onCreateExecution($data, $record, $livewire))
                     ->icon('heroicon-o-plus'),
             ])
             ->columns([
@@ -74,57 +77,83 @@ class ProdOrderStepMaterial extends Component implements HasForms, HasTable
             ->actions([
                 EditAction::make()
                     ->hidden(fn() => $this->step->status == ProdOrderStepStatus::Completed)
-                    ->form($this->changeAvailableForm())
-                    ->action(fn ($data, $record, $livewire) => $this->onChangeAvailable($data, $record, $livewire))
+                    ->form($this->executionForm())
+                    ->action(fn($data, $record, $livewire) => $this->onChangeAvailable($data, $record, $livewire))
             ])
             ->bulkActions([
                 // ...
             ]);
     }
 
-    public function changeAvailableForm(): array
+    public function onCreateExecution(array $data, ProdOrderStepExecution $record, self $livewire): void
+    {
+        // TODO
+    }
+
+    public function executionForm(): array
     {
         return [
-            Grid::make()->schema([
-                Select::make('product_id')
-                    ->label('Product')
-                    ->native(false)
-                    ->relationship(
-                        'product',
-                        'name',
-                        fn ($query) => $query->whereIn('id', $this->step->materials()->pluck('product_id')->toArray())
-                    )
-                    ->getOptionLabelFromRecordUsing(function ($record) {
-                        /** @var Product $record */
-                        return $record->ready_product_id ? $record->name : $record->catName;
-                    })
-                    ->searchable()
-                    ->reactive()
-                    ->preload()
-                    ->required(),
+            Repeater::make('materials')->schema([
+                Grid::make()->schema([
+                    Select::make('product_id')
+                        ->label('Product')
+                        ->native(false)
+                        ->relationship(
+                            'product',
+                            'name',
+                            fn($query) => $query->whereIn(
+                                'id',
+                                $this->step->materials()->pluck('product_id')->toArray()
+                            )
+                        )
+                        ->getOptionLabelFromRecordUsing(function ($record) {
+                            /** @var Product $record */
+                            return $record->ready_product_id ? $record->name : $record->catName;
+                        })
+                        ->preload()
+                        ->reactive()
+                        ->required()
+                        ->searchable(),
 
-                TextInput::make('available_quantity')
-                    ->label('Available quantity')
-                    ->suffix(function ($get) {
-                        /** @var Product|null $product */
-                        $product = $get('product_id') ? Product::query()->find($get('product_id')) : null;
-                        return $product?->getMeasureUnit()->getLabel();
+                    TextInput::make('used_quantity')
+                        ->label('Used quantity')
+                        ->suffix(function ($get) {
+                            /** @var Product|null $product */
+                            $product = $get('product_id') ? Product::query()->find($get('product_id')) : null;
+                            return $product?->getMeasureUnit()->getLabel();
+                        })
+                        ->required(),
+                ])
+            ])
+                ->relationship('materials')
+                ->addActionAlignment('end')
+                ->columnSpanFull(),
+
+            Grid::make()->schema([
+                TextInput::make('output_product')
+                    ->label('Output product')
+                    ->default(function () {
+                        return $this->step->outputProduct->name;
                     })
+                    ->readOnly(),
+
+                TextInput::make('output_quantity')
+                    ->label('Completed quantity')
+                    ->suffix(fn() => $this->step->outputProduct->getMeasureUnit()->getLabel())
                     ->required(),
             ])
         ];
     }
 
-    public function onChangeAvailable(array $data, ProdOrderStepProduct $record, self $livewire): void
+    public function onChangeAvailable(array $data, ProdOrderStepExecution $record, self $livewire): void
     {
         /** @var ProdOrderService $prodOrderService */
         $prodOrderService = app(ProdOrderService::class);
         try {
-            $insufficientAssets = $prodOrderService->checkMaterials(
+            $insufficientAssets = $prodOrderService->checkMaterialsExact(
                 $this->step,
                 $data['product_id'],
-                $data['available_quantity'],
-                true
+                $data['available_quantity']
             );
             if (!empty($insufficientAssets)) {
                 $livewire->dispatch(
@@ -139,11 +168,10 @@ class ProdOrderStepMaterial extends Component implements HasForms, HasTable
                     ]
                 );
             } else {
-                $prodOrderService->changeMaterialAvailable(
+                $prodOrderService->changeMaterialAvailableExact(
                     $this->step,
                     $data['product_id'],
-                    $data['available_quantity'],
-                    true
+                    $data['available_quantity']
                 );
                 showSuccess('Material added successfully');
             }
@@ -155,6 +183,6 @@ class ProdOrderStepMaterial extends Component implements HasForms, HasTable
 
     public function render(): View
     {
-        return view('livewire.prod-order-step-required');
+        return view('livewire.prod-order.step-execution');
     }
 }

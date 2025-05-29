@@ -3,7 +3,8 @@
 namespace App\Filament\Resources\ProdOrderGroupResource\Pages;
 
 use App\Filament\Resources\ProdOrderGroupResource;
-use App\Livewire\ProdOrderStepMaterial;
+use App\Livewire\ProdOrder\StepExecution;
+use App\Livewire\ProdOrder\StepMaterial;
 use App\Models\ProdOrder\ProdOrder;
 use App\Models\ProdOrder\ProdOrderStep;
 use App\Services\ProdOrderService;
@@ -11,7 +12,6 @@ use Filament\Forms\Components\Fieldset;
 use Filament\Forms\Components\Grid;
 use Filament\Forms\Components\Livewire;
 use Filament\Forms\Components\Placeholder;
-use Filament\Forms\Components\View as ViewField;
 use Filament\Forms\Concerns\InteractsWithForms;
 use Filament\Resources\Pages\Page;
 use Illuminate\Contracts\Support\Htmlable;
@@ -93,12 +93,19 @@ class ProdOrderDetails extends Page
                     ]),
             ]),
 
-            Livewire::make(ProdOrderStepMaterial::class)
+            Livewire::make(StepMaterial::class)
+                ->key('active-tasks-table')
                 ->data([
                     'step' => $this->activeStep,
                     'prodOrder' => $this->prodOrder,
-                ])
+                ]),
+
+            Livewire::make(StepExecution::class)
                 ->key('active-tasks-table')
+                ->data([
+                    'step' => $this->activeStep,
+                    'prodOrder' => $this->prodOrder,
+                ]),
         ];
     }
 

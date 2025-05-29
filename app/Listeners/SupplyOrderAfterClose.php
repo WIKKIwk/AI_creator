@@ -28,7 +28,7 @@ class SupplyOrderAfterClose
             $prodOrder->update(['status' => OrderStatus::Processing]);
 
             foreach ($prodOrder->firstStep->materials as $material) {
-                $this->prodOrderService->changeMaterialAvailable(
+                $this->prodOrderService->changeMaterialAvailableExact(
                     $prodOrder->firstStep,
                     $material->product_id,
                     $material->required_quantity,

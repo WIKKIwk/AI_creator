@@ -35,7 +35,14 @@ class SupplyOrderService
             DB::beginTransaction();
 
             foreach ($insufficientAssetsByCat as $categoryId => $insufficientAssets) {
-                if ($prodOrder->supplyOrders()->where('product_category_id', $categoryId)->exists()) {
+
+                /** @var SupplyOrder $existedSupplyOrder */
+                $existedSupplyOrder = $prodOrder->supplyOrders()
+                    ->where('product_category_id', $categoryId)
+                    ->whereNull('closed_at')
+                    ->exists();
+
+                if ($existedSupplyOrder) {
                     continue;
                 }
 
