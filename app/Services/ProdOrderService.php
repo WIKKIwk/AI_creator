@@ -396,6 +396,9 @@ class ProdOrderService
         return $lackStock;
     }
 
+    /**
+     * @throws Exception
+     */
     public function createExecution(ProdOrderStep $poStep, array $data): void
     {
         $materials = $data['materials'] ?? [];
@@ -437,6 +440,89 @@ class ProdOrderService
             DB::rollBack();
             throw new Exception($e->getMessage());
         }
+    }
+
+    /**
+     * @throws Exception
+     */
+    public function approveExecution(ProdOrderStepExecution $execution): void
+    {
+        if ($execution->approved_at) {
+            throw new Exception('Execution is already approved');
+        }
+
+        try {
+            DB::beginTransaction();
+
+            $poStep = $execution->prodOrderStep;
+            foreach ($execution->materials as $execMaterial) {
+                $this->useMaterial($poStep, $execMaterial->product_id, $execMaterial->used_quantity);
+            }
+
+            $this->outputMaterial($poStep, $execution->output_quantity);
+
+            $execution->update([
+                'approved_at' => now(),
+                'approved_by' => auth()->user()->id
+            ]);
+
+            DB::commit();
+        } catch (Throwable $e) {
+            DB::rollBack();
+            throw new Exception($e->getMessage());
+        }
+    }
+
+    protected function outputMaterial(ProdOrderStep $currentStep, $outputQty): void
+    {
+        /** @var ProdOrderStep $nextStep */
+        $nextStep = $currentStep->prodOrder->steps()->where('sequence', '>', $currentStep->sequence)->first();
+        if ($nextStep) {
+            $nextMiniStock = $this->transactionService->addMiniStock(
+                $currentStep->output_product_id,
+                $outputQty,
+                $nextStep->work_station_id
+            );
+        } else {
+            $this->transactionService->addStock(
+                $currentStep->output_product_id,
+                $outputQty,
+                $currentStep->prodOrder->getWarehouseId(),
+                workStationId: $currentStep->work_station_id
+            );
+        }
+
+        $totalOutputQty = $currentStep->output_quantity + $outputQty;
+        if ($totalOutputQty >= $currentStep->expected_quantity) {
+            $currentStep->status = ProdOrderStepStatus::Completed;
+        } else {
+            $currentStep->status = ProdOrderStepStatus::InProgress;
+        }
+
+        $currentStep->output_quantity = $totalOutputQty;
+        $currentStep->save();
+    }
+
+    /**
+     * @throws Exception
+     */
+    protected function useMaterial(ProdOrderStep $poStep, $productId, $usedQty): void
+    {
+        $poMaterial = $this->getExistedMaterial($poStep, $productId);
+        if ($poMaterial->available_quantity < $usedQty) {
+            throw new Exception('Not enough available quantity');
+        }
+
+        $poMaterial->update([
+            'available_quantity' => $poMaterial->available_quantity - $usedQty,
+            'used_quantity' => $poMaterial->used_quantity + $usedQty,
+        ]);
+
+        $this->transactionService->removeMiniStock(
+            $poMaterial->product_id,
+            $usedQty,
+            $poMaterial->step->work_station_id
+        );
     }
 
     /**

@@ -42,7 +42,7 @@ class StepExecution extends Component implements HasForms, HasTable
                             return Product::query()
                                 ->whereIn('id', $step->materials()->pluck('product_id')->toArray())
                                 ->get()
-                                ->pluck('name', 'id');
+                                ->pluck('catName', 'id');
                         })
                         ->getOptionLabelFromRecordUsing(function($record) {
                             /** @var Product $record */
