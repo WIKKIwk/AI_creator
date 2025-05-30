@@ -11,8 +11,6 @@ use Tests\TestCase;
 
 class InventoryOutTest extends TestCase
 {
-    protected InventoryService $inventoryService;
-    protected TransactionService $transactionService;
     protected Product $product;
 
     protected function setUp(): void
@@ -20,9 +18,6 @@ class InventoryOutTest extends TestCase
         parent::setUp();
 
         $this->actingAs($this->user);
-
-        $this->inventoryService = app(InventoryService::class);
-        $this->transactionService = app(TransactionService::class);
         $this->product = Product::factory()->create([
             'name' => 'Test Product',
         ]);

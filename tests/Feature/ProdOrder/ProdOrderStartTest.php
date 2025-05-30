@@ -21,9 +21,6 @@ class ProdOrderStartTest extends TestCase
     use HasProdTemplate, HasProdOrder;
 
     protected ProdOrder $prodOrder;
-    protected ProdOrderService $prodOrderService;
-    protected WorkStationService $workStationService;
-    protected TransactionService $transactionService;
 
     protected function setUp(): void
     {
@@ -42,10 +39,6 @@ class ProdOrderStartTest extends TestCase
             'confirmed_at' => now(),
             'confirmed_by' => $this->user->id,
         ]);
-
-        $this->prodOrderService = app(ProdOrderService::class);
-        $this->workStationService = app(WorkStationService::class);
-        $this->transactionService = app(TransactionService::class);
     }
 
     public function test_number_generation(): void

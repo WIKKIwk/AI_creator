@@ -2,28 +2,25 @@
 
 namespace App\Livewire\ProdOrder;
 
-use App\Enums\ProdOrderStepStatus;
-use App\Models\ProdOrder\ProdOrderStep;
-use App\Models\ProdOrder\ProdOrderStepExecution;
-use App\Models\ProdOrder\ProdOrderStepProduct;
+use Throwable;
 use App\Models\Product;
+use Livewire\Component;
+use Illuminate\View\View;
+use Filament\Tables\Table;
 use App\Services\ProdOrderService;
 use Filament\Forms\Components\Grid;
-use Filament\Forms\Components\Placeholder;
-use Filament\Forms\Components\Repeater;
-use Filament\Forms\Components\Select;
-use Filament\Forms\Components\TextInput;
-use Filament\Forms\Concerns\InteractsWithForms;
-use Filament\Forms\Contracts\HasForms;
 use Filament\Tables\Actions\Action;
-use Filament\Tables\Actions\EditAction;
+use Filament\Forms\Components\Select;
+use Filament\Forms\Contracts\HasForms;
+use App\Models\ProdOrder\ProdOrderStep;
+use Filament\Forms\Components\Repeater;
 use Filament\Tables\Columns\TextColumn;
-use Filament\Tables\Concerns\InteractsWithTable;
 use Filament\Tables\Contracts\HasTable;
-use Filament\Tables\Table;
-use Illuminate\View\View;
-use Livewire\Component;
-use Throwable;
+use Filament\Forms\Components\TextInput;
+use Filament\Tables\Actions\CreateAction;
+use Filament\Forms\Concerns\InteractsWithForms;
+use App\Models\ProdOrder\ProdOrderStepExecution;
+use Filament\Tables\Concerns\InteractsWithTable;
 
 class StepExecution extends Component implements HasForms, HasTable
 {
@@ -32,65 +29,7 @@ class StepExecution extends Component implements HasForms, HasTable
 
     public ProdOrderStep $step;
 
-    public function table(Table $table): Table
-    {
-        return $table
-            ->heading('Executions')
-            ->paginated(false)
-            ->query(
-                ProdOrderStepExecution::query()
-                    ->with(['product.category'])
-                    ->where('prod_order_step_id', $this->step->id)
-            )
-            ->headerActions([
-                Action::make('add')
-                    ->label('Add execution')
-                    ->form($this->executionForm())
-                    ->action(fn($data, $record, $livewire) => $this->onCreateExecution($data, $record, $livewire))
-                    ->icon('heroicon-o-plus'),
-            ])
-            ->columns([
-                TextColumn::make('product.catName')
-                    ->width('300px'),
-                TextColumn::make('required_quantity')
-                    ->label('Required')
-                    ->formatStateUsing(function (ProdOrderStepProduct $record) {
-                        return ($record->required_quantity ?? 0) . ' ' . $record->product->category?->measure_unit?->getLabel(
-                            );
-                    }),
-                TextColumn::make('available_quantity')
-                    ->label('Available')
-                    ->formatStateUsing(function (ProdOrderStepProduct $record) {
-                        return ($record->available_quantity ?? 0) . ' ' . $record->product->category?->measure_unit?->getLabel(
-                            );
-                    }),
-                TextColumn::make('used_quantity')
-                    ->label('Used')
-                    ->getStateUsing(function (ProdOrderStepProduct $record) {
-                        return ($record->used_quantity ?? 0) . ' ' . $record->product->category?->measure_unit?->getLabel(
-                            );
-                    }),
-            ])
-            ->filters([
-                // ...
-            ])
-            ->actions([
-                EditAction::make()
-                    ->hidden(fn() => $this->step->status == ProdOrderStepStatus::Completed)
-                    ->form($this->executionForm())
-                    ->action(fn($data, $record, $livewire) => $this->onChangeAvailable($data, $record, $livewire))
-            ])
-            ->bulkActions([
-                // ...
-            ]);
-    }
-
-    public function onCreateExecution(array $data, ProdOrderStepExecution $record, self $livewire): void
-    {
-        // TODO
-    }
-
-    public function executionForm(): array
+    public function getExecutionForm(): array
     {
         return [
             Repeater::make('materials')->schema([
@@ -98,26 +37,23 @@ class StepExecution extends Component implements HasForms, HasTable
                     Select::make('product_id')
                         ->label('Product')
                         ->native(false)
-                        ->relationship(
-                            'product',
-                            'name',
-                            fn($query) => $query->whereIn(
-                                'id',
-                                $this->step->materials()->pluck('product_id')->toArray()
-                            )
-                        )
-                        ->getOptionLabelFromRecordUsing(function ($record) {
+                        ->options(function() {
+                            $step = $this->step;
+                            return Product::query()
+                                ->whereIn('id', $step->materials()->pluck('product_id')->toArray())
+                                ->get()
+                                ->pluck('name', 'id');
+                        })
+                        ->getOptionLabelFromRecordUsing(function($record) {
                             /** @var Product $record */
                             return $record->ready_product_id ? $record->name : $record->catName;
                         })
-                        ->preload()
                         ->reactive()
-                        ->required()
-                        ->searchable(),
+                        ->required(),
 
                     TextInput::make('used_quantity')
                         ->label('Used quantity')
-                        ->suffix(function ($get) {
+                        ->suffix(function($get) {
                             /** @var Product|null $product */
                             $product = $get('product_id') ? Product::query()->find($get('product_id')) : null;
                             return $product?->getMeasureUnit()->getLabel();
@@ -125,24 +61,96 @@ class StepExecution extends Component implements HasForms, HasTable
                         ->required(),
                 ])
             ])
-                ->relationship('materials')
                 ->addActionAlignment('end')
                 ->columnSpanFull(),
 
-            Grid::make()->schema([
+            Grid::make(3)->schema([
                 TextInput::make('output_product')
                     ->label('Output product')
-                    ->default(function () {
+                    ->default(function() {
                         return $this->step->outputProduct->name;
                     })
                     ->readOnly(),
 
                 TextInput::make('output_quantity')
-                    ->label('Completed quantity')
                     ->suffix(fn() => $this->step->outputProduct->getMeasureUnit()->getLabel())
                     ->required(),
+
+                TextInput::make('notes'),
             ])
         ];
+    }
+
+    public function table(Table $table): Table
+    {
+        return $table
+            ->heading('Executions')
+            ->searchable(false)
+            ->paginated(false)
+            ->query(
+                ProdOrderStepExecution::query()
+                    ->with(['executedBy', 'materials.product'])
+                    ->where('prod_order_step_id', $this->step->id)
+            )
+            ->headerActions([
+                CreateAction::make('add')
+                    ->label('Add execution')
+                    ->model(ProdOrderStepExecution::class)
+                    ->form($this->getExecutionForm())
+                    ->action(function($data, $record, $livewire) {
+                        $this->onCreateExecution($data, $record, $livewire);
+                    })
+                    ->icon('heroicon-o-plus'),
+            ])
+            ->columns([
+                TextColumn::make('materials')
+                    ->label('Materials')
+                    ->formatStateUsing(function(ProdOrderStepExecution $record) {
+                        $result = "";
+                        foreach ($record->materials as $material) {
+                            $result .= "{$material->product->catName} - {$material->used_quantity} {$material->product->getMeasureUnit()->getLabel()}<br>";
+                        }
+                        return $result;
+                    })
+                    ->html(),
+                TextColumn::make('output_quantity')
+                    ->formatStateUsing(function(ProdOrderStepExecution $record) {
+                        return ($record->output_quantity ?? 0) . ' ' . $this->step->outputProduct->category?->measure_unit?->getLabel(
+                            );
+                    }),
+                TextColumn::make('notes'),
+                TextColumn::make('executedBy.name')
+                    ->label('Executed by')
+                    ->sortable()
+                    ->searchable(),
+            ])
+            ->filters([
+                // ...
+            ])
+            ->actions([
+                Action::make('approve')
+                    ->hidden(fn(ProdOrderStepExecution $record) => $record->approved_at)
+                    ->icon('heroicon-o-check')
+                    ->requiresConfirmation()
+                    ->label('Approve')
+            ])
+            ->bulkActions([
+                // ...
+            ]);
+    }
+
+    public function onCreateExecution(array $data, $record, self $livewire): void
+    {
+        try {
+            /** @var ProdOrderService $prodOrderService */
+            $prodOrderService = app(ProdOrderService::class);
+            $prodOrderService->createExecution($this->step, $data);
+
+            showSuccess('Execution created successfully');
+            $livewire->dispatch('$refresh');
+        } catch (Throwable $e) {
+            showError($e->getMessage());
+        }
     }
 
     public function onChangeAvailable(array $data, ProdOrderStepExecution $record, self $livewire): void

@@ -20,16 +20,12 @@ class SupplyOrderCloseTest extends TestCase
     use HasProdOrder;
     use HasSupplyOrder;
 
-    protected SupplyOrderService $supplyOrderService;
-
     protected function setUp(): void
     {
         parent::setUp();
         $this->actingAs($this->user);
 
         $this->createProdTemplate();
-
-        $this->supplyOrderService = app(SupplyOrderService::class);
     }
 
     public function test_validate_already_closed(): void

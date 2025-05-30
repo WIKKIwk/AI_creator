@@ -16,9 +16,12 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
  * @property float $output_quantity
  * @property string $notes
  * @property int $executed_by
+ * @property string $approved_at
+ * @property string $approved_by
  *
  * @property ProdOrderStep $prodOrderStep
  * @property User $executedBy
+ * @property User $approvedBy
  * @property Collection<ProdOrderStepExecutionProduct> $materials
  */
 class ProdOrderStepExecution extends Model
@@ -26,6 +29,10 @@ class ProdOrderStepExecution extends Model
     use HasFactory;
 
     protected $guarded = ['id'];
+
+    protected $casts = [
+        'approved_at' => 'datetime',
+    ];
 
     public function prodOrderStep(): BelongsTo
     {
@@ -35,6 +42,11 @@ class ProdOrderStepExecution extends Model
     public function executedBy(): BelongsTo
     {
         return $this->belongsTo(User::class, 'executed_by');
+    }
+
+    public function approvedBy(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'approved_by');
     }
 
     public function materials(): HasMany

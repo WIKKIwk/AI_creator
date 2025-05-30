@@ -12,15 +12,12 @@ use Tests\TestCase;
 
 class SupplyOrderStoreTest extends TestCase
 {
-    protected SupplyOrderService $supplyOrderService;
 
     protected function setUp(): void
     {
         parent::setUp();
 
         $this->actingAs($this->user);
-
-        $this->supplyOrderService = app(SupplyOrderService::class);
     }
 
     public function test_number_generation(): void

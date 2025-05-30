@@ -19,9 +19,6 @@ class ProdOrderCheckStartTest extends TestCase
 
     protected ProdTemplate $prodTemplate;
     protected ProdOrder $prodOrder;
-    protected ProdOrderService $prodOrderService;
-    protected TransactionService $transactionService;
-    protected WorkStationService $workStationService;
 
     protected function setUp(): void
     {
@@ -82,10 +79,6 @@ class ProdOrderCheckStartTest extends TestCase
             'confirmed_at' => now(),
             'confirmed_by' => $this->user->id,
         ]);
-
-        $this->prodOrderService = app(ProdOrderService::class);
-        $this->workStationService = app(WorkStationService::class);
-        $this->transactionService = app(TransactionService::class);
     }
 
     public function test_check_start_basic(): void

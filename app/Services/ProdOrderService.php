@@ -21,14 +21,14 @@ use Exception;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Facades\DB;
 use Throwable;
+use App\Models\ProdOrder\ProdOrderStepExecution;
 
 class ProdOrderService
 {
     public function __construct(
         protected TransactionService $transactionService,
-        protected InventoryService $inventoryService,
-    ) {
-    }
+        protected InventoryService   $inventoryService,
+    ) {}
 
     /**
      * @throws Exception
@@ -396,6 +396,49 @@ class ProdOrderService
         return $lackStock;
     }
 
+    public function createExecution(ProdOrderStep $poStep, array $data): void
+    {
+        $materials = $data['materials'] ?? [];
+        $outputQuantity = $data['output_quantity'] ?? 0;
+
+        try {
+            DB::beginTransaction();
+
+            /** @var ProdOrderStepExecution $execution */
+            $execution = $poStep->executions()->create([
+                'output_quantity' => $outputQuantity,
+                'notes' => $data['notes'] ?? '',
+                'executed_by' => auth()->user()->id,
+            ]);
+
+            foreach ($materials as $material) {
+                $productId = $material['product_id'] ?? null;
+                $usedQuantity = $material['used_quantity'] ?? 0;
+
+                if (!$productId || $usedQuantity <= 0) {
+                    continue; // Skip invalid material
+                }
+
+                /** @var ProdOrderStepProduct $poMaterial */
+                $poMaterial = $this->getExistedMaterial($poStep, $productId);
+                if ($poMaterial->available_quantity < $usedQuantity) {
+                    throw new Exception('Insufficient available quantity for product ID: ' . $productId);
+                }
+
+                // Create execution material record
+                $execution->materials()->create([
+                    'product_id' => $productId,
+                    'used_quantity' => $usedQuantity,
+                ]);
+            }
+
+            DB::commit();
+        } catch (Throwable $e) {
+            DB::rollBack();
+            throw new Exception($e->getMessage());
+        }
+    }
+
     /**
      * @throws Exception
      */
@@ -476,11 +519,11 @@ class ProdOrderService
             $quantityPerUnit = $rate->quantity / $rate->duration;
 
             $quantityPerDay = match ($rate->duration_unit) {
-                DurationUnit::Hour => $quantityPerUnit * 12,
-                DurationUnit::Day => $quantityPerUnit,
-                DurationUnit::Week => $quantityPerUnit / 7,
+                DurationUnit::Hour  => $quantityPerUnit * 12,
+                DurationUnit::Day   => $quantityPerUnit,
+                DurationUnit::Week  => $quantityPerUnit / 7,
                 DurationUnit::Month => $quantityPerUnit / 30,
-                DurationUnit::Year => $quantityPerUnit / 365,
+                DurationUnit::Year  => $quantityPerUnit / 365,
             };
 
             $totalDays += ceil($step->expected_quantity / $quantityPerDay);

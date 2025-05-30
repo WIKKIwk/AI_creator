@@ -28,7 +28,6 @@ class SupplyOrderCompareTest extends TestCase
     protected Product $product1;
     protected Product $product2;
     protected ProdOrder $prodOrder;
-    protected SupplyOrderService $supplyOrderService;
 
     protected function setUp(): void
     {
@@ -78,8 +77,6 @@ class SupplyOrderCompareTest extends TestCase
             'required_quantity' => 3,
             'available_quantity' => 0,
         ]);
-
-        $this->supplyOrderService = app(SupplyOrderService::class);
     }
 
     public function test_compare(): void

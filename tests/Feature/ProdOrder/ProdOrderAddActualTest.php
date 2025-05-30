@@ -21,9 +21,6 @@ class ProdOrderAddActualTest extends TestCase
     use HasProdTemplate;
 
     protected ProdOrder $prodOrder;
-    protected ProdOrderService $prodOrderService;
-    protected WorkStationService $workStationService;
-    protected TransactionService $transactionService;
 
     protected function setUp(): void
     {
@@ -41,10 +38,6 @@ class ProdOrderAddActualTest extends TestCase
             'status' => OrderStatus::Pending
         ]);
         $this->prodOrder = $prodOrder;
-
-        $this->prodOrderService = app(ProdOrderService::class);
-        $this->workStationService = app(WorkStationService::class);
-        $this->transactionService = app(TransactionService::class);
     }
 
     /**

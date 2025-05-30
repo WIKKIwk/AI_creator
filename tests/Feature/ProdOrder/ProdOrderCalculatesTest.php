@@ -13,7 +13,6 @@ use Tests\TestCase;
 
 class ProdOrderCalculatesTest extends TestCase
 {
-    protected ProdOrderService $prodOrderService;
     protected WorkStation $workStationFirst;
     protected WorkStation $workStationSecond;
 
@@ -23,8 +22,6 @@ class ProdOrderCalculatesTest extends TestCase
 
         $this->workStationFirst = WorkStation::factory()->create(['name' => 'First Work Station']);
         $this->workStationSecond = WorkStation::factory()->create(['name' => 'Second Work Station']);
-
-        $this->prodOrderService = app(ProdOrderService::class);
     }
 
     public function test_calculate_expected_cost(): void

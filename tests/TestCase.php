@@ -3,11 +3,16 @@
 namespace Tests;
 
 use App\Models\Organization;
+use App\Services\ProdOrderService;
+use App\Services\InventoryService;
 use App\Models\ProdOrder\ProdOrder;
 use App\Models\Product;
 use App\Models\ProductCategory;
 use App\Models\User;
 use App\Models\Warehouse;
+use App\Services\WorkStationService;
+use App\Services\TransactionService;
+use App\Services\SupplyOrderService;
 use Illuminate\Foundation\Testing\LazilyRefreshDatabase;
 use Illuminate\Foundation\Testing\TestCase as BaseTestCase;
 use Illuminate\Support\Facades\Cache;
@@ -25,17 +30,25 @@ abstract class TestCase extends BaseTestCase
     protected Warehouse $warehouse;
     protected ProductCategory $productCategory;
 
+    protected ProdOrderService $prodOrderService;
+    protected WorkStationService $workStationService;
+    protected TransactionService $transactionService;
+    protected InventoryService $inventoryService;
+    protected SupplyOrderService $supplyOrderService;
+
     protected function setUp(): void
     {
         parent::setUp();
 
-        $this->app->bind(Cache::class, function () {
-            return Cache::store('array');
-        });
+        $this->prodOrderService = app(ProdOrderService::class);
+        $this->workStationService = app(WorkStationService::class);
+        $this->transactionService = app(TransactionService::class);
+        $this->inventoryService = app(InventoryService::class);
+        $this->supplyOrderService = app(supplyOrderService::class);
 
-        $this->organization = Organization::query()->create(['name' => 'test_organization', 'code' => 'ORG']);
-        $this->organization2 = Organization::query()->create(['name' => 'test_organization_2']);
-        $this->organization3 = Organization::query()->create(['name' => 'test_organization_3']);
+        $this->organization = Organization::factory()->create(['name' => 'test_organization', 'code' => 'ORG']);
+        $this->organization2 = Organization::factory()->create(['name' => 'test_organization_2']);
+        $this->organization3 = Organization::factory()->create(['name' => 'test_organization_3']);
 
         $this->productCategory = ProductCategory::factory()->create([
             'name' => 'test_category',
