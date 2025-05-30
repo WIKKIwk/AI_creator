@@ -67,7 +67,8 @@ class ProdOrderDetails extends Page
 
                         Placeholder::make('output_quantity')
                             ->content(function () {
-                                return ($this->activeStep->output_quantity ?? 0) . ' ' . $this->activeStep->outputProduct?->category?->measure_unit?->getLabel();
+                                dd($this->activeStep->executions()->sum('output_quantity'));
+                                return $this->activeStep->executions()->sum('output_quantity') . ' ' . $this->activeStep->outputProduct?->category?->measure_unit?->getLabel();
                             }),
 
                         Placeholder::make('status')
