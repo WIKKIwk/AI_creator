@@ -12,7 +12,8 @@
         "laravel/framework": "^10",
         "laravel/sanctum": "^3.3",
         "laravel/tinker": "^2.8",
-        "predis/predis": "^2.0"
+        "predis/predis": "^2.0",
+        "ryangjchandler/filament-progress-column": "*"
     },
     "require-dev": {
         "barryvdh/laravel-debugbar": "^3.14",

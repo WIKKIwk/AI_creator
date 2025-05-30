@@ -46,6 +46,9 @@ class Product extends Model
 
     public function getCatNameAttribute(): string
     {
+        if ($this->ready_product_id) {
+            return $this->name;
+        }
         return $this->category->name ? $this->category->name . ' ' . $this->name : $this->name;
     }
 

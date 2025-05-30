@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources\ProdOrderGroupResource\Pages;
 
+use App\Enums\ProdOrderStepStatus;
 use App\Filament\Resources\ProdOrderGroupResource;
 use App\Livewire\ProdOrder\StepExecution;
 use App\Livewire\ProdOrder\StepMaterial;
@@ -37,6 +38,8 @@ class ProdOrderDetails extends Page
     public ?ProdOrderStep $activeStep;
     public ?ProdOrderStep $lastStep;
 
+    protected $listeners = ['refresh-page' => '$refresh'];
+
     public function getBreadcrumb(): ?string
     {
         return $this->prodOrder->number;
@@ -59,7 +62,13 @@ class ProdOrderDetails extends Page
         }
 
         $this->prodOrder = $prodOrder;
-        $this->activeStep = $prodOrder->currentStep;
+
+        $activeStep = $prodOrder->steps()
+            ->where('status', '!=', ProdOrderStepStatus::Completed)
+            ->orderBy('sequence')
+            ->first();
+
+        $this->activeStep = $activeStep ?? $prodOrder->firstStep;
         $this->currentStep = $prodOrder->currentStep;
         $this->lastStep = $prodOrder->steps->last() ?? null;
     }
@@ -94,14 +103,14 @@ class ProdOrderDetails extends Page
             ]),
 
             Livewire::make(StepMaterial::class)
-                ->key('active-tasks-table')
+                ->key("step-materials-{$this->activeStep->id}")
                 ->data([
                     'step' => $this->activeStep,
                     'prodOrder' => $this->prodOrder,
                 ]),
 
             Livewire::make(StepExecution::class)
-                ->key('active-tasks-table')
+                ->key("step-executions-{$this->activeStep->id}")
                 ->data([
                     'step' => $this->activeStep,
                     'prodOrder' => $this->prodOrder,
@@ -112,36 +121,5 @@ class ProdOrderDetails extends Page
     public function handleStepClick($stepId): void
     {
         $this->activeStep = $this->prodOrder->steps->find($stepId);
-    }
-
-    public function nextStep(): void
-    {
-        try {
-            $nextStep = app(ProdOrderService::class)->next($this->prodOrder);
-            if ($nextStep) {
-                $this->activeStep = $nextStep;
-            }
-
-            showSuccess('Order has been moved to the next step.');
-        } catch (\Exception $e) {
-            showError($e->getMessage());
-        }
-    }
-
-    public function approve(): void
-    {
-        try {
-            app(ProdOrderService::class)->approve($this->prodOrder);
-
-            // back to index page
-            $this->redirect(ProdOrderGroupResource::getUrl('details', [
-                'record' => $this->prodOrder->group->id,
-                'id' => $this->prodOrder->id,
-            ]));
-
-            showSuccess('Order has been approved successfully.');
-        } catch (\Exception $e) {
-            showError($e->getMessage());
-        }
     }
 }

@@ -4,6 +4,7 @@ namespace App\Filament\Resources;
 
 use App\Enums\DurationUnit;
 use App\Enums\MeasureUnit;
+use App\Enums\ProdOrderStepStatus;
 use App\Enums\RoleType;
 use App\Filament\Resources\WorkStationResource\Pages;
 use App\Filament\Resources\WorkStationResource\RelationManagers;
@@ -60,7 +61,12 @@ class WorkStationResource extends Resource
                         ->options(function($record) {
                             /** @var Collection<ProdOrder> $orders */
                             $orders = ProdOrder::query()
-                                ->whereHas('currentStep', fn($q) => $q->where('work_station_id', $record?->id))
+                                ->whereHas(
+                                    'steps',
+                                    fn($query) => $query
+                                        ->whereNot('status', ProdOrderStepStatus::Completed)
+                                        ->where('work_station_id', $record?->id)
+                                )
                                 ->get();
 
                             $result = [];

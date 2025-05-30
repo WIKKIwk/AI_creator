@@ -2,6 +2,7 @@
 
 namespace App\Livewire\ProdOrder;
 
+use App\Enums\ProdOrderStepStatus;
 use Throwable;
 use App\Models\Product;
 use Livewire\Component;
@@ -28,6 +29,8 @@ class StepExecution extends Component implements HasForms, HasTable
     use InteractsWithForms;
 
     public ProdOrderStep $step;
+
+    protected $listeners = ['refresh-page' => '$refresh'];
 
     public function getExecutionForm(): array
     {
@@ -95,10 +98,20 @@ class StepExecution extends Component implements HasForms, HasTable
             ->headerActions([
                 CreateAction::make('add')
                     ->label('Add execution')
+                    ->hidden($this->step->status == ProdOrderStepStatus::Completed)
                     ->model(ProdOrderStepExecution::class)
                     ->form($this->getExecutionForm())
-                    ->action(function($data, $record, $livewire) {
-                        $this->onCreateExecution($data, $record, $livewire);
+                    ->action(function($data) {
+                        try {
+                            /** @var ProdOrderService $prodOrderService */
+                            $prodOrderService = app(ProdOrderService::class);
+                            $prodOrderService->createExecution($this->step, $data);
+
+                            showSuccess('Execution created successfully');
+                            $this->dispatch('refresh-page');
+                        } catch (Throwable $e) {
+                            showError($e->getMessage());
+                        }
                     })
                     ->icon('heroicon-o-plus'),
             ])
@@ -108,7 +121,7 @@ class StepExecution extends Component implements HasForms, HasTable
                     ->formatStateUsing(function(ProdOrderStepExecution $record) {
                         $result = "";
                         foreach ($record->materials as $material) {
-                            $result .= "{$material->product->catName} - {$material->used_quantity} {$material->product->getMeasureUnit()->getLabel()}<br>";
+                            $result .= "{$material->product->catName}: {$material->used_quantity} {$material->product->getMeasureUnit()->getLabel()}<br>";
                         }
                         return $result;
                     })
@@ -123,34 +136,43 @@ class StepExecution extends Component implements HasForms, HasTable
                     ->label('Executed by')
                     ->sortable()
                     ->searchable(),
+                TextColumn::make('approved_at')
+                    ->disabled(fn(ProdOrderStepExecution $record) => $record->approved_at)
+                    ->getStateUsing(function ($record) {
+                        if ($record->approved_at) {
+                            return '<span class="text-green-500">✔️</span>';
+                        }
+                        return '<span class="text-red-500">❌</span>';
+                    })
+                    ->html()
+                    ->sortable(),
             ])
             ->filters([
                 // ...
             ])
             ->actions([
                 Action::make('approve')
-                    ->hidden(fn(ProdOrderStepExecution $record) => $record->approved_at)
+                    ->hidden(function (ProdOrderStepExecution $record) {
+                        return $record->approved_at || $this->step->status == ProdOrderStepStatus::Completed;
+                    })
                     ->icon('heroicon-o-check')
                     ->requiresConfirmation()
+                    ->action(function($record) {
+                        /** @var ProdOrderService $prodOrderService */
+                        $prodOrderService = app(ProdOrderService::class);
+                        try {
+                            $prodOrderService->approveExecution($record);
+                            showSuccess('Execution approved successfully');
+                            $this->dispatch('refresh-page');
+                        } catch (Throwable $e) {
+                            showError($e->getMessage());
+                        }
+                    })
                     ->label('Approve')
             ])
             ->bulkActions([
                 // ...
             ]);
-    }
-
-    public function onCreateExecution(array $data, $record, self $livewire): void
-    {
-        try {
-            /** @var ProdOrderService $prodOrderService */
-            $prodOrderService = app(ProdOrderService::class);
-            $prodOrderService->createExecution($this->step, $data);
-
-            showSuccess('Execution created successfully');
-            $livewire->dispatch('$refresh');
-        } catch (Throwable $e) {
-            showError($e->getMessage());
-        }
     }
 
     public function onChangeAvailable(array $data, ProdOrderStepExecution $record, self $livewire): void

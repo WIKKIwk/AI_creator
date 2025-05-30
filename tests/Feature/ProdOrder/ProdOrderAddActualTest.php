@@ -118,7 +118,7 @@ class ProdOrderAddActualTest extends TestCase
         $this->assertEquals(10, $data['quantity']);
     }
 
-    public function test_change_actual_custom(): void
+    public function test_change_actual_custom1(): void
     {
         $anotherProduct = $this->createProduct(['name' => 'Another Product']);
 
@@ -194,6 +194,59 @@ class ProdOrderAddActualTest extends TestCase
                 'actual_quantity' => 0,
             ]);
         }
+    }
+
+    public function test_change_actual_custom2(): void
+    {
+        $anotherProduct = $this->createProduct(['name' => 'Another Product']);
+
+        /** @var ProdOrderStep $firstStep */
+        $firstStep = $this->prodOrder->steps()->create([
+            'sequence' => 1,
+            'work_station_id' => $this->workStationFirst->id,
+            'output_product_id' => $this->semiFinishedMaterial->id,
+            'expected_quantity' => 1,
+        ]);
+        $firstStep->materials()->create([
+            'product_id' => $anotherProduct->id,
+            'required_quantity' => 1,
+            'available_quantity' => 0,
+        ]);
+
+        $inventoryItem = $this->transactionService->addStock(
+            $anotherProduct->id,
+            18,
+            $this->prodOrder->getWarehouseId()
+        );
+
+        $miniInventory = $this->transactionService->addMiniStock(
+            $anotherProduct->id,
+            $miniStockQty = 2,
+            $firstStep->work_station_id,
+        );
+
+        $lackQuantity = $this->prodOrderService->changeMaterialAvailableExact(
+            $firstStep,
+            $anotherProduct->id,
+            $quantity = 18
+        );
+        $this->assertEquals(0, $lackQuantity);
+
+        $this->assertDatabaseHas('prod_order_step_products', [
+            'prod_order_step_id' => $firstStep->id,
+            'product_id' => $anotherProduct->id,
+            'required_quantity' => 1,
+            'available_quantity' => 18
+        ]);
+        $this->assertDatabaseHas('inventory_items', [
+            'id' => $inventoryItem->id,
+            'quantity' => 2
+        ]);
+        $this->assertDatabaseHas('mini_inventories', [
+            'work_station_id' => $this->workStationFirst->id,
+            'product_id' => $anotherProduct->id,
+            'quantity' => 18
+        ]);
     }
 
     /**

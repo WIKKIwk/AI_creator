@@ -9,6 +9,7 @@ use App\Events\ProdOrderChanged;
 use App\Filament\Resources\ProdOrderGroupResource;
 use App\Models\ProdOrder\ProdOrder;
 use App\Models\ProdOrder\ProdOrderGroup;
+use App\Models\ProdOrder\ProdOrderStep;
 use App\Models\Product;
 use App\Services\ProdOrderService;
 use Closure;
@@ -19,6 +20,7 @@ use Filament\Resources\RelationManagers\RelationManager;
 use Filament\Tables;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
+use RyanChandler\FilamentProgressColumn\ProgressColumn;
 use Throwable;
 
 class ProdOrdersRelationManager extends RelationManager
@@ -95,6 +97,13 @@ class ProdOrdersRelationManager extends RelationManager
                     })
                     ->sortable(),
                 Tables\Columns\TextColumn::make('offer_price'),
+                ProgressColumn::make('progress')
+                    ->width('150px')
+                    ->progress(function (ProdOrder $record) {
+                        /** @var ProdOrderStep $lastStep */
+                        $lastStep = $record->steps->last();
+                        return ($lastStep->output_quantity / $record->quantity) * 100;
+                    }),
                 Tables\Columns\TextColumn::make('status')
                     ->badge()
                     ->sortable(),

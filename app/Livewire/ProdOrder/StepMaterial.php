@@ -29,6 +29,8 @@ class StepMaterial extends Component implements HasForms, HasTable
 
     public ProdOrderStep $step;
 
+    protected $listeners = ['refresh-page' => '$refresh'];
+
     public function table(Table $table): Table
     {
         return $table
@@ -39,11 +41,19 @@ class StepMaterial extends Component implements HasForms, HasTable
                     ->with(['product.category'])
                     ->where('prod_order_step_id', $this->step->id)
             )
+            ->recordClasses(function (ProdOrderStepProduct $record) {
+                if ($record->required_quantity == $record->used_quantity) {
+                    return 'row-success';
+                }
+
+                return null;
+            })
             ->headerActions([
                 Action::make('add')
+                    ->hidden($this->step->status == ProdOrderStepStatus::Completed)
                     ->label('Add available')
                     ->form($this->changeAvailableForm())
-                    ->action(fn ($data, $record, $livewire) => $this->onChangeAvailable($data, $record, $livewire))
+                    ->action(fn ($data, $livewire) => $this->onChangeAvailable($data, $livewire))
                     ->icon('heroicon-o-plus'),
             ])
             ->columns([
@@ -75,7 +85,7 @@ class StepMaterial extends Component implements HasForms, HasTable
                 EditAction::make()
                     ->hidden(fn() => $this->step->status == ProdOrderStepStatus::Completed)
                     ->form($this->changeAvailableForm())
-                    ->action(fn ($data, $record, $livewire) => $this->onChangeAvailable($data, $record, $livewire))
+                    ->action(fn ($data, $livewire) => $this->onChangeAvailable($data, $livewire))
             ])
             ->bulkActions([
                 // ...
@@ -115,7 +125,7 @@ class StepMaterial extends Component implements HasForms, HasTable
         ];
     }
 
-    public function onChangeAvailable(array $data, ProdOrderStepProduct $record, self $livewire): void
+    public function onChangeAvailable(array $data, self $livewire): void
     {
         /** @var ProdOrderService $prodOrderService */
         $prodOrderService = app(ProdOrderService::class);

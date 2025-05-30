@@ -12,7 +12,6 @@
             @endphp
             <x-filament::tabs.item
                 :active="$step->id === $this->activeStep->id"
-                :disabled="$step->status !== ProdOrderStepStatus::Completed && $step->id != $this->currentStep->id"
                 wire:click="handleStepClick({{ $step->id }})"
             >
                 {{$step->workStation->name}}
@@ -21,31 +20,6 @@
                 endforeach
             @endphp
         </x-filament::tabs>
-
-
-        @if (
-            $this->currentStep->id == $this->activeStep->id &&
-            $this->prodOrder->status != OrderStatus::Approved
-        )
-
-            @if ($this->prodOrder->status != OrderStatus::Completed && $this->currentStep->status == ProdOrderStepStatus::Completed)
-                <x-filament::button
-                    x-on:click="if (confirm('Are you sure?')) { $wire.call('nextStep') }"
-                >
-                    {{ $this->lastStep?->id == $this->currentStep->id ? 'Complete order' : 'Next Step' }}
-                </x-filament::button>
-            @endif
-
-            @if ($this->prodOrder->status == OrderStatus::Completed)
-                <x-filament::button
-                    x-on:click="if (confirm('Are you sure?')) { $wire.call('approve') }"
-                >
-                    Approve order
-                </x-filament::button>
-            @endif
-
-        @endif
-
     </div>
 
     {{ $this->form }}
