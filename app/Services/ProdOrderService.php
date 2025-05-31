@@ -6,29 +6,25 @@ use App\Enums\DurationUnit;
 use App\Enums\OrderStatus;
 use App\Enums\ProdOrderStepProductStatus;
 use App\Enums\ProdOrderStepStatus;
-use App\Enums\RoleType;
-use App\Enums\TaskAction;
-use App\Models\Inventory\InventoryItem;
-use App\Models\Inventory\MiniInventory;
 use App\Models\PerformanceRate;
 use App\Models\ProdOrder\ProdOrder;
 use App\Models\ProdOrder\ProdOrderGroup;
 use App\Models\ProdOrder\ProdOrderStep;
+use App\Models\ProdOrder\ProdOrderStepExecution;
 use App\Models\ProdOrder\ProdOrderStepProduct;
 use App\Models\ProdTemplate\ProdTemplate;
 use App\Models\Product;
 use Exception;
-use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Facades\DB;
 use Throwable;
-use App\Models\ProdOrder\ProdOrderStepExecution;
 
 class ProdOrderService
 {
     public function __construct(
         protected TransactionService $transactionService,
-        protected InventoryService   $inventoryService,
-    ) {}
+        protected InventoryService $inventoryService,
+    ) {
+    }
 
     /**
      * @throws Exception
@@ -283,12 +279,13 @@ class ProdOrderService
                 $usedQuantity = $material['used_quantity'] ?? 0;
 
                 if (!$productId || $usedQuantity <= 0) {
-                    continue; // Skip invalid material
+                    throw new Exception('Invalid material data provided');
                 }
 
                 $poMaterial = $this->getExistedMaterial($poStep, $productId);
                 if ($poMaterial->available_quantity < $usedQuantity) {
-                    throw new Exception('Insufficient available quantity for product ID: ' . $productId);
+                    $product = Product::query()->find($productId);
+                    throw new Exception('Insufficient available quantity for product: ' . $product->catName);
                 }
 
                 // Create execution material record
@@ -468,11 +465,11 @@ class ProdOrderService
             $quantityPerUnit = $rate->quantity / $rate->duration;
 
             $quantityPerDay = match ($rate->duration_unit) {
-                DurationUnit::Hour  => $quantityPerUnit * 12,
-                DurationUnit::Day   => $quantityPerUnit,
-                DurationUnit::Week  => $quantityPerUnit / 7,
+                DurationUnit::Hour => $quantityPerUnit * 12,
+                DurationUnit::Day => $quantityPerUnit,
+                DurationUnit::Week => $quantityPerUnit / 7,
                 DurationUnit::Month => $quantityPerUnit / 30,
-                DurationUnit::Year  => $quantityPerUnit / 365,
+                DurationUnit::Year => $quantityPerUnit / 365,
             };
 
             $totalDays += ceil($step->expected_quantity / $quantityPerDay);

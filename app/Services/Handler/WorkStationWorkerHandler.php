@@ -26,26 +26,29 @@ class WorkStationWorkerHandler extends BaseHandler
         'main' => 'main',
         'addExecution' => 'addExecution',
         'addExecutionQty' => 'addExecutionQty',
+        'inputOutputQty' => 'inputOutputQty',
+        'inputNotes' => 'inputNotes',
     ];
 
     protected const templates = [
         'addExecution' => <<<HTML
 Current production order: <b>{prodOrder}</b>
 Production product: <b>{product}</b>
+Progress: <b>{progress}</b>
 
 Expected output product: <b>{expectedMaterial}</b>
+Produced output product: <b>{producedMaterial}</b>
 
 Using materials:
 {usingMaterials}
-
 Choose the material to execute:
 HTML,
 
-        'addExecutionMaterialQty' => <<<HTML
+        'addExecutionForm' => <<<HTML
 {errorMsg}
 
 {executionDetails}
-Input used quantity for <b>{product}</b>:
+{prompt}
 HTML,
     ];
 
@@ -58,9 +61,6 @@ HTML,
         $this->prodOrderService = app(ProdOrderService::class);
     }
 
-    /**
-     * @throws GuzzleException
-     */
     public function validateUser(User $user): bool
     {
         if (!$user->work_station_id) {
@@ -103,18 +103,24 @@ HTML,
     public function handleText(string $text): void
     {
         $activeState = $this->cache->get($this->getCacheKey('state'));
-
         if ($activeState === self::states['addExecutionQty']) {
-            $this->addExecutionQtyText();
+            $this->addExecutionQtyText($text);
+            return;
+        }
+
+        if ($activeState === self::states['inputOutputQty']) {
+            $this->inputOutputQtyText($text);
+            return;
+        }
+
+        if ($activeState === self::states['inputNotes']) {
+            $this->inputNotesText($text);
             return;
         }
 
         $this->sendMainMenu();
     }
 
-    /**
-     * @throws GuzzleException
-     */
     public function addExecution(): void
     {
         if (!$this->user->workStation->prodOrder) {
@@ -131,152 +137,279 @@ HTML,
         $this->tgBot->answerCbQuery();
         $this->cache->put($this->getCacheKey('state'), self::states['addExecution']);
 
-        $res = $this->tgBot->answerMsg([
+        $this->tgBot->sendRequestAsync('editMessageText', [
+            'chat_id' => $this->tgBot->chatId,
             'text' => strtr(self::templates['addExecution'], $this->getAddExecutionPlaceholders()),
+            'message_id' => $this->tgBot->getMessageId(),
             'parse_mode' => 'HTML',
             'reply_markup' => TelegramService::getInlineKeyboard(
                 array_merge($this->getMaterialsKb(), [
-                    [
-                        ['text' => '🚫 Cancel', 'callback_data' => 'cancelAddExecution']
-                    ]
+                    [['text' => '🚫 Cancel', 'callback_data' => 'cancelAddExecution']]
                 ])
             )
         ]);
-        $msgId = Arr::get($res, 'result.message_id');
-        $this->cache->put($this->getCacheKey('edit_msg_id'), $msgId);
     }
 
-    public function addExecutionMaterialCallback($id): void
+    public function addExecutionMaterialCallback($materialId): void
     {
-        $currentMaterial = $this->getActualMaterial($id);
-        $step = $this->getStep();
-        $form = json_decode($this->cache->get($this->getCacheKey('addExecutionForm')), true) ?? [];
+        $material = $this->getActualMaterial($materialId);
 
-        $this->cache->put($this->getCacheKey('addExecutionForm'), '{}');
-        $this->cache->put($this->getCacheKey('state'), 'addExecutionMaterialQty');
-
-        $executionDetails = "";
-        $materials = $form['materials'] ?? [];
-        $outputQty = $form['output_qty'] ?? 0;
-
-        if (!empty($materials)) {
-            $executionDetails .= "<b>Used materials:</b>\n";
-            foreach ($materials as $productId => $usedQty) {
-                /** @var Product $product */
-                $product = Product::query()->find($productId);
-                $executionDetails .= "\n<b>$product->catName</b>: {$usedQty} {$product->getMeasureUnit()->getLabel()}\n";
-            }
-        }
-        $executionDetails .= "Output product: <b>{$step->outputProduct->catName} $outputQty {$step->outputProduct->getMeasureUnit()->getLabel()}</b>\n";
+        $this->cache->put($this->getCacheKey('executionMaterial'), $materialId);
+        $this->cache->put($this->getCacheKey('state'), self::states['addExecutionQty']);
 
         $this->tgBot->sendRequestAsync('editMessageText', [
             'chat_id' => $this->tgBot->chatId,
             'message_id' => $this->tgBot->getMessageId(),
-            'text' => strtr(self::templates['addExecutionMaterialQty'], [
+            'text' => strtr(self::templates['addExecutionForm'], [
                 '{errorMsg}' => '',
-                '{executionDetails}' => $executionDetails,
-                '{product}' => $currentMaterial->product->catName,
+                '{executionDetails}' => $this->getExecutionDetails(),
+                '{prompt}' => "🔢 Enter quantity for <b>{$material->product->catName}:</b>",
             ]),
             'parse_mode' => 'HTML',
-            'reply_markup' => TelegramService::getInlineKeyboard(
-                array_merge($this->getMaterialsKb(), [
-                    [
-                        ['text' => '🚫 Cancel', 'callback_data' => 'cancelAddExecution']
-                    ]
-                ])
-            )
+            'reply_markup' => TelegramService::getInlineKeyboard([
+                [['text' => '🚫 Cancel', 'callback_data' => 'cancelAddExecution']]
+            ])
         ]);
+        $this->cache->put($this->getCacheKey('edit_msg_id'), $this->tgBot->getMessageId());
     }
 
-    public function addExecutionQtyText(): void
+    public function addExecutionQtyText($quantity): void
     {
-        $actualMaterial = $this->getActualMaterialFromCache();
-        $quantity = $this->tgBot->getText();
+        $materialId = $this->cache->get($this->getCacheKey('executionMaterial'));
+        $material = $this->getActualMaterial($materialId);
 
         // check quantity is integer
         if (!is_numeric($quantity) || $quantity <= 0) {
             $this->tgBot->sendRequestAsync('editMessageText', [
                 'chat_id' => $this->tgBot->chatId,
                 'message_id' => $this->cache->get($this->getCacheKey('edit_msg_id')),
-                'text' => strtr(self::templates['completeMaterialInput'], [
-                    '{errorMsg}' => "<i>Invalid quantity. Please enter a valid number.</i>",
-                    '{actualUsedMaterials}' => $this->getActualMaterialsStr(),
-                    '{product}' => $actualMaterial->product->catName,
+                'text' => strtr(self::templates['addExecutionForm'], [
+                    '{errorMsg}' => '<i>❌ Invalid quantity. Please enter a valid number.</i>',
+                    '{executionDetails}' => $this->getExecutionDetails(),
+                    '{prompt}' => "🔢 Enter quantity for <b>{$material->product->catName}:</b>",
                 ]),
                 'parse_mode' => 'HTML',
-                'reply_markup' => TelegramService::getInlineKeyboard(
-                    array_merge($this->getActualMaterialButtons(), [
-                        [
-                            ['text' => '🚫 Cancel', 'callback_data' => 'cancelCompleteMaterial'],
-                            ['text' => '✅ Save', 'callback_data' => 'saveCompleteMaterial'],
-                        ]
-                    ])
-                )
+                'reply_markup' => TelegramService::getInlineKeyboard([
+                    [['text' => '🚫 Cancel', 'callback_data' => 'cancelAddExecution']],
+                ]),
             ]);
             return;
         }
 
+        $form = json_decode($this->cache->get($this->getCacheKey('addExecutionForm')), true) ?? [];
+        $form['materials'][$material->product_id] = (float)$quantity;
+
+        $this->cache->put($this->getCacheKey('addExecutionForm'), json_encode($form));
+        $this->cache->forget($this->getCacheKey('executionMaterial'));
+        $this->cache->put($this->getCacheKey('state'), self::states['addExecution']);
+
         $this->tgBot->sendRequestAsync('editMessageText', [
             'chat_id' => $this->tgBot->chatId,
             'message_id' => $this->cache->get($this->getCacheKey('edit_msg_id')),
-            'text' => strtr(self::templates['completeMaterialInput'], [
+            'text' => strtr(self::templates['addExecutionForm'], [
                 '{errorMsg}' => '',
-                '{actualUsedMaterials}' => $this->getActualMaterialsStr(),
-                '{product}' => $actualMaterial->product->catName,
+                '{executionDetails}' => $this->getExecutionDetails(),
+                '{prompt}' => "✅ Material added! Choose next one or finish:",
             ]),
             'parse_mode' => 'HTML',
             'reply_markup' => TelegramService::getInlineKeyboard(
-                array_merge($this->getActualMaterialButtons(), [
+                array_merge($this->getMaterialsKb(), [
                     [
-                        ['text' => '🚫 Cancel', 'callback_data' => 'cancelCompleteMaterial'],
-                        ['text' => '✅ Save', 'callback_data' => 'saveCompleteMaterial'],
+                        ['text' => '🚫 Cancel', 'callback_data' => 'cancelAddExecution'],
+                        ['text' => '✅ Finish Materials', 'callback_data' => 'finishMaterials']
                     ]
                 ])
             )
         ]);
     }
 
-    public function cancelAddExecution(): void
+    public function finishMaterials(): void
     {
-        $this->cache->forget($this->getCacheKey('state'));
-        $this->cache->forget($this->getCacheKey('completeMaterial'));
-        $this->cache->forget($this->getCacheKey('completeMaterialQty'));
-        $this->cache->forget($this->getCacheKey('edit_msg_id'));
+        $this->cache->put($this->getCacheKey('state'), self::states['inputOutputQty']);
 
-        $this->tgBot->answerCbQuery([
-            'text' => "Operation cancelled.",
-            'reply_markup' => $this->getMainKb(),
+        $this->tgBot->sendRequestAsync('editMessageText', [
+            'chat_id' => $this->tgBot->chatId,
+            'message_id' => $this->tgBot->getMessageId(),
+            'text' => strtr(self::templates['addExecutionForm'], [
+                '{errorMsg}' => '',
+                '{executionDetails}' => $this->getExecutionDetails(),
+                '{prompt}' => "📦 Please enter the output quantity:",
+            ]),
+            'parse_mode' => 'HTML',
+            'reply_markup' => TelegramService::getInlineKeyboard([
+                [['text' => '🚫 Cancel', 'callback_data' => 'cancelAddExecution']]
+            ])
         ]);
-
-        $this->sendMainMenu();
     }
 
-    public function saveCompleteMaterial(): void
+    public function inputOutputQtyText($quantity): void
     {
-        $formData = json_decode($this->cache->get($this->getCacheKey('completeMaterial')), true) ?? [];
-        $actualUsedMaterials = $this->getStep()
-            ->actualItems()
-            ->get();
-
-        foreach ($actualUsedMaterials as $actualUsedMaterial) {
-            $properQty = Arr::get($formData, $actualUsedMaterial->id);
-            if (empty($properQty)) {
-                $properQty = $actualUsedMaterial->quantity;
-            }
-            $actualUsedMaterial->update(['quantity' => $properQty]);
+        if (!is_numeric($quantity) || $quantity <= 0) {
+            $this->tgBot->sendRequestAsync('editMessageText', [
+                'chat_id' => $this->tgBot->chatId,
+                'message_id' => $this->cache->get($this->getCacheKey('edit_msg_id')),
+                'text' => strtr(self::templates['addExecutionForm'], [
+                    '{errorMsg}' => '<i>❌ Invalid quantity. Please enter a valid number.</i>',
+                    '{executionDetails}' => $this->getExecutionDetails(),
+                    '{prompt}' => "📦 Please enter the output quantity:",
+                ]),
+                'parse_mode' => 'HTML',
+                'reply_markup' => TelegramService::getInlineKeyboard([
+                    [['text' => '🚫 Cancel', 'callback_data' => 'cancelAddExecution']],
+                ]),
+            ]);
+            return;
         }
 
+        $form = json_decode($this->cache->get($this->getCacheKey('addExecutionForm')), true) ?? [];
+        $form['output_qty'] = (int)$quantity;
+        $this->cache->put($this->getCacheKey('addExecutionForm'), json_encode($form));
+
+        $this->cache->put($this->getCacheKey('state'), self::states['inputNotes']);
+
+        $this->tgBot->sendRequestAsync('editMessageText', [
+            'chat_id' => $this->tgBot->chatId,
+            'message_id' => $this->cache->get($this->getCacheKey('edit_msg_id')),
+            'text' => strtr(self::templates['addExecutionForm'], [
+                '{errorMsg}' => '',
+                '{executionDetails}' => $this->getExecutionDetails(),
+                '{prompt}' => "📄 Please enter any additional notes:",
+            ]),
+            'parse_mode' => 'HTML',
+            'reply_markup' => TelegramService::getInlineKeyboard([
+                [['text' => '🚫 Cancel', 'callback_data' => 'cancelAddExecution']],
+            ]),
+        ]);
+    }
+
+    protected function inputNotesText(string $text): void
+    {
+        $form = json_decode($this->cache->get($this->getCacheKey('addExecutionForm')), true) ?? [];
+        $form['notes'] = $text === '-' ? '' : $text;
+        $this->cache->put($this->getCacheKey('addExecutionForm'), json_encode($form));
+
+        // Save or forward to next logic
         $this->cache->forget($this->getCacheKey('state'));
-        $this->cache->forget($this->getCacheKey('completeMaterial'));
-        $this->cache->forget($this->getCacheKey('completeMaterialQty'));
+
+        $this->tgBot->sendRequestAsync('editMessageText', [
+            'chat_id' => $this->tgBot->chatId,
+            'message_id' => $this->cache->get($this->getCacheKey('edit_msg_id')),
+            'text' => strtr(self::templates['addExecutionForm'], [
+                '{errorMsg}' => '',
+                '{executionDetails}' => $this->getExecutionDetails(),
+                '{prompt}' => "✅ Execution form complete.",
+            ]),
+            'parse_mode' => 'HTML',
+            'reply_markup' => TelegramService::getInlineKeyboard([
+                [
+                    ['text' => '🚫 Cancel', 'callback_data' => 'cancelAddExecution'],
+                    ['text' => '✅ Save', 'callback_data' => 'saveAddExecution'],
+                ]
+            ]),
+        ]);
+    }
+
+    public function saveAddExecution(): void
+    {
+        $form = json_decode($this->cache->get($this->getCacheKey('addExecutionForm')), true) ?? [];
+        $materials = $form['materials'] ?? [];
+        $resultMaterials = [];
+        foreach ($materials as $productId => $qty) {
+            $resultMaterials[] = ['product_id' => $productId, 'used_quantity' => $qty];
+        }
+
+        $resultForm = [
+            'materials' => $resultMaterials,
+            'output_quantity' => $form['output_qty'] ?? 0,
+            'notes' => $form['notes'] ?? '',
+        ];
+
+        try {
+            $this->prodOrderService->createExecution($this->getStep(), $resultForm);
+
+            $this->tgBot->sendRequestAsync('editMessageText', [
+                'chat_id' => $this->tgBot->chatId,
+                'message_id' => $this->cache->get($this->getCacheKey('edit_msg_id')),
+                'text' => strtr(self::templates['addExecutionForm'], [
+                    '{errorMsg}' => '',
+                    '{executionDetails}' => $this->getExecutionDetails(),
+                    '{prompt}' => "✅ Execution saved successfully!",
+                ]),
+                'parse_mode' => 'HTML'
+            ]);
+
+            $this->cancelAddExecution(false);
+
+            $this->tgBot->answerCbQuery([
+                'text' => "✅ Execution saved successfully!",
+                'show_alert' => false,
+            ]);
+
+            $this->sendMainMenu();
+
+        } catch (Throwable $e) {
+            $this->tgBot->sendRequestAsync('editMessageText', [
+                'chat_id' => $this->tgBot->chatId,
+                'message_id' => $this->cache->get($this->getCacheKey('edit_msg_id')),
+                'text' => strtr(self::templates['addExecutionForm'], [
+                    '{errorMsg}' => '<i>❌ Error saving execution: ' . $e->getMessage() . '</i>',
+                    '{executionDetails}' => $this->getExecutionDetails(),
+                    '{prompt}' => '',
+                ]),
+                'parse_mode' => 'HTML',
+                'reply_markup' => TelegramService::getInlineKeyboard([
+                    [
+                        ['text' => '🚫 Cancel', 'callback_data' => 'cancelAddExecution'],
+                        ['text' => '✅ Save again', 'callback_data' => 'saveAddExecution'],
+                    ]
+                ]),
+            ]);
+        }
+    }
+
+    public function cancelAddExecution($withResponse = true): void
+    {
+        $this->cache->forget($this->getCacheKey('state'));
+        $this->cache->forget($this->getCacheKey('executionMaterial'));
+        $this->cache->forget($this->getCacheKey('addExecutionForm'));
         $this->cache->forget($this->getCacheKey('edit_msg_id'));
 
-        $this->tgBot->answerCbQuery([
-            'text' => "Actual materials saved successfully.",
-            'reply_markup' => $this->getMainKb(),
-        ]);
+        if ($withResponse) {
+            $this->tgBot->answerCbQuery([
+                'text' => "Operation cancelled.",
+                'reply_markup' => $this->getMainKb(),
+            ]);
+            $this->tgBot->sendRequestAsync('deleteMessage', [
+                'chat_id' => $this->tgBot->chatId,
+                'message_id' => $this->tgBot->getMessageId(),
+            ]);
+            $this->sendMainMenu();
+        }
+    }
 
-        $this->sendMainMenu();
+    protected function getExecutionDetails(): string
+    {
+        $step = $this->getStep();
+        $form = json_decode($this->cache->get($this->getCacheKey('addExecutionForm')), true) ?? [];
+
+        $executionDetails = "<b>Execution details:</b>\n\n";
+        $materials = $form['materials'] ?? [];
+        $outputQty = $form['output_qty'] ?? 0;
+        $notes = $form['notes'] ?? '-';
+
+        if (!empty($materials)) {
+            $executionDetails .= "<b>Used materials:</b>\n";
+            foreach ($materials as $productId => $usedQty) {
+                /** @var Product $product */
+                $product = Product::query()->find($productId);
+                $executionDetails .= "<b>$product->catName</b>: {$usedQty} {$product->getMeasureUnit()->getLabel()}\n";
+            }
+        }
+        $executionDetails .= "\nOutput product: <b>{$step->outputProduct->catName}</b>\n";
+        $executionDetails .= "Output quantity: <b>$outputQty {$step->outputProduct->getMeasureUnit()->getLabel()}</b>\n";
+        $executionDetails .= "Notes: <b>$notes</b>\n";
+
+        return $executionDetails;
     }
 
     protected function getAddExecutionPlaceholders(): array
@@ -293,32 +426,16 @@ HTML,
             $usingMaterials .= "Used: <b>$material->used_quantity $measureUnit</b>\n";
         }
 
+        $outputMeasureUnit =  $prodOrder->product->category?->measure_unit?->getLabel();
+
         return [
             '{prodOrder}' => $this->user->workStation->prodOrder->number,
             '{product}' => $prodOrder->product->catName . " ({$prodOrder->quantity} {$prodOrder->product->category?->measure_unit?->getLabel()})",
-            '{expectedMaterial}' => "{$step->outputProduct->catName} ({$step->expected_quantity} {$step->outputProduct->category?->measure_unit?->getLabel()})",
+            '{progress}' => "{$prodOrder->getProgress()}%",
+            '{expectedMaterial}' => "{$step->outputProduct->catName} ($step->expected_quantity $outputMeasureUnit)",
+            '{producedMaterial}' => "{$step->outputProduct->catName} ($step->output_quantity $outputMeasureUnit)",
             '{usingMaterials}' => $usingMaterials,
         ];
-    }
-
-    protected function getActualMaterialsStr(): string
-    {
-        $step = $this->getStep();
-
-        $formData = json_decode($this->cache->get($this->getCacheKey('completeMaterial')), true) ?? [];
-        /** @var Collection<ProdOrderStepProduct> $actualMaterials */
-        $actualMaterials = $step->actualItems()->get();
-        $actualMaterialsStr = "";
-        foreach ($actualMaterials as $actualMaterial) {
-            $properQty = Arr::get($formData, $actualMaterial->id);
-            if (empty($properQty)) {
-                $properQty = $actualMaterial->required_quantity;
-            }
-            $measureUnit = $actualMaterial->product->category?->measure_unit?->getLabel();
-            $actualMaterialsStr .= "{$actualMaterial->product->catName}: $properQty $measureUnit (available: $actualMaterial->available_quantity $measureUnit)\n";
-        }
-
-        return $actualMaterialsStr;
     }
 
     protected function getStep(): ?ProdOrderStep

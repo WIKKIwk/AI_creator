@@ -13,16 +13,26 @@ class ProductionManagerHandler extends BaseHandler
 {
     protected User $user;
     protected array $promises = [];
+    protected ProdOrderService $prodOrderService;
 
     protected const states = [
-        'main' => 'main',
+        'prodOrderGroup_selectType' => 'prodOrderGroup_selectType',
+        'prodOrderGroup_inputWarehouse' => 'prodOrderGroup_inputWarehouse',
+        'prodOrderGroup_inputAgent' => 'prodOrderGroup_inputAgent',
+        'prodOrderGroup_inputDeadline' => 'prodOrderGroup_inputDeadline',
+        'prodOrderGroup_addProduct' => 'prodOrderGroup_addProduct',
+        'prodOrderGroup_inputQuantity' => 'prodOrderGroup_inputQuantity',
+        'prodOrderGroup_inputOfferPrice' => 'prodOrderGroup_inputOfferPrice',
+        'prodOrderGroup_confirm' => 'prodOrderGroup_confirm',
     ];
 
     protected const templates = [
-
+        'prodOrderGroup' => <<<HTML
+{errorMsg}
+<b>Production Order Group</b>
+{prompt}
+HTML,
     ];
-
-    protected ProdOrderService $prodOrderService;
 
     public function __construct(TgBot $tgBot, Cache $cache)
     {
@@ -63,6 +73,26 @@ class ProductionManagerHandler extends BaseHandler
         ]);
     }
 
+    public function createProdOrder(): void
+    {
+        $this->cache->put($this->getCacheKey('state'), 'createProdOrderGroup_type');
+        $this->tgBot->answerMsg([
+            'chat_id' => $this->tgBot->chatId,
+            'text' => "Select the type of ProdOrderGroup:",
+            'reply_markup' => [
+                'inline_keyboard' => [
+                    [
+                        ['text' => 'ByOrder', 'callback_data' => 'type_ByOrder'],
+                        ['text' => 'ByCatalog', 'callback_data' => 'type_ByCatalog']
+                    ],
+                    [
+                        ['text' => '🚫 Cancel', 'callback_data' => 'cancelProdOrderGroup']
+                    ]
+                ]
+            ]
+        ]);
+    }
+
     public function sendMainMenu(): void
     {
         $msg = self::getUserDetailsMsg($this->user);
@@ -83,23 +113,16 @@ HTML,
     {
         $activeState = $this->cache->get($this->getCacheKey('state'));
 
-        if ($activeState === self::states['main']) {
-//            $this->completeMaterialText();
-            return;
-        }
-
         $this->sendMainMenu();
     }
 
     protected function getMainKb(): array
     {
         return TelegramService::getInlineKeyboard([
-            /*[
-                ['text' => '🛠 Use materials', 'callback_data' => 'completeMaterial']
-            ],
             [
-                ['text' => '✅ Complete work', 'callback_data' => 'completeWork']
-            ],*/
+                ['text' => '🛠 Create ProdOrder', 'callback_data' => 'createProdOrder'],
+                ['text' => '📋 ProdOrders List', 'callback_data' => 'prodOrdersList'],
+            ]
         ]);
     }
 }

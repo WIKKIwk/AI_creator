@@ -136,4 +136,11 @@ class ProdOrder extends Model
     {
         return $this->group->warehouse_id;
     }
+
+    public function getProgress(): float
+    {
+        /** @var ProdOrderStep $lastStep */
+        $lastStep = $this->steps->last();
+        return round(($lastStep->output_quantity / $this->quantity) * 100);
+    }
 }

@@ -96,24 +96,24 @@ class StepExecution extends Component implements HasForms, HasTable
                     ->where('prod_order_step_id', $this->step->id)
             )
             ->headerActions([
-                CreateAction::make('add')
-                    ->label('Add execution')
-                    ->hidden($this->step->status == ProdOrderStepStatus::Completed)
-                    ->model(ProdOrderStepExecution::class)
-                    ->form($this->getExecutionForm())
-                    ->action(function($data) {
-                        try {
-                            /** @var ProdOrderService $prodOrderService */
-                            $prodOrderService = app(ProdOrderService::class);
-                            $prodOrderService->createExecution($this->step, $data);
-
-                            showSuccess('Execution created successfully');
-                            $this->dispatch('refresh-page');
-                        } catch (Throwable $e) {
-                            showError($e->getMessage());
-                        }
-                    })
-                    ->icon('heroicon-o-plus'),
+//                CreateAction::make('add')
+//                    ->label('Add execution')
+//                    ->hidden($this->step->status == ProdOrderStepStatus::Completed)
+//                    ->model(ProdOrderStepExecution::class)
+//                    ->form($this->getExecutionForm())
+//                    ->action(function($data) {
+//                        try {
+//                            /** @var ProdOrderService $prodOrderService */
+//                            $prodOrderService = app(ProdOrderService::class);
+//                            $prodOrderService->createExecution($this->step, $data);
+//
+//                            showSuccess('Execution created successfully');
+//                            $this->dispatch('refresh-page');
+//                        } catch (Throwable $e) {
+//                            showError($e->getMessage());
+//                        }
+//                    })
+//                    ->icon('heroicon-o-plus'),
             ])
             ->columns([
                 TextColumn::make('materials')
