@@ -4,6 +4,8 @@ namespace App\Services\Handler;
 
 use App\Models\User;
 use App\Services\Cache\Cache;
+use App\Services\Handler\Interface\HandlerInterface;
+use App\Services\Handler\Interface\SceneHandlerInterface;
 use App\Services\TgBot\TgBot;
 use Exception;
 use GuzzleHttp\Exception\GuzzleException;
@@ -15,7 +17,7 @@ class BaseHandler implements HandlerInterface
 
     protected User $user;
 
-    public function __construct(protected TgBot $tgBot, protected Cache $cache)
+    public function __construct(public TgBot $tgBot, public Cache $cache)
     {
     }
 
@@ -33,6 +35,11 @@ class BaseHandler implements HandlerInterface
 
         $this->user = $user;
         $this->tgBot->setUpdate($update);
+
+        if ($this->tgBot->update['inline_query'] ?? false) {
+            $this->handleInlineQuery($this->tgBot->update['inline_query']);
+            return;
+        }
 
         $input = $this->tgBot->input;
 
@@ -61,6 +68,11 @@ class BaseHandler implements HandlerInterface
         }
 
         $this->tgBot->settlePromises();
+    }
+
+    public function handleInlineQuery($inlineQuery): void
+    {
+        //
     }
 
     public function handleStart(): void
@@ -106,30 +118,80 @@ HTML,
      */
     public function handleCbQuery(string $cbData): void
     {
-        if (preg_match('/^(.*)_(\d+)$/', $cbData, $matches)) {
-            $base = $matches[1];   // e.g., 'completeMaterial'
-            $id = (int)$matches[2]; // e.g., 98
+        $params = [];
+        $methodName = $cbData;
+        if (preg_match('/^(.*):(.+)$/', $cbData, $matches)) {
+            $methodName = $matches[1]; // e.g., 'completeMaterial'
+            $params[] = $matches[2];
+        }
 
-            $callback = $base . 'Callback';
-            if (method_exists($this, $callback)) {
-                call_user_func([$this, $callback], $id);
-            } else {
-                throw new Exception("Method '$callback' does not exist.");
-            }
-
+        $activeSceneHandler = $this->getActiveSceneHandler($this->getScene());
+        if ($activeSceneHandler && method_exists($activeSceneHandler, $methodName)) {
+            call_user_func([$activeSceneHandler, $methodName], ...$params);
             return;
         }
 
-
-        if (method_exists($this, $cbData)) {
-            call_user_func([$this, $cbData]);
-        } else {
-            $this->tgBot->answerCbQuery(['text' => "Invalid callback data."]);
+        if (method_exists($this, $methodName)) {
+            call_user_func([$this, $methodName], ...$params);
+            return;
         }
+
+        $this->tgBot->answerCbQuery(['text' => 'Invalid callback data.']);
     }
 
     public function handleText(string $text): void
     {
         //
+    }
+
+    public function getActiveSceneHandler($scene = null): ?SceneHandlerInterface
+    {
+        return null;
+    }
+
+    public function getState(): ?string
+    {
+        return $this->cache->get($this->getCacheKey('state'));
+    }
+
+    public function setState(string $state): void
+    {
+        $this->cache->put($this->getCacheKey('state'), $state);
+    }
+
+    public function getScene(): ?string
+    {
+        return $this->cache->get($this->getCacheKey('scene'));
+    }
+
+    public function setScene(string $scene): void
+    {
+        $this->cache->put($this->getCacheKey('scene'), $scene);
+    }
+
+    public function setCache(string $key, mixed $value): void
+    {
+        $this->cache->put($this->getCacheKey($key), $value);
+    }
+
+    public function getCache(string $key): mixed
+    {
+        return $this->cache->get($this->getCacheKey($key));
+    }
+
+    public function forgetCache(string $key): void
+    {
+        $this->cache->forget($this->getCacheKey($key));
+    }
+
+    public function setCacheArray(string $key, array $value): void
+    {
+        $this->cache->put($this->getCacheKey($key), json_encode($value));
+    }
+
+    public function getCacheArray(string $key): ?array
+    {
+        $value = $this->cache->get($this->getCacheKey($key));
+        return $value ? json_decode($value, true) : null;
     }
 }

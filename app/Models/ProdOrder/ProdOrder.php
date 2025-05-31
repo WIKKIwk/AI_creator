@@ -67,10 +67,10 @@ class ProdOrder extends Model
     protected static function booted(): void
     {
         self::creating(function (ProdOrder $model) {
-            $model->number = 'PO-' . $model->group->organization->code . $model->product->code . now()->format('dmy');
+            $model->number = 'PO-' . $model->group?->organization?->code . $model->product->code . now()->format('dmy');
         });
         static::updating(function (ProdOrder $model) {
-            $model->number = 'PO-' . $model->group->organization->code . $model->product->code . now()->format('dmy');
+            $model->number = 'PO-' . $model->group?->organization?->code . $model->product->code . now()->format('dmy');
         });
     }
 
@@ -126,10 +126,12 @@ class ProdOrder extends Model
 
     public function confirm(): void
     {
-        $this->update([
-            'confirmed_at' => now(),
-            'confirmed_by' => auth()->user()->id,
-        ]);
+        if (!$this->confirmed_at) {
+            $this->update([
+                'confirmed_at' => now(),
+                'confirmed_by' => auth()->user()->id,
+            ]);
+        }
     }
 
     public function getWarehouseId(): int
@@ -141,6 +143,11 @@ class ProdOrder extends Model
     {
         /** @var ProdOrderStep $lastStep */
         $lastStep = $this->steps->last();
-        return round(($lastStep->output_quantity / $this->quantity) * 100);
+        return $lastStep ? round($lastStep->output_quantity / $this->quantity * 100) : 0;
+    }
+
+    public function isConfirmed(): bool
+    {
+        return !!$this->confirmed_at;
     }
 }

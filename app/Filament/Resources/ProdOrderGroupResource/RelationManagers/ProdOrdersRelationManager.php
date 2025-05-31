@@ -90,6 +90,7 @@ class ProdOrdersRelationManager extends RelationManager
                 ]);
             })
             ->columns([
+                Tables\Columns\TextColumn::make('number'),
                 Tables\Columns\TextColumn::make('product.catName'),
                 Tables\Columns\TextColumn::make('quantity')
                     ->formatStateUsing(function ($record) {
@@ -99,11 +100,7 @@ class ProdOrdersRelationManager extends RelationManager
                 Tables\Columns\TextColumn::make('offer_price'),
                 ProgressColumn::make('progress')
                     ->width('150px')
-                    ->progress(function (ProdOrder $record) {
-                        /** @var ProdOrderStep $lastStep */
-                        $lastStep = $record->steps->last();
-                        return ($lastStep->output_quantity / $record->quantity) * 100;
-                    }),
+                    ->progress(fn (ProdOrder $record) => $record->getProgress()),
                 Tables\Columns\TextColumn::make('status')
                     ->badge()
                     ->sortable(),
@@ -210,6 +207,7 @@ class ProdOrdersRelationManager extends RelationManager
                     ->requiresConfirmation(),
 
                 Tables\Actions\EditAction::make()
+                    ->visible(fn($record) => $record->status == OrderStatus::Pending)
                     ->mutateFormDataUsing(function (array $data): array {
                         /** @var ProdOrderGroup $prodOrderGroup */
                         $prodOrderGroup = $this->getOwnerRecord();

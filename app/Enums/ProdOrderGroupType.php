@@ -11,6 +11,14 @@ enum ProdOrderGroupType: int implements HasLabel, HasColor, HasIcon
     case ByOrder = 1;
     case ByCatalog = 2;
 
+    public function getKey(): string
+    {
+        return match ($this) {
+            self::ByOrder => 'ByOrder',
+            self::ByCatalog => 'ByCatalog',
+        };
+    }
+
     public function getLabel(): string
     {
         return match ($this) {
@@ -31,7 +39,7 @@ enum ProdOrderGroupType: int implements HasLabel, HasColor, HasIcon
     {
         return match ($this) {
             self::ByOrder => 'heroicon-o-document-text',
-            self::ByCatalog => 'heroicon-o-collection',
+            self::ByCatalog => 'heroicon-o-calendar-days',
         };
     }
 }

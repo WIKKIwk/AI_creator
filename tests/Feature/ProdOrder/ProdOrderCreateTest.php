@@ -1,0 +1,92 @@
+<?php
+
+namespace ProdOrder;
+
+use App\Enums\OrderStatus;
+use App\Enums\ProdOrderGroupType;
+use App\Enums\ProdOrderStepProductStatus;
+use App\Enums\ProdOrderStepStatus;
+use App\Enums\SupplyOrderState;
+use App\Models\ProdOrder\ProdOrder;
+use App\Models\Product;
+use App\Models\ProductCategory;
+use App\Services\ProdOrderService;
+use App\Services\TransactionService;
+use App\Services\WorkStationService;
+use Exception;
+use Tests\Feature\Traits\HasProdOrder;
+use Tests\Feature\Traits\HasProdTemplate;
+use Tests\TestCase;
+
+class ProdOrderCreateTest extends TestCase
+{
+    protected ProdOrder $prodOrder;
+
+    protected function setUp(): void
+    {
+        parent::setUp();
+
+        $this->actingAs($this->user);
+    }
+
+    public function test_create_by_form(): void
+    {
+        /*
+         * 'type' => 'required|in:' . ProdOrderGroupType::ByOrder->value . ',' . ProdOrderGroupType::ByCatalog->value,
+            'warehouse_id' => 'required|exists:warehouses,id',
+            'organization_id' => 'nullable|exists:organizations,id',
+            'deadline' => 'nullable|date|after_or_equal:today',
+            'products' => 'required|array',
+            'products.*.product_id' => 'required|exists:products,id',
+            'products.*.quantity' => 'required|numeric|min:1',
+            'products.*.offer_price' => 'numeric',*/
+
+        $product1 = $this->createProduct();
+        $product2 = $this->createProduct();
+
+        $formData = [
+            'type' => ProdOrderGroupType::ByOrder->value,
+            'warehouse_id' => $this->warehouse->id,
+            'organization_id' => $this->organization->id,
+//            'deadline' => now()->addDays(7)->format('Y-m-d'),
+            'products' => [
+                [
+                    'product_id' => $product1->id,
+                    'quantity' => 10,
+                    'offer_price' => 100,
+                ],
+                [
+                    'product_id' => $product2->id,
+                    'quantity' => 5,
+                    'offer_price' => 50,
+                ],
+            ],
+        ];
+
+        $poGroup = $this->prodOrderService->createProdOrderByForm($formData);
+
+        $this->assertDatabaseHas('prod_order_groups', [
+            'id' => $poGroup->id,
+            'type' => ProdOrderGroupType::ByOrder->value,
+            'warehouse_id' => $this->warehouse->id,
+            'organization_id' => $this->organization->id,
+        ]);
+
+        $this->assertDatabaseHas('prod_orders', [
+            'number' => 'PO-' . $this->organization->code . $product1->code . now()->format('dmy'),
+            'group_id' => $poGroup->id,
+            'status' => OrderStatus::Pending->value,
+            'product_id' => $product1->id,
+            'quantity' => 10,
+            'offer_price' => 100,
+        ]);
+        $this->assertDatabaseHas('prod_orders', [
+            'number' => 'PO-' . $this->organization->code . $product2->code . now()->format('dmy'),
+            'group_id' => $poGroup->id,
+            'status' => OrderStatus::Pending->value,
+            'product_id' => $product2->id,
+            'quantity' => 5,
+            'offer_price' => 50,
+        ]);
+    }
+}

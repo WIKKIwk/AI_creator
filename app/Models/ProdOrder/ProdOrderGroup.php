@@ -60,4 +60,26 @@ class ProdOrderGroup extends Model
     {
         return $this->hasMany(ProdOrder::class, 'group_id');
     }
+
+    public function getProgress(): float
+    {
+        $totalProgress = 0;
+        foreach ($this->prodOrders as $prodOrder) {
+            $totalProgress += $prodOrder->getProgress();
+        }
+
+        return $totalProgress / max($this->prodOrders->count(), 1);
+    }
+
+    public function isConfirmed(): bool
+    {
+        return $this->prodOrders->every(fn(ProdOrder $order) => $order->isConfirmed());
+    }
+
+    public function confirm(): void
+    {
+        foreach ($this->prodOrders as $prodOrder) {
+            $prodOrder->confirm();
+        }
+    }
 }

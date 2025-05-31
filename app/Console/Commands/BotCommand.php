@@ -81,6 +81,7 @@ class BotCommand extends Command
 
                 $this->handleUpdate($update);
             } catch (Throwable $e) {
+                dump($e->getMessage(), $e->getLine(), $e->getFile());
                 $this->error($e->getMessage() . " Line: {$e->getLine()}, File: {$e->getFile()}");
             }
         }

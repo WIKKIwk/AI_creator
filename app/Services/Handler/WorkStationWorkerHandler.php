@@ -102,7 +102,7 @@ HTML,
 
     public function handleText(string $text): void
     {
-        $activeState = $this->cache->get($this->getCacheKey('state'));
+        $activeState = $this->getState();;
         if ($activeState === self::states['addExecutionQty']) {
             $this->addExecutionQtyText($text);
             return;
@@ -124,7 +124,7 @@ HTML,
     public function addExecution(): void
     {
         if (!$this->user->workStation->prodOrder) {
-            $this->tgBot->answerCbQuery(['text' => "No production order assigned to your work station."]);
+            $this->tgBot->answerCbQuery(['text' => 'No production order assigned to your work station.']);
             return;
         }
 
@@ -135,12 +135,12 @@ HTML,
         }
 
         $this->tgBot->answerCbQuery();
-        $this->cache->put($this->getCacheKey('state'), self::states['addExecution']);
+        $this->setState(self::states['addExecution']);
 
         $this->tgBot->sendRequestAsync('editMessageText', [
             'chat_id' => $this->tgBot->chatId,
-            'text' => strtr(self::templates['addExecution'], $this->getAddExecutionPlaceholders()),
             'message_id' => $this->tgBot->getMessageId(),
+            'text' => strtr(self::templates['addExecution'], $this->getAddExecutionPlaceholders()),
             'parse_mode' => 'HTML',
             'reply_markup' => TelegramService::getInlineKeyboard(
                 array_merge($this->getMaterialsKb(), [
@@ -155,7 +155,7 @@ HTML,
         $material = $this->getActualMaterial($materialId);
 
         $this->cache->put($this->getCacheKey('executionMaterial'), $materialId);
-        $this->cache->put($this->getCacheKey('state'), self::states['addExecutionQty']);
+        $this->setState(self::states['addExecutionQty']);
 
         $this->tgBot->sendRequestAsync('editMessageText', [
             'chat_id' => $this->tgBot->chatId,
@@ -201,7 +201,7 @@ HTML,
 
         $this->cache->put($this->getCacheKey('addExecutionForm'), json_encode($form));
         $this->cache->forget($this->getCacheKey('executionMaterial'));
-        $this->cache->put($this->getCacheKey('state'), self::states['addExecution']);
+        $this->setState(self::states['addExecution']);
 
         $this->tgBot->sendRequestAsync('editMessageText', [
             'chat_id' => $this->tgBot->chatId,
@@ -225,7 +225,7 @@ HTML,
 
     public function finishMaterials(): void
     {
-        $this->cache->put($this->getCacheKey('state'), self::states['inputOutputQty']);
+        $this->setState(self::states['inputOutputQty']);
 
         $this->tgBot->sendRequestAsync('editMessageText', [
             'chat_id' => $this->tgBot->chatId,
@@ -265,7 +265,7 @@ HTML,
         $form['output_qty'] = (int)$quantity;
         $this->cache->put($this->getCacheKey('addExecutionForm'), json_encode($form));
 
-        $this->cache->put($this->getCacheKey('state'), self::states['inputNotes']);
+        $this->setState(self::states['inputNotes']);
 
         $this->tgBot->sendRequestAsync('editMessageText', [
             'chat_id' => $this->tgBot->chatId,
@@ -325,7 +325,7 @@ HTML,
         ];
 
         try {
-            $this->prodOrderService->createExecution($this->getStep(), $resultForm);
+            $this->prodOrderService->createExecutionByForm($this->getStep(), $resultForm);
 
             $this->tgBot->sendRequestAsync('editMessageText', [
                 'chat_id' => $this->tgBot->chatId,
@@ -340,10 +340,7 @@ HTML,
 
             $this->cancelAddExecution(false);
 
-            $this->tgBot->answerCbQuery([
-                'text' => "✅ Execution saved successfully!",
-                'show_alert' => false,
-            ]);
+            $this->tgBot->answerCbQuery(['text' => '✅ Execution saved successfully!']);
 
             $this->sendMainMenu();
 
@@ -392,24 +389,24 @@ HTML,
         $step = $this->getStep();
         $form = json_decode($this->cache->get($this->getCacheKey('addExecutionForm')), true) ?? [];
 
-        $executionDetails = "<b>Execution details:</b>\n\n";
+        $result = "<b>Execution details:</b>\n\n";
         $materials = $form['materials'] ?? [];
         $outputQty = $form['output_qty'] ?? 0;
         $notes = $form['notes'] ?? '-';
 
         if (!empty($materials)) {
-            $executionDetails .= "<b>Used materials:</b>\n";
+            $result .= "<b>Used materials:</b>\n";
             foreach ($materials as $productId => $usedQty) {
                 /** @var Product $product */
                 $product = Product::query()->find($productId);
-                $executionDetails .= "<b>$product->catName</b>: {$usedQty} {$product->getMeasureUnit()->getLabel()}\n";
+                $result .= "<b>$product->catName</b>: {$usedQty} {$product->getMeasureUnit()->getLabel()}\n";
             }
         }
-        $executionDetails .= "\nOutput product: <b>{$step->outputProduct->catName}</b>\n";
-        $executionDetails .= "Output quantity: <b>$outputQty {$step->outputProduct->getMeasureUnit()->getLabel()}</b>\n";
-        $executionDetails .= "Notes: <b>$notes</b>\n";
+        $result .= "\nOutput product: <b>{$step->outputProduct->catName}</b>\n";
+        $result .= "Output quantity: <b>$outputQty {$step->outputProduct->getMeasureUnit()->getLabel()}</b>\n";
+        $result .= "Notes: <b>$notes</b>\n";
 
-        return $executionDetails;
+        return $result;
     }
 
     protected function getAddExecutionPlaceholders(): array
@@ -463,7 +460,7 @@ HTML,
         foreach ($actualMaterials as $actualMaterial) {
             $buttons[][] = [
                 'text' => $actualMaterial->product->catName,
-                'callback_data' => "addExecutionMaterial_{$actualMaterial->id}",
+                'callback_data' => "addExecutionMaterial:$actualMaterial->id",
             ];
         }
         return $buttons;

@@ -6,13 +6,17 @@ use App\Enums\ProdOrderGroupType;
 use App\Enums\RoleType;
 use App\Filament\Resources\ProdOrderGroupResource\Pages;
 use App\Filament\Resources\ProdOrderGroupResource\RelationManagers\ProdOrdersRelationManager;
+use App\Models\ProdOrder\ProdOrder;
 use App\Models\ProdOrder\ProdOrderGroup;
+use App\Models\ProdOrder\ProdOrderStep;
 use Filament\Forms;
 use Filament\Forms\Components\Grid;
 use Filament\Forms\Form;
 use Filament\Resources\Resource;
 use Filament\Tables;
 use Filament\Tables\Table;
+use RyanChandler\FilamentProgressColumn\ProgressColumn;
+use Throwable;
 
 class ProdOrderGroupResource extends Resource
 {
@@ -66,6 +70,7 @@ class ProdOrderGroupResource extends Resource
     public static function table(Table $table): Table
     {
         return $table
+            ->defaultSort('created_at', 'desc')
             ->columns([
                 Tables\Columns\TextColumn::make('id')
                     ->label('ID')
@@ -84,6 +89,25 @@ class ProdOrderGroupResource extends Resource
                     ->sortable()
                     ->searchable()
                     ->toggleable(),
+                Tables\Columns\TextColumn::make('deadline')
+                    ->label('Deadline')
+                    ->sortable()
+                    ->toggleable()
+                    ->date(),
+
+                ProgressColumn::make('progress')
+                    ->width('150px')
+                    ->progress(fn (ProdOrderGroup $record) => $record->getProgress()),
+
+                Tables\Columns\TextColumn::make('confirmed_at')
+                    ->getStateUsing(function (ProdOrderGroup $record) {
+                        if ($record->isConfirmed()) {
+                            return '<span class="text-green-500">✔️</span>';
+                        }
+                        return '<span class="text-red-500">❌</span>';
+                    })
+                    ->html()
+                    ->sortable(),
                 Tables\Columns\TextColumn::make('created_at')
                     ->dateTime()
                     ->sortable()
@@ -94,6 +118,23 @@ class ProdOrderGroupResource extends Resource
                 //
             ])
             ->actions([
+                Tables\Actions\Action::make('confirm')
+                    ->label('Confirm')
+                    ->visible(fn($record) => !$record->confirmed_at && in_array(auth()->user()->role, [
+                            RoleType::ADMIN,
+                            RoleType::PLANNING_MANAGER,
+                            RoleType::PRODUCTION_MANAGER,
+                        ]))
+                    ->action(function (ProdOrderGroup $record, $livewire) {
+                        try {
+                            $record->confirm();
+                            showSuccess('Order confirmed successfully');
+                        } catch (Throwable $e) {
+                            showError($e->getMessage());
+                        }
+                        $livewire->dispatch('$refresh');
+                    })
+                    ->requiresConfirmation(),
                 Tables\Actions\EditAction::make(),
             ])
             ->bulkActions([

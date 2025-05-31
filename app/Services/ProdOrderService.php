@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Enums\DurationUnit;
 use App\Enums\OrderStatus;
+use App\Enums\ProdOrderGroupType;
 use App\Enums\ProdOrderStepProductStatus;
 use App\Enums\ProdOrderStepStatus;
 use App\Models\PerformanceRate;
@@ -16,6 +17,7 @@ use App\Models\ProdTemplate\ProdTemplate;
 use App\Models\Product;
 use Exception;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Validator;
 use Throwable;
 
 class ProdOrderService
@@ -259,7 +261,64 @@ class ProdOrderService
     /**
      * @throws Exception
      */
-    public function createExecution(ProdOrderStep $poStep, array $data): void
+    public function createProdOrderByForm(array $data): ProdOrderGroup
+    {
+        $validator = Validator::make($data, [
+            'type' => 'required|in:' . ProdOrderGroupType::ByOrder->value . ',' . ProdOrderGroupType::ByCatalog->value,
+            'warehouse_id' => 'required|exists:warehouses,id',
+            'organization_id' => 'nullable|exists:organizations,id',
+            'deadline' => 'nullable|date|after_or_equal:today',
+            'products' => 'required|array',
+            'products.*.product_id' => 'required|exists:products,id',
+            'products.*.quantity' => 'required|numeric|min:1',
+            'products.*.offer_price' => 'numeric',
+        ]);
+
+        if ($validator->fails()) {
+            throw new Exception('Validation failed: ' . implode(', ', $validator->errors()->all()));
+        }
+
+        try {
+            DB::beginTransaction();
+
+            $warehouseId = $data['warehouse_id'];
+
+            /** @var ProdOrderGroup $prodOrderGroup */
+            $prodOrderGroup = ProdOrderGroup::query()->create([
+                'type' => $data['type'],
+                'warehouse_id' => $warehouseId,
+                'organization_id' => $data['organization_id'] ?? null,
+                'deadline' => $data['deadline'] ?? null,
+                'created_by' => auth()->user()->id,
+            ]);
+
+            $products = $data['products'] ?? [];
+            foreach ($products as $productData) {
+                $productId = $productData['product_id'];
+
+                /** @var ProdOrder $prodOrder */
+                $prodOrderGroup->prodOrders()->create([
+                    'product_id' => $productId,
+                    'quantity' => $productData['quantity'],
+                    'offer_price' => $productData['offer_price'] ?? 0,
+                    'status' => OrderStatus::Pending,
+                    'deadline' => $this->calculateDeadline($productId),
+                    'total_cost' => $this->calculateTotalCost($productId, $warehouseId)
+                ]);
+            }
+
+            DB::commit();
+            return $prodOrderGroup;
+        } catch (Throwable $e) {
+            DB::rollBack();
+            throw new Exception($e->getMessage());
+        }
+    }
+
+    /**
+     * @throws Exception
+     */
+    public function createExecutionByForm(ProdOrderStep $poStep, array $data): void
     {
         $materials = $data['materials'] ?? [];
         $outputQuantity = $data['output_quantity'] ?? 0;
@@ -426,22 +485,6 @@ class ProdOrderService
         return $prodTemplate;
     }
 
-    public function confirmOrderGroup(ProdOrderGroup $prodOrderGroup): void
-    {
-        foreach ($prodOrderGroup->prodOrders as $prodOrder) {
-            $this->confirmOrder($prodOrder);
-        }
-    }
-
-    public function confirmOrder(ProdOrder $prodOrder): void
-    {
-        if (!$prodOrder->confirmed_at) {
-            $prodOrder->confirmed_at = now();
-            $prodOrder->confirmed_by = auth()->user()->id;
-            $prodOrder->save();
-        }
-    }
-
     public function getOrderGroupById($id): ?ProdOrderGroup
     {
         /** @var ProdOrderGroup $order */
@@ -453,6 +496,9 @@ class ProdOrderService
     {
         /** @var ProdTemplate $prodTemplate */
         $prodTemplate = ProdTemplate::query()->where('product_id', $productId)->first();
+        if (!$prodTemplate) {
+            return null;
+        }
 
         $totalDays = 0;
         foreach ($prodTemplate->steps as $step) {
@@ -482,6 +528,9 @@ class ProdOrderService
     {
         /** @var ProdTemplate $prodTemplate */
         $prodTemplate = ProdTemplate::query()->where('product_id', $productId)->first();
+        if (!$prodTemplate) {
+            return null;
+        }
 
         $totalCost = 0;
         foreach ($prodTemplate->steps as $step) {

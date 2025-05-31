@@ -125,4 +125,9 @@ class CreateProdOrderGroup extends CreateRecord
                 ]),
             ]);
     }
+
+    protected function getRedirectUrl(): string
+    {
+        return $this->getResource()::getUrl('edit', ['record' => $this->record]);
+    }
 }

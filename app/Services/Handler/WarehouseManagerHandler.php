@@ -81,7 +81,7 @@ HTML,
     public function handleText(string $text): void
     {
         $chatId = $this->tgBot->chatId;
-        $activeState = $this->cache->get($this->getCacheKey('state'));
+        $activeState = $this->getState();;
         dump("Active state: $activeState");
 
         if ($activeState === self::states['addRawMaterial']) {
@@ -98,7 +98,7 @@ HTML,
 
     public function addRawMaterial(): void
     {
-        $this->cache->put($this->getCacheKey('state'), self::states['addRawMaterial']);
+        $this->setState(self::states['addRawMaterial']);
 
         $res = $this->tgBot->answerMsg([
             'text' => strtr(self::templates['addRawMaterial'], [
