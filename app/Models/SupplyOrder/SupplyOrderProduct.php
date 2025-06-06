@@ -12,6 +12,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * @property int $supply_order_id
  * @property int $product_id
  * @property double $expected_quantity
+ * @property double $price
  * @property double $actual_quantity
  *
  * @property SupplyOrder $supplyOrder

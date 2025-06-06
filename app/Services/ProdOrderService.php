@@ -261,7 +261,7 @@ class ProdOrderService
     /**
      * @throws Exception
      */
-    public function createProdOrderByForm(array $data): ProdOrderGroup
+    public function createOrderByForm(array $data): ProdOrderGroup
     {
         $validator = Validator::make($data, [
             'type' => 'required|in:' . ProdOrderGroupType::ByOrder->value . ',' . ProdOrderGroupType::ByCatalog->value,
@@ -283,8 +283,8 @@ class ProdOrderService
 
             $warehouseId = $data['warehouse_id'];
 
-            /** @var ProdOrderGroup $prodOrderGroup */
-            $prodOrderGroup = ProdOrderGroup::query()->create([
+            /** @var ProdOrderGroup $poGroup */
+            $poGroup = ProdOrderGroup::query()->create([
                 'type' => $data['type'],
                 'warehouse_id' => $warehouseId,
                 'organization_id' => $data['organization_id'] ?? null,
@@ -292,12 +292,11 @@ class ProdOrderService
                 'created_by' => auth()->user()->id,
             ]);
 
-            $products = $data['products'] ?? [];
-            foreach ($products as $productData) {
+            foreach ($data['products'] as $productData) {
                 $productId = $productData['product_id'];
 
                 /** @var ProdOrder $prodOrder */
-                $prodOrderGroup->prodOrders()->create([
+                $poGroup->prodOrders()->create([
                     'product_id' => $productId,
                     'quantity' => $productData['quantity'],
                     'offer_price' => $productData['offer_price'] ?? 0,
@@ -308,7 +307,7 @@ class ProdOrderService
             }
 
             DB::commit();
-            return $prodOrderGroup;
+            return $poGroup;
         } catch (Throwable $e) {
             DB::rollBack();
             throw new Exception($e->getMessage());
@@ -320,6 +319,18 @@ class ProdOrderService
      */
     public function createExecutionByForm(ProdOrderStep $poStep, array $data): void
     {
+        $validator = Validator::make($data, [
+            'materials' => 'required|array',
+            'materials.*.product_id' => 'required|exists:products,id',
+            'materials.*.used_quantity' => 'required|numeric|min:1',
+            'output_quantity' => 'required|numeric|min:1',
+            'notes' => 'nullable|string|max:255',
+        ]);
+
+        if ($validator->fails()) {
+            throw new Exception('Validation failed: ' . implode(', ', $validator->errors()->all()));
+        }
+
         $materials = $data['materials'] ?? [];
         $outputQuantity = $data['output_quantity'] ?? 0;
 
@@ -502,15 +513,14 @@ class ProdOrderService
 
         $totalDays = 0;
         foreach ($prodTemplate->steps as $step) {
-            /** @var PerformanceRate $rate */
-            $rate = $step->workStation->performanceRates()->where('product_id', $step->output_product_id)->first();
-            if (!$rate) {
+            $workStation = $step->workStation;
+            if (!$workStation->performance_duration) {
                 continue;
             }
 
-            $quantityPerUnit = $rate->quantity / $rate->duration;
+            $quantityPerUnit = $workStation->performance_qty / $workStation->performance_duration;
 
-            $quantityPerDay = match ($rate->duration_unit) {
+            $quantityPerDay = match ($workStation->performance_duration_unit) {
                 DurationUnit::Hour => $quantityPerUnit * 12,
                 DurationUnit::Day => $quantityPerUnit,
                 DurationUnit::Week => $quantityPerUnit / 7,

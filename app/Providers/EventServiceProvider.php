@@ -3,9 +3,11 @@
 namespace App\Providers;
 
 use App\Events\ProdOrderChanged;
+use App\Events\SupplyOrderChanged;
 use App\Events\SupplyOrderClosed;
 use App\Listeners\ProdOrderNotification;
 use App\Listeners\SupplyOrderAfterClose;
+use App\Listeners\SupplyOrderNotification;
 use Illuminate\Auth\Events\Registered;
 use Illuminate\Auth\Listeners\SendEmailVerificationNotification;
 use Illuminate\Foundation\Support\Providers\EventServiceProvider as ServiceProvider;
@@ -23,6 +25,9 @@ class EventServiceProvider extends ServiceProvider
         ],
         ProdOrderChanged::class => [
             ProdOrderNotification::class
+        ],
+        SupplyOrderChanged::class => [
+            SupplyOrderNotification::class
         ],
         SupplyOrderClosed::class => [
             SupplyOrderAfterClose::class

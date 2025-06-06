@@ -4,6 +4,7 @@ namespace SupplyOrder;
 
 use App\Enums\OrderStatus;
 use App\Enums\ProdOrderStepStatus;
+use App\Models\Inventory\Inventory;
 use App\Models\ProdOrder\ProdOrder;
 use App\Models\ProdOrder\ProdOrderStep;
 use App\Models\ProdOrder\ProdOrderStepProduct;
@@ -79,23 +80,27 @@ class SupplyOrderCloseTest extends TestCase
                 'product_id' => $product1->id,
                 'expected_quantity' => 10,
                 'actual_quantity' => 10,
+                'price' => 120,
             ],
             [
                 'product_id' => $product2->id,
                 'expected_quantity' => 5,
                 'actual_quantity' => 5,
+                'price' => 35,
             ]
         ]);
 
         $this->supplyOrderService->closeOrder($supplyOrder);
 
         $inventory1 = $this->getInventory($product1);
+        $this->assertEquals(12, $inventory1->unit_cost);
         $this->assertDatabaseHas('inventory_items', [
             'inventory_id' => $inventory1->id,
             'quantity' => 10,
         ]);
 
         $inventory2 = $this->getInventory($product2);
+        $this->assertEquals(7, $inventory2->unit_cost);
         $this->assertDatabaseHas('inventory_items', [
             'inventory_id' => $inventory2->id,
             'quantity' => 5,

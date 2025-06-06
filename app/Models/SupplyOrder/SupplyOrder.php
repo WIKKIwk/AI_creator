@@ -29,8 +29,8 @@ use Illuminate\Support\Carbon;
  * @property SupplyOrderState $state
  * @property string $status
  * @property int $created_by
- * @property int $created_at
- * @property int $updated_at
+ * @property Carbon $created_at
+ * @property Carbon $updated_at
  *
  * @property Carbon $confirmed_at
  * @property int $confirmed_by
@@ -190,5 +190,20 @@ class SupplyOrder extends Model
             return $state;
         }
         return "$state: $status";
+    }
+
+    public function isConfirmed(): bool
+    {
+        return !!$this->confirmed_at;
+    }
+
+    public function confirm(): void
+    {
+        if (!$this->confirmed_at) {
+            $this->update([
+                'confirmed_at' => now(),
+                'confirmed_by' => auth()->user()->id,
+            ]);
+        }
     }
 }

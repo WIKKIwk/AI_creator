@@ -124,6 +124,11 @@ class ProdOrder extends Model
         return $this->hasMany(SupplyOrder::class, 'prod_order_id');
     }
 
+    public function isConfirmed(): bool
+    {
+        return !!$this->confirmed_at;
+    }
+
     public function confirm(): void
     {
         if (!$this->confirmed_at) {
@@ -144,10 +149,5 @@ class ProdOrder extends Model
         /** @var ProdOrderStep $lastStep */
         $lastStep = $this->steps->last();
         return $lastStep ? round($lastStep->output_quantity / $this->quantity * 100) : 0;
-    }
-
-    public function isConfirmed(): bool
-    {
-        return !!$this->confirmed_at;
     }
 }

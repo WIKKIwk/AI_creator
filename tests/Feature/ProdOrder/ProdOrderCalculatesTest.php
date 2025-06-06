@@ -93,42 +93,33 @@ class ProdOrderCalculatesTest extends TestCase
             'organization_id' => $this->organization->id,
         ]);
 
-        /** @var ProdTemplateStep $firstStep */
-        $firstStep = $prodTemplate->steps()->create([
+        $prodTemplate->steps()->create([
             'sequence' => 1,
             'work_station_id' => $this->workStationFirst->id,
             'output_product_id' => $productOne->id,
             'expected_quantity' => $qtyOne = 120,
         ]);
-        PerformanceRate::query()->create([
-            'work_station_id' => $this->workStationFirst->id,
-            'product_id' => $productOne->id,
-            'quantity' => 300,
-            'duration' => 30,
-            'duration_unit' => DurationUnit::Day
+        $this->workStationFirst->update([
+            'performance_qty' => 100,
+            'performance_duration' => 1,
+            'performance_duration_unit' => DurationUnit::Month
         ]);
+        $firstExpected = ceil($qtyOne / (100 / 30));
 
-        $firstExpected = ceil($qtyOne / (300 / 30));
-
-        /** @var ProdTemplateStep $secondStep */
-        $secondStep = $prodTemplate->steps()->create([
+        $prodTemplate->steps()->create([
             'sequence' => 1,
             'work_station_id' => $this->workStationSecond->id,
             'output_product_id' => $productTwo->id,
             'expected_quantity' => $qtyTwo = 100,
         ]);
-        PerformanceRate::query()->create([
-            'work_station_id' => $this->workStationSecond->id,
-            'product_id' => $productTwo->id,
-            'quantity' => 370,
-            'duration' => 5,
-            'duration_unit' => DurationUnit::Week
+        $this->workStationSecond->update([
+            'performance_qty' => 450,
+            'performance_duration' => 5,
+            'performance_duration_unit' => DurationUnit::Week
         ]);
-        $secondExpected = ceil($qtyTwo / (370 / 5 / 7));
+        $secondExpected = ceil($qtyTwo / (450 / 5 / 7));
 
-        $expectedDeadline = $firstExpected + $secondExpected;
         $result = $this->prodOrderService->calculateDeadline($readyProduct->id);
-
-        $this->assertEquals($expectedDeadline, $result);
+        $this->assertEquals($firstExpected + $secondExpected, $result);
     }
 }

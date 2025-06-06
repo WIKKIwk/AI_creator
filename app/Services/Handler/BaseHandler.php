@@ -15,7 +15,9 @@ class BaseHandler implements HandlerInterface
 {
     use HandlerTrait;
 
-    protected User $user;
+    public User $user;
+    protected array $sceneHandlers = [];
+    protected array $callbackRegistry = [];
 
     public function __construct(public TgBot $tgBot, public Cache $cache)
     {
@@ -72,20 +74,140 @@ class BaseHandler implements HandlerInterface
 
     public function handleInlineQuery($inlineQuery): void
     {
-        //
+        $sceneHandler = $this->getSceneHandler();
+        if ($sceneHandler && method_exists($sceneHandler, 'handleInlineQuery')) {
+            call_user_func([$sceneHandler, 'handleInlineQuery'], $inlineQuery);
+            return;
+        }
+
+        $this->tgBot->answerInlineQuery([
+            'results' => [],
+            'cache_time' => 0,
+            'is_personal' => true,
+        ]);
     }
 
     public function handleStart(): void
     {
+        $this->sendMainMenu();
+    }
+
+    public function handleHelp(): void
+    {
+        $this->tgBot->answerMsg(['text' => "What do you need help with?"]);
+    }
+
+    /**
+     * @throws GuzzleException
+     * @throws Exception
+     */
+    public function handleCbQuery(string $cbData): void
+    {
+        $params = [];
+        $method = $cbData;
+        if (preg_match('/^(.*):(.+)$/', $cbData, $matches)) {
+            $method = $matches[1]; // e.g., 'completeMaterial'
+            $params[] = $matches[2];
+        }
+
+        dump("Handling callback: $method with params: " . json_encode($params));
+
+        $activeSceneHandler = $this->getSceneHandler();
+        if ($activeSceneHandler && method_exists($activeSceneHandler, $method)) {
+            call_user_func([$activeSceneHandler, $method], ...$params);
+            return;
+        }
+
+        if (array_key_exists($method, $this->callbackRegistry)) {
+            $this->dispatchCallback($method, $params);
+            return;
+        }
+
+        $sceneHandler = $this->getSceneHandler($method);
+        if ($sceneHandler) {
+            $this->setScene($method);
+            call_user_func([$sceneHandler, 'handleScene'], ...$params);
+            return;
+        }
+
+        if (method_exists($this, $method)) {
+            call_user_func([$this, $method], ...$params);
+            return;
+        }
+
+        $this->tgBot->answerCbQuery(['text' => 'Invalid callback data.']);
+    }
+
+    public function handleText(string $text): void
+    {
+        if ($sceneHandler = $this->getSceneHandler()) {
+            $sceneHandler->handleText($text);
+            return;
+        }
+
+        $this->tgBot->rmLastMsg();
+        $this->sendMainMenu();
+    }
+
+    public function backMainMenu(): void
+    {
+        $this->tgBot->answerCbQuery();
+        $this->setScene('');
+        $this->sendMainMenu(true);
+    }
+
+    protected function getSceneHandler($scene = null): ?SceneHandlerInterface
+    {
+        $scene = $scene ?: $this->getScene();
+        if (!$scene) {
+            return null;
+        }
+
+        $sceneClass = $this->sceneHandlers[$scene] ?? null;
+        if (!$sceneClass || !class_exists($sceneClass)) {
+            return null;
+        }
+
+        return new $sceneClass($this);
+    }
+
+    /**
+     * @throws Exception
+     */
+    public function dispatchCallback(string $method, array $params = []): void
+    {
+        [$class, $action] = $this->callbackRegistry[$method];
+
+        // Pass the bot handler as context
+        $cbHandler = new $class($this);
+        if (!method_exists($cbHandler, $action)) {
+            throw new Exception("Method $action not found in class $class");
+        }
+
+        call_user_func_array([$cbHandler, $action], $params);
+    }
+
+    public function sendMainMenu($edit = false): void
+    {
         $msg = self::getUserDetailsMsg($this->user);
-        $this->tgBot->answerMsg([
+
+        $params = [
+            'chat_id' => $this->tgBot->chatId,
             'text' => <<<HTML
 <b>Your details:</b>
 
 $msg
 HTML,
+            'reply_markup' => $this->getMainKb(),
             'parse_mode' => 'HTML',
-        ]);
+        ];
+
+        if ($edit) {
+            $params['message_id'] = $this->tgBot->getMessageId();
+            $this->tgBot->sendRequestAsync('editMessageText', $params);
+        } else {
+            $this->tgBot->sendRequestAsync('sendMessage', $params);
+        }
     }
 
     public static function getUserDetailsMsg(User $user): string
@@ -105,48 +227,6 @@ HTML,
         }
 
         return $message;
-    }
-
-    public function handleHelp(): void
-    {
-        //
-    }
-
-    /**
-     * @throws GuzzleException
-     * @throws Exception
-     */
-    public function handleCbQuery(string $cbData): void
-    {
-        $params = [];
-        $methodName = $cbData;
-        if (preg_match('/^(.*):(.+)$/', $cbData, $matches)) {
-            $methodName = $matches[1]; // e.g., 'completeMaterial'
-            $params[] = $matches[2];
-        }
-
-        $activeSceneHandler = $this->getActiveSceneHandler($this->getScene());
-        if ($activeSceneHandler && method_exists($activeSceneHandler, $methodName)) {
-            call_user_func([$activeSceneHandler, $methodName], ...$params);
-            return;
-        }
-
-        if (method_exists($this, $methodName)) {
-            call_user_func([$this, $methodName], ...$params);
-            return;
-        }
-
-        $this->tgBot->answerCbQuery(['text' => 'Invalid callback data.']);
-    }
-
-    public function handleText(string $text): void
-    {
-        //
-    }
-
-    public function getActiveSceneHandler($scene = null): ?SceneHandlerInterface
-    {
-        return null;
     }
 
     public function getState(): ?string

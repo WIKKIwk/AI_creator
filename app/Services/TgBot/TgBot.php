@@ -91,9 +91,6 @@ class TgBot
         ]));
     }
 
-    /**
-     * @throws GuzzleException
-     */
     public function answerCbQuery(array $params = [], bool $async = false)
     {
         $method = $async ? 'sendRequestAsync' : 'sendRequest';

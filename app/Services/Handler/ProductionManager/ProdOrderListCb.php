@@ -5,22 +5,16 @@ namespace App\Services\Handler\ProductionManager;
 use App\Listeners\ProdOrderNotification;
 use App\Models\ProdOrder\ProdOrderGroup;
 use App\Services\Cache\Cache;
-use App\Services\Handler\Interface\SceneHandlerInterface;
 use App\Services\ProdOrderService;
 use App\Services\TelegramService;
 use App\Services\TgBot\TgBot;
 
-class ProdOrderListScene implements SceneHandlerInterface
+class ProdOrderListCb
 {
     protected TgBot $tgBot;
     protected Cache $cache;
 
     protected ProdOrderService $prodOrderService;
-
-    public const states = [
-        'prodOrder_prev' => 'prodOrder_prev',
-        'prodOrder_next' => 'prodOrder_next',
-    ];
 
     public function __construct(protected ProductionManagerHandler $handler)
     {
@@ -30,73 +24,47 @@ class ProdOrderListScene implements SceneHandlerInterface
         $this->prodOrderService = app(ProdOrderService::class);
     }
 
-    public function handleScene(): void
+    public function confirmOrder($groupId): void
     {
-        $this->prodOrderList();
-    }
-
-    public function prodOrderPrev($page): void
-    {
-        if ($page <= 0) {
-            $this->tgBot->answerCbQuery(['text' => 'You are on the first page']);
-            return;
-        }
-
-        $this->prodOrderList($page);
-    }
-
-    public function prodOrderNext($page): void
-    {
-        $totalOrders = ProdOrderGroup::query()->count();
-        if ($page > $totalOrders) {
-            $this->tgBot->answerCbQuery(['text' => 'You are on the last page']);
-            return;
-        }
-
-        $this->prodOrderList($page);
-    }
-
-    public function confirmListOrder($groupId): void
-    {
-        /** @var ProdOrderGroup $prodOrderGroup */
-        $prodOrderGroup = ProdOrderGroup::find($groupId);
-        if (!$prodOrderGroup) {
+        /** @var ProdOrderGroup $poGroup */
+        $poGroup = ProdOrderGroup::find($groupId);
+        if (!$poGroup) {
             $this->tgBot->answerCbQuery(['text' => 'ProdOrder not found']);
             return;
         }
 
-        if ($prodOrderGroup->isConfirmed()) {
+        if ($poGroup->isConfirmed()) {
             $this->tgBot->answerCbQuery(['text' => 'ProdOrder is already confirmed']);
             return;
         }
 
-        $prodOrderGroup->confirm();
+        $poGroup->confirm();
         $this->tgBot->answerCbQuery(['text' => '✅ ProdOrder confirmed successfully']);
 
-        $this->prodOrderList(id: $prodOrderGroup->id); // Reset to first page after confirmation
+        $this->sendList(id: $poGroup->id); // Reset to first page after confirmation
     }
 
-    public function prodOrderList($page = 1, $id = null): void
+    public function sendList($page = 1, $id = null): void
     {
-        /** @var ProdOrderGroup $prodOrderGroup */
-        $prodOrderGroup = ProdOrderGroup::query()
+        /** @var ProdOrderGroup $poGroup */
+        $poGroup = ProdOrderGroup::query()
             ->when($id, fn($q) => $q->where('id', $id))
             ->offset(($page - 1))
             ->orderByDesc('created_at')
             ->first();
 
-        if (!$prodOrderGroup) {
-            $this->tgBot->answerCbQuery(['text' => 'No production orders found']);
+        if (!$poGroup) {
+            $this->tgBot->answerCbQuery(['text' => 'No orders found']);
             return;
         }
 
         $pages = ProdOrderGroup::query()->count();
         $message = "<b>Production Orders (Page $page of $pages):</b>\n\n";
-        $message .= ProdOrderNotification::getProdOrderMsg($prodOrderGroup);
+        $message .= ProdOrderNotification::getProdOrderMsg($poGroup);
 
         $buttons = [];
-        if (!$prodOrderGroup->isConfirmed()) {
-            $buttons[] = [['text' => '✅ Confirm order', 'callback_data' => "confirmListOrder:$prodOrderGroup->id"]];
+        if (!$poGroup->isConfirmed()) {
+            $buttons[] = [['text' => '✅ Confirm order', 'callback_data' => "confirmListOrder:$poGroup->id"]];
         }
 
         $this->tgBot->sendRequestAsync('editMessageText', [
@@ -113,5 +81,26 @@ class ProdOrderListScene implements SceneHandlerInterface
                 [['text' => 'Main Menu', 'callback_data' => 'backMainMenu']]
             ]),
         ]);
+    }
+
+    public function prev($page): void
+    {
+        if ($page <= 0) {
+            $this->tgBot->answerCbQuery(['text' => 'You are on the first page']);
+            return;
+        }
+
+        $this->sendList($page);
+    }
+
+    public function next($page): void
+    {
+        $totalOrders = ProdOrderGroup::query()->count();
+        if ($page > $totalOrders) {
+            $this->tgBot->answerCbQuery(['text' => 'You are on the last page']);
+            return;
+        }
+
+        $this->sendList($page);
     }
 }

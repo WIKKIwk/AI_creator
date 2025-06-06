@@ -28,7 +28,7 @@ class ProdOrderNotification
      */
     public function handle(ProdOrderChanged $event): void
     {
-        $prodOrderGroup = $event->prodOrderGroup;
+        $poGroup = $event->poGroup;
 
         /** @var Collection<User> $PMs */
         $PMs = User::query()
@@ -43,12 +43,12 @@ class ProdOrderNotification
                 } else {
                     $message = "<b>Production Order Updated</b>\n\n";
                 }
-                $message .= self::getProdOrderMsg($prodOrderGroup);
+                $message .= self::getProdOrderMsg($poGroup);
 
                 TelegramService::sendMessage($PM->chat_id, $message, [
                     'parse_mode' => 'HTML',
                     'reply_markup' => TelegramService::getInlineKeyboard([
-                        [['text' => 'Confirm order', 'callback_data' => "confirmProdOrder:$prodOrderGroup->id"]]
+                        [['text' => 'Confirm order', 'callback_data' => "confirmProdOrder:$poGroup->id"]]
                     ]),
                 ]);
             } catch (\Throwable $e) {
@@ -65,31 +65,31 @@ class ProdOrderNotification
                 RoleType::PRODUCTION_MANAGER->value
             ],
             relatedType: ProdOrderGroup::class,
-            relatedId: $prodOrderGroup->id,
+            relatedId: $poGroup->id,
             action: TaskAction::Confirm,
             comment: 'New production order created. Please confirm the order.',
         );
     }
 
-    public static function getProdOrderMsg(ProdOrderGroup $prodOrderGroup): string
+    public static function getProdOrderMsg(ProdOrderGroup $poGroup): string
     {
-        $isConfirmed = $prodOrderGroup->isConfirmed() ? '✅' : '❌';
-        $message = "Type: <b>{$prodOrderGroup->type->getLabel()}</b>\n";
-        $message .= "Warehouse: <b>{$prodOrderGroup->warehouse->name}</b>\n";
+        $isConfirmed = $poGroup->isConfirmed() ? '✅' : '❌';
+        $message = "Type: <b>{$poGroup->type->getLabel()}</b>\n";
+        $message .= "Warehouse: <b>{$poGroup->warehouse->name}</b>\n";
 
-        if ($prodOrderGroup->type == ProdOrderGroupType::ByOrder) {
-            $message .= "Agent: <b>{$prodOrderGroup->organization->name}</b>\n";
+        if ($poGroup->type == ProdOrderGroupType::ByOrder) {
+            $message .= "Agent: <b>{$poGroup->organization->name}</b>\n";
         } else {
-            $message .= "Deadline: <b>{$prodOrderGroup->deadline->format('d M Y')}</b>\n";
+            $message .= "Deadline: <b>{$poGroup->deadline->format('d M Y')}</b>\n";
         }
 
-        $message .= "Progress: <b>{$prodOrderGroup->getProgress()}%</b>\n";
-        $message .= "Created by: <b>{$prodOrderGroup->createdBy->name}</b>\n";
-        $message .= "Created at: <b>{$prodOrderGroup->created_at->format('d M Y H:i')}</b>\n";
+        $message .= "Progress: <b>{$poGroup->getProgress()}%</b>\n";
+        $message .= "Created by: <b>{$poGroup->createdBy->name}</b>\n";
+        $message .= "Created at: <b>{$poGroup->created_at->format('d M Y H:i')}</b>\n";
         $message .= "Confirmed: $isConfirmed\n";
 
         $message .= "\nProducts:";
-        foreach ($prodOrderGroup->prodOrders as $index => $prodOrder) {
+        foreach ($poGroup->prodOrders as $index => $prodOrder) {
             $index++;
             $isConfirmed = $prodOrder->isConfirmed() ? '✅' : '❌';
 

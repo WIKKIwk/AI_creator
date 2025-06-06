@@ -3,17 +3,18 @@
 namespace App\Events;
 
 use App\Models\ProdOrder\ProdOrderGroup;
+use App\Models\SupplyOrder\SupplyOrder;
 use Illuminate\Foundation\Events\Dispatchable;
 use Illuminate\Queue\SerializesModels;
 
-class ProdOrderChanged
+class SupplyOrderChanged
 {
     use Dispatchable, SerializesModels;
 
     /**
      * Create a new event instance.
      */
-    public function __construct(public ProdOrderGroup $poGroup, public bool $isNew = true)
+    public function __construct(public SupplyOrder $supplyOrder, public bool $isNew = true)
     {
         //
     }

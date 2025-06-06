@@ -13,6 +13,7 @@ use Exception;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Validator;
 use Throwable;
 
 class SupplyOrderService
@@ -22,6 +23,41 @@ class SupplyOrderService
         protected TransactionService $transactionService,
         protected TaskService $taskService
     ) {
+    }
+
+    /**
+     * @throws Exception
+     */
+    public function createOrderByForm(array $data): SupplyOrder
+    {
+        $validator = Validator::make($data, [
+            'warehouse_id' => 'required|exists:warehouses,id',
+            'product_category_id' => 'required|exists:product_categories,id',
+            'supplier_organization_id' => 'required|exists:organizations,id',
+            'products' => 'required|array',
+            'products.*.product_id' => 'required|exists:products,id',
+            'products.*.expected_quantity' => 'required|numeric|min:1',
+            'products.*.price' => 'required|numeric',
+        ]);
+
+        if ($validator->fails()) {
+            throw new Exception('Validation failed: ' . implode(', ', $validator->errors()->all()));
+        }
+
+        try {
+            DB::beginTransaction();
+
+            $supplyOrder = $this->storeOrder($data);
+            foreach ($data['products'] as $productData) {
+                $supplyOrder->products()->create($productData);
+            }
+
+            DB::commit();
+            return $supplyOrder;
+        } catch (Throwable $e) {
+            DB::rollBack();
+            throw new Exception($e->getMessage());
+        }
     }
 
     /**
@@ -46,14 +82,11 @@ class SupplyOrderService
                     continue;
                 }
 
-                /** @var SupplyOrder $supplyOrder */
-                $supplyOrder = SupplyOrder::query()->create([
+                $supplyOrder = $this->storeOrder([
                     'prod_order_id' => $prodOrder->id,
                     'warehouse_id' => $prodOrder->getWarehouseId(),
                     'product_category_id' => $categoryId,
-                    'created_by' => auth()->user()->id,
                 ]);
-                $supplyOrder->updateStatus(SupplyOrderState::Created);
 
                 foreach ($insufficientAssets as $productId => $insufficientAsset) {
                     $supplyOrder->products()->create([
@@ -74,6 +107,18 @@ class SupplyOrderService
         }
     }
 
+    public function storeOrder(array $data): SupplyOrder
+    {
+        /** @var SupplyOrder $supplyOrder */
+        $supplyOrder = SupplyOrder::query()->create([
+            ...$data,
+            'created_by' => auth()->user()->id,
+        ]);
+        $supplyOrder->updateStatus(SupplyOrderState::Created);
+
+        return $supplyOrder;
+    }
+
     /**
      * @throws Throwable
      */
@@ -92,7 +137,8 @@ class SupplyOrderService
                 $this->transactionService->addStock(
                     $product->product_id,
                     $product->actual_quantity,
-                    $supplyOrder->warehouse_id
+                    $supplyOrder->warehouse_id,
+                    $product->price
                 );
             }
 

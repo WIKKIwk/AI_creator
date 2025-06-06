@@ -120,11 +120,7 @@ class ProdOrderGroupResource extends Resource
             ->actions([
                 Tables\Actions\Action::make('confirm')
                     ->label('Confirm')
-                    ->visible(fn($record) => !$record->confirmed_at && in_array(auth()->user()->role, [
-                            RoleType::ADMIN,
-                            RoleType::PLANNING_MANAGER,
-                            RoleType::PRODUCTION_MANAGER,
-                        ]))
+                    ->visible(fn($record) => !$record->isConfirmed())
                     ->action(function (ProdOrderGroup $record, $livewire) {
                         try {
                             $record->confirm();

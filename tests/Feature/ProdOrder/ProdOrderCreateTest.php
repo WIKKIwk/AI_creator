@@ -31,16 +31,6 @@ class ProdOrderCreateTest extends TestCase
 
     public function test_create_by_form(): void
     {
-        /*
-         * 'type' => 'required|in:' . ProdOrderGroupType::ByOrder->value . ',' . ProdOrderGroupType::ByCatalog->value,
-            'warehouse_id' => 'required|exists:warehouses,id',
-            'organization_id' => 'nullable|exists:organizations,id',
-            'deadline' => 'nullable|date|after_or_equal:today',
-            'products' => 'required|array',
-            'products.*.product_id' => 'required|exists:products,id',
-            'products.*.quantity' => 'required|numeric|min:1',
-            'products.*.offer_price' => 'numeric',*/
-
         $product1 = $this->createProduct();
         $product2 = $this->createProduct();
 
@@ -63,7 +53,7 @@ class ProdOrderCreateTest extends TestCase
             ],
         ];
 
-        $poGroup = $this->prodOrderService->createProdOrderByForm($formData);
+        $poGroup = $this->prodOrderService->createOrderByForm($formData);
 
         $this->assertDatabaseHas('prod_order_groups', [
             'id' => $poGroup->id,

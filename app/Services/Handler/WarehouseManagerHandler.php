@@ -10,7 +10,6 @@ use Illuminate\Support\Arr;
 
 class WarehouseManagerHandler extends BaseHandler
 {
-    protected User $user;
     protected array $promises = [];
 
     protected const states = [
@@ -150,7 +149,7 @@ HTML,
 
         $this->tgBot->sendRequestAsync('editMessageText', [
             'chat_id' => $this->tgBot->chatId,
-            'message_id' => $this->cache->get($this->getCacheKey('edit_msg_id')),
+            'message_id' => $this->handler->getCache('edit_msg_id'),
             'text' => strtr(self::templates['addRawMaterial'], [
                 '{name}' => $name,
                 '{quantity}' => $quantity,

@@ -17,6 +17,7 @@ use Filament\Tables;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
+use Throwable;
 
 class SupplyOrderResource extends Resource
 {
@@ -28,15 +29,15 @@ class SupplyOrderResource extends Resource
     public static function canAccess(): bool
     {
         return !empty(auth()->user()->organization_id) && in_array(auth()->user()->role, [
-            RoleType::ADMIN,
-            RoleType::PLANNING_MANAGER,
-            RoleType::PRODUCTION_MANAGER,
-            RoleType::ALLOCATION_MANAGER,
-            RoleType::SUPPLY_MANAGER,
-            RoleType::SENIOR_SUPPLY_MANAGER,
-            RoleType::STOCK_MANAGER,
-            RoleType::SENIOR_STOCK_MANAGER,
-        ]);
+                RoleType::ADMIN,
+                RoleType::PLANNING_MANAGER,
+                RoleType::PRODUCTION_MANAGER,
+                RoleType::ALLOCATION_MANAGER,
+                RoleType::SUPPLY_MANAGER,
+                RoleType::SENIOR_SUPPLY_MANAGER,
+                RoleType::STOCK_MANAGER,
+                RoleType::SENIOR_STOCK_MANAGER,
+            ]);
     }
 
     public static function canCreate(): bool
@@ -83,10 +84,13 @@ class SupplyOrderResource extends Resource
                             ->relationship(
                                 'supplierOrganization',
                                 'name',
-                                fn ($query) => $query->whereNot('id', auth()->user()->organization_id)
+                                fn($query) => $query->whereNot('id', auth()->user()->organization_id)
                             )
                             ->afterStateUpdated(function ($get, $set) {
-                                $supplierProduct = self::getSupplierProduct($get('supplier_organization_id'), $get('product_id'));
+                                $supplierProduct = self::getSupplierProduct(
+                                    $get('supplier_organization_id'),
+                                    $get('product_id')
+                                );
                                 if ($supplierProduct) {
                                     $set('unit_price', $supplierProduct->unit_price);
                                     $set('total_price', $supplierProduct->unit_price * $get('quantity'));
@@ -137,7 +141,7 @@ class SupplyOrderResource extends Resource
                     Forms\Components\Grid::make(4)->schema([
                         Forms\Components\Placeholder::make('status')
                             ->label('Current status')
-                            ->content(fn ($record) => $record?->getStatus()),
+                            ->content(fn($record) => $record?->getStatus()),
                         Forms\Components\Placeholder::make('prod_order_id')
                             ->content(function ($record) {
                                 return $record?->prodOrder ? $record->prodOrder->number : '-';
@@ -156,7 +160,7 @@ class SupplyOrderResource extends Resource
                             ->schema([
                                 Forms\Components\Placeholder::make('status')
                                     ->label(false)
-                                    ->content(fn ($record) => $record?->getStatus()),
+                                    ->content(fn($record) => $record?->getStatus()),
                             ])
                             ->disabled()
                     ]),
@@ -200,12 +204,12 @@ class SupplyOrderResource extends Resource
             })
             ->columns([
                 Tables\Columns\TextColumn::make('number')
-                    ->label('Order number')
+                    ->label('Order code')
                     ->searchable(),
                 Tables\Columns\TextColumn::make('status')
                     ->label('Current status')
                     ->badge()
-                    ->getStateUsing(fn (SupplyOrder $record) => $record?->getStatus()),
+                    ->getStateUsing(fn(SupplyOrder $record) => $record?->getStatus()),
                 Tables\Columns\TextColumn::make('warehouse.name')
                     ->numeric()
                     ->sortable(),
@@ -224,6 +228,15 @@ class SupplyOrderResource extends Resource
                         $location = $record->locations()->latest()->first();
                         return $location ? $location->location : '-';
                     }),
+                Tables\Columns\TextColumn::make('confirmed_at')
+                    ->getStateUsing(function (SupplyOrder $record) {
+                        if ($record->isConfirmed()) {
+                            return '<span class="text-green-500">✔️</span>';
+                        }
+                        return '<span class="text-red-500">❌</span>';
+                    })
+                    ->html()
+                    ->sortable(),
                 Tables\Columns\TextColumn::make('createdBy.name')
                     ->numeric()
                     ->sortable()
@@ -242,6 +255,19 @@ class SupplyOrderResource extends Resource
             ])
 //            ->recordUrl(fn($record) => null)
             ->actions([
+                Tables\Actions\Action::make('confirm')
+                    ->label('Confirm')
+                    ->visible(fn($record) => !$record->isConfirmed())
+                    ->action(function (SupplyOrder $record, $livewire) {
+                        try {
+                            $record->confirm();
+                            showSuccess('Order confirmed successfully');
+                        } catch (Throwable $e) {
+                            showError($e->getMessage());
+                        }
+                        $livewire->dispatch('$refresh');
+                    })
+                    ->requiresConfirmation(),
                 Tables\Actions\EditAction::make()
                     ->hidden(fn($record) => $record?->status == OrderStatus::Completed),
             ])

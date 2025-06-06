@@ -29,8 +29,8 @@ class ProdOrdersRelationManager extends RelationManager
 
     public function form(Form $form): Form
     {
-        /** @var ProdOrderGroup $prodOrderGroup */
-        $prodOrderGroup = $this->getOwnerRecord();
+        /** @var ProdOrderGroup $poGroup */
+        $poGroup = $this->getOwnerRecord();
 
         return $form
             ->schema([
@@ -43,15 +43,15 @@ class ProdOrdersRelationManager extends RelationManager
                         })
                         ->rules([
                             fn(Forms\Get $get): Closure => function (string $attribute, $value, $fail) use ($get) {
-                                /** @var ProdOrderGroup $prodOrderGroup */
-                                $prodOrderGroup = $this->getOwnerRecord();
+                                /** @var ProdOrderGroup $poGroup */
+                                $poGroup = $this->getOwnerRecord();
                                 if (
-                                    $prodOrderGroup->prodOrders()
+                                    $poGroup->prodOrders()
                                         ->when(
                                             $get('id'),
                                             fn($query) => $query->whereNot('id', $get('id'))
                                         )
-                                        ->where('group_id', $prodOrderGroup->id)
+                                        ->where('group_id', $poGroup->id)
                                         ->where('product_id', $get('product_id'))
                                         ->exists()
                                 ) {
@@ -120,14 +120,14 @@ class ProdOrdersRelationManager extends RelationManager
             ->headerActions([
                 Tables\Actions\CreateAction::make()
                     ->mutateFormDataUsing(function (array $data): array {
-                        /** @var ProdOrderGroup $prodOrderGroup */
-                        $prodOrderGroup = $this->getOwnerRecord();
+                        /** @var ProdOrderGroup $poGroup */
+                        $poGroup = $this->getOwnerRecord();
 
                         $data['status'] = OrderStatus::Pending;
 
                         $data['total_cost'] = app(ProdOrderService::class)->calculateTotalCost(
                             $data['product_id'],
-                            $prodOrderGroup->warehouse_id
+                            $poGroup->warehouse_id
                         );
                         $data['deadline'] = app(ProdOrderService::class)->calculateDeadline(
                             $data['product_id']
@@ -135,10 +135,10 @@ class ProdOrdersRelationManager extends RelationManager
                         return $data;
                     })
                     ->after(function () {
-                        /** @var ProdOrderGroup $prodOrderGroup */
-                        $prodOrderGroup = $this->getOwnerRecord();
+                        /** @var ProdOrderGroup $poGroup */
+                        $poGroup = $this->getOwnerRecord();
 
-                        ProdOrderChanged::dispatch($prodOrderGroup, false);
+                        ProdOrderChanged::dispatch($poGroup, false);
                     }),
             ])
             ->recordUrl(function($record) {
@@ -153,11 +153,7 @@ class ProdOrdersRelationManager extends RelationManager
             ->actions([
                 Tables\Actions\Action::make('confirm')
                     ->label('Confirm')
-                    ->visible(fn($record) => !$record->confirmed_at && in_array(auth()->user()->role, [
-                            RoleType::ADMIN,
-                            RoleType::PLANNING_MANAGER,
-                            RoleType::PRODUCTION_MANAGER,
-                        ]))
+                    ->visible(fn($record) => !$record->confirmed_at)
                     ->action(function (ProdOrder $record, $livewire) {
                         try {
                             $record->confirm();
@@ -209,12 +205,12 @@ class ProdOrdersRelationManager extends RelationManager
                 Tables\Actions\EditAction::make()
                     ->visible(fn($record) => $record->status == OrderStatus::Pending)
                     ->mutateFormDataUsing(function (array $data): array {
-                        /** @var ProdOrderGroup $prodOrderGroup */
-                        $prodOrderGroup = $this->getOwnerRecord();
+                        /** @var ProdOrderGroup $poGroup */
+                        $poGroup = $this->getOwnerRecord();
 
                         $data['total_cost'] = app(ProdOrderService::class)->calculateTotalCost(
                             $data['product_id'],
-                            $prodOrderGroup->warehouse_id
+                            $poGroup->warehouse_id
                         );
                         $data['deadline'] = app(ProdOrderService::class)->calculateDeadline(
                             $data['product_id']

@@ -9,7 +9,7 @@ class ProdOrderGroupObserver
     /**
      * Handle the ProdOrder "created" event.
      */
-    public function created(ProdOrderGroup $prodOrderGroup): void
+    public function created(ProdOrderGroup $poGroup): void
     {
         //
     }
@@ -17,7 +17,7 @@ class ProdOrderGroupObserver
     /**
      * Handle the ProdOrder "updated" event.
      */
-    public function updated(ProdOrderGroup $prodOrderGroup): void
+    public function updated(ProdOrderGroup $poGroup): void
     {
         //
     }
@@ -25,7 +25,7 @@ class ProdOrderGroupObserver
     /**
      * Handle the ProdOrder "deleted" event.
      */
-    public function deleted(ProdOrderGroup $prodOrderGroup): void
+    public function deleted(ProdOrderGroup $poGroup): void
     {
         //
     }
@@ -33,7 +33,7 @@ class ProdOrderGroupObserver
     /**
      * Handle the ProdOrder "restored" event.
      */
-    public function restored(ProdOrderGroup $prodOrderGroup): void
+    public function restored(ProdOrderGroup $poGroup): void
     {
         //
     }
@@ -41,7 +41,7 @@ class ProdOrderGroupObserver
     /**
      * Handle the ProdOrder "force deleted" event.
      */
-    public function forceDeleted(ProdOrderGroup $prodOrderGroup): void
+    public function forceDeleted(ProdOrderGroup $poGroup): void
     {
         //
     }

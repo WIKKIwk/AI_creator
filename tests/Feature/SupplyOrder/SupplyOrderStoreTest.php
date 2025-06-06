@@ -3,6 +3,7 @@
 namespace Tests\Feature\SupplyOrder;
 
 use App\Enums\SupplyOrderState;
+use App\Models\Inventory\Inventory;
 use App\Models\Organization;
 use App\Models\ProdOrder\ProdOrder;
 use App\Models\ProductCategory;
@@ -12,7 +13,6 @@ use Tests\TestCase;
 
 class SupplyOrderStoreTest extends TestCase
 {
-
     protected function setUp(): void
     {
         parent::setUp();
@@ -37,6 +37,53 @@ class SupplyOrderStoreTest extends TestCase
         ]);
 
         $this->assertEquals('SO-SUPPTEST-CAT' . now()->format('dmy'), $supplyOrder->number);
+    }
+
+    public function test_store_by_form(): void
+    {
+        $product1 = $this->createProduct();
+        $product2 = $this->createProduct();
+
+        $formData = [
+            'warehouse_id' => $this->warehouse->id,
+            'product_category_id' => $this->productCategory->id,
+            'supplier_organization_id' => $this->organization2->id,
+            'products' => [
+                [
+                    'product_id' => $product1->id,
+                    'expected_quantity' => 10,
+                    'price' => 100,
+                ],
+                [
+                    'product_id' => $product2->id,
+                    'expected_quantity' => 5,
+                    'price' => 50,
+                ],
+            ],
+        ];
+
+        $supplyOrder = $this->supplyOrderService->createOrderByForm($formData);
+
+        $this->assertDatabaseHas('supply_orders', [
+            'id' => $supplyOrder->id,
+            'number' => 'SO-' . $this->organization2->code . $this->productCategory->code . now()->format('dmy'),
+            'warehouse_id' => $this->warehouse->id,
+            'product_category_id' => $this->productCategory->id,
+            'supplier_organization_id' => $this->organization2->id,
+        ]);
+
+        $this->assertDatabaseHas('supply_order_products', [
+            'supply_order_id' => $supplyOrder->id,
+            'product_id' => $product1->id,
+            'expected_quantity' => 10,
+            'price' => 100,
+        ]);
+        $this->assertDatabaseHas('supply_order_products', [
+            'supply_order_id' => $supplyOrder->id,
+            'product_id' => $product2->id,
+            'expected_quantity' => 5,
+            'price' => 50,
+        ]);
     }
 
     public function test_store_for_prod_order(): void

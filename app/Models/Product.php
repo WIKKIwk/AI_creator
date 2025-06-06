@@ -32,6 +32,8 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
  * @property-read Product $readyProduct
  * @property-read WorkStation $workStation
  * @property-read Collection<Inventory> $inventories
+ *
+ * @method search(string|null $search)
  */
 class Product extends Model
 {
@@ -102,5 +104,23 @@ class Product extends Model
     public function readyProduct(): BelongsTo
     {
         return $this->belongsTo(Product::class, 'ready_product_id');
+    }
+
+    public function scopeSearch(Builder $query, ?string $search): Builder
+    {
+        if (empty($search)) {
+            return $query;
+        }
+
+        $search = mb_strtolower(trim($search));
+
+        return $query->where(function (Builder $query) use ($search) {
+            $query->whereRaw('LOWER(name) LIKE ?', ["%$search%"])
+                ->orWhereRaw('LOWER(code) LIKE ?', ["%$search%"])
+                ->orWhereHas('category', function (Builder $query) use ($search) {
+                    $query->whereRaw('LOWER(name) LIKE ?', ["%$search%"])
+                        ->orWhereRaw('LOWER(code) LIKE ?', ["%$search%"]);
+                });
+        });
     }
 }

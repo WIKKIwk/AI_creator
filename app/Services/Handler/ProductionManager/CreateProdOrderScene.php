@@ -3,6 +3,7 @@
 namespace App\Services\Handler\ProductionManager;
 
 use App\Enums\ProdOrderGroupType;
+use App\Enums\ProductType;
 use App\Listeners\ProdOrderNotification;
 use App\Models\Organization;
 use App\Models\Product;
@@ -12,6 +13,7 @@ use App\Services\Handler\Interface\SceneHandlerInterface;
 use App\Services\ProdOrderService;
 use App\Services\TelegramService;
 use App\Services\TgBot\TgBot;
+use Illuminate\Database\Eloquent\Collection;
 use RuntimeException;
 use Throwable;
 
@@ -41,6 +43,23 @@ class CreateProdOrderScene implements SceneHandlerInterface
         $this->prodOrderService = app(ProdOrderService::class);
     }
 
+    public function confirmProdOrder($id): void
+    {
+        $poGroup = $this->prodOrderService->getOrderGroupById($id);
+        $poGroup->confirm();
+
+        $message = "<b>✅ Order confirmed!</b>\n\n";
+        $message .= ProdOrderNotification::getProdOrderMsg($poGroup);
+
+        $this->tgBot->answerCbQuery(['text' => '✅ Order confirmed!'], true);
+        $this->tgBot->sendRequestAsync('editMessageText', [
+            'chat_id' => $this->tgBot->chatId,
+            'message_id' => $this->tgBot->getMessageId(),
+            'text' => $message,
+            'parse_mode' => 'HTML',
+        ]);
+    }
+
     public function handleText($text): void
     {
         $activeState = $this->handler->getState();
@@ -65,6 +84,7 @@ class CreateProdOrderScene implements SceneHandlerInterface
 
         if ($activeState) {
             $this->tgBot->rmLastMsg();
+            return;
         }
 
         $this->handler->sendMainMenu();
@@ -72,7 +92,7 @@ class CreateProdOrderScene implements SceneHandlerInterface
 
     public function handleScene(): void
     {
-        $this->handler->setState(CreateProdOrderScene::states['prodOrder_selectType']);
+        $this->handler->setState(self::states['prodOrder_selectType']);
 
         $this->tgBot->sendRequestAsync('editMessageText', [
             'chat_id' => $this->tgBot->chatId,
@@ -89,23 +109,6 @@ class CreateProdOrderScene implements SceneHandlerInterface
         ]);
 
         $this->handler->setCache('edit_msg_id', $this->tgBot->getMessageId());
-    }
-
-    public function confirmProdOrder($id): void
-    {
-        $prodOrderGroup = $this->prodOrderService->getOrderGroupById($id);
-        $prodOrderGroup->confirm();
-
-        $message = "<b>✅ Order confirmed!</b>\n\n";;
-        $message .= ProdOrderNotification::getProdOrderMsg($prodOrderGroup);
-
-        $this->tgBot->answerCbQuery(['text' => '✅ Order confirmed!'], true);
-        $this->tgBot->sendRequestAsync('editMessageText', [
-            'chat_id' => $this->tgBot->chatId,
-            'message_id' => $this->tgBot->getMessageId(),
-            'text' => $message,
-            'parse_mode' => 'HTML',
-        ]);
     }
 
     public function selectType($type): void
@@ -389,10 +392,10 @@ class CreateProdOrderScene implements SceneHandlerInterface
         }
 
         try {
-            $prodOrderGroup = $this->prodOrderService->createProdOrderByForm($form);
+            $poGroup = $this->prodOrderService->createOrderByForm($form);
 
             $message = "<b>✅ ProdOrder saved</b>\n\n";
-            $message .= ProdOrderNotification::getProdOrderMsg($prodOrderGroup);
+            $message .= ProdOrderNotification::getProdOrderMsg($poGroup);
 
             $this->tgBot->sendRequestAsync('editMessageText', [
                 'chat_id' => $this->tgBot->chatId,
@@ -400,7 +403,7 @@ class CreateProdOrderScene implements SceneHandlerInterface
                 'text' => $message,
                 'parse_mode' => 'HTML',
                 'reply_markup' => TelegramService::getInlineKeyboard([
-                    [['text' => 'Confirm order', 'callback_data' => "confirmProdOrder:$prodOrderGroup->id"]]
+                    [['text' => 'Confirm order', 'callback_data' => "confirmProdOrder:$poGroup->id"]]
                 ])
             ]);
 
@@ -440,6 +443,39 @@ class CreateProdOrderScene implements SceneHandlerInterface
             ]);
             $this->handler->sendMainMenu();
         }
+    }
+
+    public function handleInlineQuery($inlineQuery): void
+    {
+        $search = $inlineQuery['query'] ?? '';
+
+        /** @var Collection<Product> $products */
+        $products = Product::query()
+            ->search($search)
+            ->where('type', ProductType::ReadyProduct->value)
+            ->take(30)
+            ->get();
+
+        $results = [];
+        foreach ($products as $product) {
+            $results[] = [
+                'type' => 'article',
+                'id' => (string)$product->id,
+                'title' => "$product->catName ($product->code)",
+                'description' => $product->description ?: '',
+                'input_message_content' => [
+                    'message_text' => "/select_product $product->id",
+                ],
+            ];
+        }
+
+        dump($inlineQuery['id'], $results);
+
+        $this->tgBot->sendRequest('answerInlineQuery', [
+            'inline_query_id' => $inlineQuery['id'],
+            'results' => $results,
+            'cache_time' => 0,
+        ]);
     }
 
     protected function getProdOrderPrompt(string $prompt, $errorMsg = null): string

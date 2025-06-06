@@ -14,6 +14,4 @@ interface HandlerInterface
     public function handleHelp(): void;
     public function handleCbQuery(string $cbData): void;
     public function handleText(string $text): void;
-
-    public function getActiveSceneHandler(?string $scene = null): ?SceneHandlerInterface;
 }

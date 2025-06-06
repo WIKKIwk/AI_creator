@@ -104,7 +104,7 @@ class ProdOrderResource extends Resource
             ->columns([
                 Tables\Columns\TextColumn::make('id'),
                 Tables\Columns\TextColumn::make('number')
-                    ->label('Order number')
+                    ->label('Order code')
                     ->searchable(),
                 Tables\Columns\TextColumn::make('warehouse.name')
                     ->sortable(),
