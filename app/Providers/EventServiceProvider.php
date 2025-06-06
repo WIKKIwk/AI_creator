@@ -3,9 +3,11 @@
 namespace App\Providers;
 
 use App\Events\ProdOrderChanged;
+use App\Events\StepExecutionCreated;
 use App\Events\SupplyOrderChanged;
 use App\Events\SupplyOrderClosed;
 use App\Listeners\ProdOrderNotification;
+use App\Listeners\StepExecutionNotification;
 use App\Listeners\SupplyOrderAfterClose;
 use App\Listeners\SupplyOrderNotification;
 use Illuminate\Auth\Events\Registered;
@@ -31,6 +33,9 @@ class EventServiceProvider extends ServiceProvider
         ],
         SupplyOrderClosed::class => [
             SupplyOrderAfterClose::class
+        ],
+        StepExecutionCreated::class => [
+            StepExecutionNotification::class
         ],
     ];
 

@@ -8,6 +8,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Support\Carbon;
 
 /**
  * @property int $id
@@ -15,8 +16,10 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
  * @property float $output_quantity
  * @property string $notes
  * @property int $executed_by
- * @property string $approved_at
+ * @property Carbon $approved_at
  * @property string $approved_by
+ * @property Carbon $created_at
+ * @property Carbon $updated_at
  *
  * @property ProdOrderStep $prodOrderStep
  * @property User $executedBy
@@ -31,6 +34,8 @@ class ProdOrderStepExecution extends Model
 
     protected $casts = [
         'approved_at' => 'datetime',
+        'created_at' => 'datetime',
+        'updated_at' => 'datetime',
     ];
 
     protected static function booted()

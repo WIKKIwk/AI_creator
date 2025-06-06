@@ -3,6 +3,7 @@
 namespace App\Services\Handler\WorkerHandler;
 
 use App\Enums\ProdOrderStepStatus;
+use App\Listeners\StepExecutionNotification;
 use App\Models\ProdOrder\ProdOrderStep;
 use App\Models\ProdOrder\ProdOrderStepProduct;
 use App\Models\Product;
@@ -258,13 +259,19 @@ class CreateExecutionScene implements SceneHandlerInterface
         $form = $this->handler->getCacheArray('executionForm');
 
         try {
-            $this->prodOrderService->createExecutionByForm($this->getStep(), $form);
+            $execution = $this->prodOrderService->createExecutionByForm($this->getStep(), $form);
+
+            $message = "<b>✅ Execution saved successfully!</b>\n\n";
+            $message .= StepExecutionNotification::getExecutionMsg($execution);
 
             $this->tgBot->sendRequestAsync('editMessageText', [
                 'chat_id' => $this->tgBot->chatId,
                 'message_id' => $this->handler->getCache('edit_msg_id'),
-                'text' => $this->getExecutionPrompt('✅ Execution saved successfully!'),
-                'parse_mode' => 'HTML'
+                'text' => $message,
+                'parse_mode' => 'HTML',
+                'reply_markup' => TelegramService::getInlineKeyboard([
+                    [['text' => 'Approve', 'callback_data' => "approveExecution:$execution->id"]]
+                ]),
             ]);
 
             $this->cancelExecution(false);

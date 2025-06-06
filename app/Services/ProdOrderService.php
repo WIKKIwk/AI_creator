@@ -317,7 +317,7 @@ class ProdOrderService
     /**
      * @throws Exception
      */
-    public function createExecutionByForm(ProdOrderStep $poStep, array $data): void
+    public function createExecutionByForm(ProdOrderStep $poStep, array $data): ProdOrderStepExecution
     {
         $validator = Validator::make($data, [
             'materials' => 'required|array',
@@ -366,6 +366,7 @@ class ProdOrderService
             }
 
             DB::commit();
+            return $execution;
         } catch (Throwable $e) {
             DB::rollBack();
             throw new Exception($e->getMessage());
