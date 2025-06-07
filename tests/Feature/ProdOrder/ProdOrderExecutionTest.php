@@ -4,6 +4,7 @@ namespace ProdOrder;
 
 use App\Enums\OrderStatus;
 use App\Enums\ProdOrderStepStatus;
+use App\Models\Inventory\Inventory;
 use App\Models\ProdOrder\ProdOrder;
 use App\Models\ProdOrder\ProdOrderStep;
 use App\Models\ProdOrder\ProdOrderStepExecution;
@@ -35,12 +36,7 @@ class ProdOrderExecutionTest extends TestCase
         $this->prodOrder = $prodOrder;
     }
 
-    public function test_create_execution(): void
-    {
-        $this->markTestSkipped('This test is not implemented yet.');
-    }
-
-    public function test_approve_execution_success(): void
+    public function test_create_execution_by_form(): void
     {
         /** @var ProdOrderStep $firstStep */
         /** @var ProdOrderStep $secondStep */
@@ -49,6 +45,7 @@ class ProdOrderExecutionTest extends TestCase
             'sequence' => 1,
             'work_station_id' => $this->workStationFirst->id,
             'output_product_id' => $this->semiFinishedMaterial->id,
+            'output_quantity' => 0,
             'expected_quantity' => 100,
         ]);
         $firstStepMaterial = $firstStep->materials()->create([
@@ -62,11 +59,6 @@ class ProdOrderExecutionTest extends TestCase
             'work_station_id' => $this->workStationSecond->id,
             'output_product_id' => $this->readyProduct->id,
             'expected_quantity' => 100,
-        ]);
-        $secondStepMaterial = $secondStep->materials()->create([
-            'product_id' => $this->semiFinishedMaterial->id,
-            'required_quantity' => 10,
-            'available_quantity' => 0,
         ]);
 
         $firstMiniStock = $this->transactionService->addMiniStock(
@@ -78,29 +70,17 @@ class ProdOrderExecutionTest extends TestCase
             $this->semiFinishedMaterial->id,
             $this->workStationSecond->id
         );
-        $mainStock = $this->transactionService->addStock(
-            $this->readyProduct->id,
-            1,
-            $this->prodOrder->group->warehouse_id
-        );
 
         $this->assertEquals(100, $firstMiniStock->quantity);
         $this->assertEquals(0, $secondMiniStock->quantity);
-        $this->assertEquals(1, $mainStock->quantity);
 
-        /** @var ProdOrderStepExecution $firstExecution */
-        $firstExecution = $firstStep->executions()->create(['output_quantity' => 30]);
-        $firstExecution->materials()->create([
-            'product_id' => $this->rawMaterial->id,
-            'used_quantity' => 10,
+        $this->prodOrderService->createExecutionByForm($firstStep, [
+            'output_quantity' => 30,
+            'materials' => [
+                ['product_id' => $this->rawMaterial->id, 'used_quantity' => 10]
+            ]
         ]);
 
-        $this->prodOrderService->approveExecution($firstExecution);
-
-        $this->assertDatabaseHas('prod_order_step_executions', [
-            'id' => $firstExecution->id,
-            'approved_by' => $this->user->id
-        ]);
         $this->assertDatabaseHas('prod_order_step_products', [
             'id' => $firstStepMaterial->id,
             'available_quantity' => 90,
@@ -108,82 +88,25 @@ class ProdOrderExecutionTest extends TestCase
         ]);
         $this->assertDatabaseHas('prod_order_steps', [
             'id' => $firstStep->id,
-            'output_quantity' => 30,
+            'output_quantity' => 0,
         ]);
         $this->assertDatabaseHas('mini_inventories', [
-            'id' => $firstMiniStock->id,
+            'work_station_id' => $firstStep->work_station_id,
+            'product_id' => $this->rawMaterial->id,
             'quantity' => 90,
         ]);
         $this->assertDatabaseHas('mini_inventories', [
-            'id' => $secondMiniStock->id,
+            'work_station_id' => $firstStep->work_station_id,
+            'product_id' => $this->semiFinishedMaterial->id,
             'quantity' => 30,
         ]);
-
-        $secondStepMaterial->update(['available_quantity' => 30]);
-
-        /** @var ProdOrderStepExecution $secondExecution */
-        $secondExecution = $secondStep->executions()->create(['output_quantity' => 30]);
-        $secondExecution->materials()->create([
-            'product_id' => $this->semiFinishedMaterial->id,
-            'used_quantity' => 20,
-        ]);
-
-        $this->prodOrderService->approveExecution($secondExecution);
-
-        $this->assertDatabaseHas('prod_order_step_executions', [
-            'id' => $secondExecution->id,
-            'approved_by' => $this->user->id
-        ]);
-        $this->assertDatabaseHas('prod_order_step_products', [
-            'id' => $secondStepMaterial->id,
-            'available_quantity' => 10,
-            'used_quantity' => 20,
-        ]);
-        $this->assertDatabaseHas('prod_order_steps', [
-            'id' => $secondStepMaterial->id,
-            'output_quantity' => 30,
-        ]);
         $this->assertDatabaseHas('mini_inventories', [
             'id' => $secondMiniStock->id,
-            'quantity' => 10,
-        ]);
-        $this->assertDatabaseHas('inventory_items', [
-            'id' => $mainStock->id,
-            'quantity' => 31,
-        ]);
-
-        $firstStepMaterial->update(['available_quantity' => 22]);
-
-        /** @var ProdOrderStepExecution $firstExecution */
-        $firstExecution2 = $firstStep->executions()->create(['output_quantity' => 70]);
-        $firstExecution2->materials()->create([
-            'product_id' => $this->rawMaterial->id,
-            'used_quantity' => 20,
-        ]);
-
-        $this->prodOrderService->approveExecution($firstExecution2);
-
-        $this->assertDatabaseHas('prod_order_step_executions', [
-            'id' => $firstExecution2->id,
-            'approved_by' => $this->user->id
-        ]);
-        $this->assertDatabaseHas('prod_order_step_products', [
-            'id' => $firstStepMaterial->id,
-            'available_quantity' => 2,
-            'used_quantity' => 30,
-        ]);
-        $this->assertDatabaseHas('prod_order_steps', [
-            'id' => $firstStep->id,
-            'output_quantity' => 100,
-            'status' => ProdOrderStepStatus::Completed,
-        ]);
-        $this->assertDatabaseHas('mini_inventories', [
-            'id' => $firstMiniStock->id,
-            'quantity' => 70,
+            'quantity' => 0,
         ]);
     }
 
-    public function test_approve_execution_last_step(): void
+    public function test_approve_execution_success(): void
     {
         /** @var ProdOrderStep $firstStep */
         /** @var ProdOrderStep $secondStep */
@@ -192,12 +115,14 @@ class ProdOrderExecutionTest extends TestCase
             'sequence' => 1,
             'work_station_id' => $this->workStationFirst->id,
             'output_product_id' => $this->semiFinishedMaterial->id,
+            'output_quantity' => 0,
             'expected_quantity' => 100,
         ]);
         $firstStepMaterial = $firstStep->materials()->create([
             'product_id' => $this->rawMaterial->id,
             'required_quantity' => 10,
             'available_quantity' => 100,
+            'used_quantity' => 0,
         ]);
 
         $secondStep = $this->prodOrder->steps()->create([
@@ -217,26 +142,10 @@ class ProdOrderExecutionTest extends TestCase
             100,
             $this->workStationFirst->id
         );
-        $secondMiniStock = $this->inventoryService->getMiniInventory(
-            $this->readyProduct->id,
-            $this->workStationSecond->id
-        );
 
-        $mainStock = $this->transactionService->addStock(
-            $this->readyProduct->id,
-            1,
-            $this->prodOrder->group->warehouse_id
-        );
-
-        $this->assertEquals(100, $firstMiniStock->quantity);
-        $this->assertEquals(0, $secondMiniStock->quantity);
-        $this->assertEquals(1, $mainStock->quantity);
-
-        /** @var ProdOrderStepExecution $firstExecution */
-        $firstExecution = $firstStep->executions()->create(['output_quantity' => 30]);
-        $firstExecution->materials()->create([
-            'product_id' => $this->rawMaterial->id,
-            'used_quantity' => 10,
+        $firstExecution = $this->prodOrderService->createExecutionByForm($firstStep, [
+            'output_quantity' => 30,
+            'materials' => [['product_id' => $this->rawMaterial->id, 'used_quantity' => 10]]
         ]);
 
         $this->prodOrderService->approveExecution($firstExecution);
@@ -245,18 +154,108 @@ class ProdOrderExecutionTest extends TestCase
             'id' => $firstExecution->id,
             'approved_by' => $this->user->id
         ]);
+        $this->assertDatabaseHas('prod_order_steps', [
+            'id' => $firstStep->id,
+            'output_quantity' => 30,
+        ]);
         $this->assertDatabaseHas('prod_order_step_products', [
             'id' => $firstStepMaterial->id,
             'available_quantity' => 90,
             'used_quantity' => 10,
         ]);
-        $this->assertDatabaseHas('prod_order_steps', [
-            'id' => $firstStepMaterial->id,
-            'output_quantity' => 30,
+        $this->assertDatabaseHas('mini_inventories', [
+            'work_station_id' => $firstStep->work_station_id,
+            'product_id' => $this->rawMaterial->id,
+            'quantity' => 90,
         ]);
         $this->assertDatabaseHas('mini_inventories', [
-            'id' => $firstMiniStock->id,
-            'quantity' => 90,
+            'work_station_id' => $firstStep->work_station_id,
+            'product_id' => $this->semiFinishedMaterial->id,
+            'quantity' => 0,
+        ]);
+        $this->assertDatabaseHas('mini_inventories', [
+            'work_station_id' => $secondStep->work_station_id,
+            'product_id' => $this->semiFinishedMaterial->id,
+            'quantity' => 30,
+        ]);
+
+        $secondStepMaterial->update(['available_quantity' => 30]);
+
+        $secondExecution = $this->prodOrderService->createExecutionByForm($secondStep, [
+            'output_quantity' => 30,
+            'materials' => [
+                ['product_id' => $this->semiFinishedMaterial->id, 'used_quantity' => 20]
+            ]
+        ]);
+
+        $this->prodOrderService->approveExecution($secondExecution);
+
+        $this->assertDatabaseHas('prod_order_step_executions', [
+            'id' => $secondExecution->id,
+            'approved_by' => $this->user->id
+        ]);
+        $this->assertDatabaseHas('prod_order_steps', [
+            'id' => $secondStep->id,
+            'output_quantity' => 30,
+        ]);
+        $this->assertDatabaseHas('prod_order_step_products', [
+            'id' => $secondStepMaterial->id,
+            'available_quantity' => 10,
+            'used_quantity' => 20,
+        ]);
+        $this->assertDatabaseHas('mini_inventories', [
+            'work_station_id' => $secondStep->work_station_id,
+            'product_id' => $this->semiFinishedMaterial->id,
+            'quantity' => 10,
+        ]);
+        $this->assertDatabaseHas('mini_inventories', [
+            'work_station_id' => $secondStep->work_station_id,
+            'product_id' => $this->readyProduct->id,
+            'quantity' => 0,
+        ]);
+
+        /** @var Inventory $inventory */
+        $inventory = Inventory::query()
+            ->where('product_id', $this->readyProduct->id)
+            ->where('warehouse_id', $this->prodOrder->group->warehouse_id)
+            ->first();
+        $this->assertEquals(30, $inventory->quantity);
+
+        $firstExecution2 = $this->prodOrderService->createExecutionByForm($firstStep, [
+            'output_quantity' => 70,
+            'materials' => [['product_id' => $this->rawMaterial->id, 'used_quantity' => 20]]
+        ]);
+
+        $this->prodOrderService->approveExecution($firstExecution2);
+
+        $this->assertDatabaseHas('prod_order_step_executions', [
+            'id' => $firstExecution2->id,
+            'approved_by' => $this->user->id
+        ]);
+        $this->assertDatabaseHas('prod_order_steps', [
+            'id' => $firstStep->id,
+            'output_quantity' => 100,
+            'status' => ProdOrderStepStatus::Completed,
+        ]);
+        $this->assertDatabaseHas('prod_order_step_products', [
+            'id' => $firstStepMaterial->id,
+            'available_quantity' => 70,
+            'used_quantity' => 30,
+        ]);
+        $this->assertDatabaseHas('mini_inventories', [
+            'work_station_id' => $firstStep->work_station_id,
+            'product_id' => $this->rawMaterial->id,
+            'quantity' => 70,
+        ]);
+        $this->assertDatabaseHas('mini_inventories', [
+            'work_station_id' => $firstStep->work_station_id,
+            'product_id' => $this->semiFinishedMaterial->id,
+            'quantity' => 0,
+        ]);
+        $this->assertDatabaseHas('mini_inventories', [
+            'work_station_id' => $secondStep->work_station_id,
+            'product_id' => $this->semiFinishedMaterial->id,
+            'quantity' => 80,
         ]);
     }
 
@@ -306,7 +305,7 @@ class ProdOrderExecutionTest extends TestCase
         ]);
 
         $this->expectException(Exception::class);
-        $this->expectExceptionMessage('Not enough available quantity');
+        $this->expectExceptionMessage('Insufficient quantity');
 
         $this->prodOrderService->approveExecution($firstExecution);
     }

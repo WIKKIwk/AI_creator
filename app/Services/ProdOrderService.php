@@ -7,6 +7,7 @@ use App\Enums\OrderStatus;
 use App\Enums\ProdOrderGroupType;
 use App\Enums\ProdOrderStepProductStatus;
 use App\Enums\ProdOrderStepStatus;
+use App\Events\StepExecutionCreated;
 use App\Models\PerformanceRate;
 use App\Models\ProdOrder\ProdOrder;
 use App\Models\ProdOrder\ProdOrderGroup;
@@ -331,32 +332,22 @@ class ProdOrderService
             throw new Exception('Validation failed: ' . implode(', ', $validator->errors()->all()));
         }
 
-        $materials = $data['materials'] ?? [];
-        $outputQuantity = $data['output_quantity'] ?? 0;
-
         try {
             DB::beginTransaction();
 
             /** @var ProdOrderStepExecution $execution */
             $execution = $poStep->executions()->create([
-                'output_quantity' => $outputQuantity,
+                'output_quantity' => $data['output_quantity'],
                 'notes' => $data['notes'] ?? '',
                 'executed_by' => auth()->user()->id,
             ]);
 
-            foreach ($materials as $material) {
-                $productId = $material['product_id'] ?? null;
-                $usedQuantity = $material['used_quantity'] ?? 0;
+            foreach ($data['materials'] as $material) {
+                $productId = $material['product_id'];
+                $usedQuantity = $material['used_quantity'];
 
-                if (!$productId || $usedQuantity <= 0) {
-                    throw new Exception('Invalid material data provided');
-                }
-
-                $poMaterial = $this->getExistedMaterial($poStep, $productId);
-                if ($poMaterial->available_quantity < $usedQuantity) {
-                    $product = Product::query()->find($productId);
-                    throw new Exception('Insufficient available quantity for product: ' . $product->catName);
-                }
+                // Use the material from mini stock
+                $this->useMaterial($poStep, $productId, $usedQuantity);
 
                 // Create execution material record
                 $execution->materials()->create([
@@ -364,6 +355,14 @@ class ProdOrderService
                     'used_quantity' => $usedQuantity,
                 ]);
             }
+
+            $this->transactionService->addMiniStock(
+                $poStep->output_product_id,
+                $execution->output_quantity,
+                $poStep->work_station_id
+            );
+
+            StepExecutionCreated::dispatch($execution);
 
             DB::commit();
             return $execution;
@@ -385,12 +384,7 @@ class ProdOrderService
         try {
             DB::beginTransaction();
 
-            $poStep = $execution->prodOrderStep;
-            foreach ($execution->materials as $execMaterial) {
-                $this->useMaterial($poStep, $execMaterial->product_id, $execMaterial->used_quantity);
-            }
-
-            $this->outputMaterial($poStep, $execution->output_quantity);
+            $this->outputMaterial($execution->prodOrderStep, $execution->output_quantity);
 
             $execution->update([
                 'approved_at' => now(),
@@ -402,36 +396,6 @@ class ProdOrderService
             DB::rollBack();
             throw new Exception($e->getMessage());
         }
-    }
-
-    protected function outputMaterial(ProdOrderStep $currentStep, $outputQty): void
-    {
-        /** @var ProdOrderStep $nextStep */
-        $nextStep = $currentStep->prodOrder->steps()->where('sequence', '>', $currentStep->sequence)->first();
-        if ($nextStep) {
-            $nextMiniStock = $this->transactionService->addMiniStock(
-                $currentStep->output_product_id,
-                $outputQty,
-                $nextStep->work_station_id
-            );
-        } else {
-            $this->transactionService->addStock(
-                $currentStep->output_product_id,
-                $outputQty,
-                $currentStep->prodOrder->getWarehouseId(),
-                workStationId: $currentStep->work_station_id
-            );
-        }
-
-        $totalOutputQty = $currentStep->output_quantity + $outputQty;
-        if ($totalOutputQty >= $currentStep->expected_quantity) {
-            $currentStep->status = ProdOrderStepStatus::Completed;
-        } else {
-            $currentStep->status = ProdOrderStepStatus::InProgress;
-        }
-
-        $currentStep->output_quantity = $totalOutputQty;
-        $currentStep->save();
     }
 
     /**
@@ -449,11 +413,47 @@ class ProdOrderService
             'used_quantity' => $poMaterial->used_quantity + $usedQty,
         ]);
 
+        $this->transactionService->removeMiniStock($poMaterial->product_id, $usedQty, $poStep->work_station_id);
+    }
+
+    protected function outputMaterial(ProdOrderStep $currentStep, $outputQty): void
+    {
+        /** @var ProdOrderStep $nextStep */
+        $nextStep = $currentStep->prodOrder->steps()->where('sequence', '>', $currentStep->sequence)->first();
+
+        // Take from current step's mini stock
         $this->transactionService->removeMiniStock(
-            $poMaterial->product_id,
-            $usedQty,
-            $poMaterial->step->work_station_id
+            $currentStep->output_product_id,
+            $outputQty,
+            $currentStep->work_station_id
         );
+
+        if ($nextStep) {
+            // Add to next step's mini stock
+            $this->transactionService->addMiniStock(
+                $currentStep->output_product_id,
+                $outputQty,
+                $nextStep->work_station_id
+            );
+        } else {
+            // Add final product to main stock
+            $this->transactionService->addStock(
+                $currentStep->output_product_id,
+                $outputQty,
+                $currentStep->prodOrder->getWarehouseId(),
+                workStationId: $currentStep->work_station_id
+            );
+        }
+
+        $totalOutputQty = $currentStep->output_quantity + $outputQty;
+        if ($totalOutputQty >= $currentStep->expected_quantity) {
+            $currentStep->status = ProdOrderStepStatus::Completed;
+        } else {
+            $currentStep->status = ProdOrderStepStatus::InProgress;
+        }
+
+        $currentStep->output_quantity = $totalOutputQty;
+        $currentStep->save();
     }
 
     /**

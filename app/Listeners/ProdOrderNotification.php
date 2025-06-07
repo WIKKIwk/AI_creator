@@ -32,8 +32,9 @@ class ProdOrderNotification
 
         /** @var Collection<User> $PMs */
         $PMs = User::query()
+            ->ownOrganization()
+            ->exceptMe()
             ->where('role', RoleType::PRODUCTION_MANAGER)
-            ->whereNot('id', auth()->user()->id)
             ->get();
 
         foreach ($PMs as $PM) {

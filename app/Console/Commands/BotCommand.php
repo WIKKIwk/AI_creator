@@ -60,7 +60,7 @@ class BotCommand extends Command
     {
         $this->info('Long polling started');
 
-        Redis::flushall();
+//        Redis::flushall();
 
         $offset = 0;
         while (true) {

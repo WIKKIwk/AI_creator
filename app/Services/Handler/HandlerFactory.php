@@ -6,6 +6,7 @@ use App\Enums\RoleType;
 use App\Models\User;
 use App\Services\Handler\Interface\HandlerInterface;
 use App\Services\Handler\ProductionManager\ProductionManagerHandler;
+use App\Services\Handler\StockManager\StockManagerHandler;
 use App\Services\Handler\SupplyManager\SupplyManagerHandler;
 use App\Services\Handler\WorkerHandler\WorkerHandler;
 
@@ -16,7 +17,11 @@ class HandlerFactory
         return match ($user->role) {
             RoleType::PRODUCTION_MANAGER => app(ProductionManagerHandler::class),
 
-            RoleType::SUPPLY_MANAGER, RoleType::SENIOR_SUPPLY_MANAGER => app(SupplyManagerHandler::class),
+            RoleType::SUPPLY_MANAGER,
+            RoleType::SENIOR_SUPPLY_MANAGER => app(SupplyManagerHandler::class),
+
+            RoleType::STOCK_MANAGER,
+            RoleType::SENIOR_STOCK_MANAGER => app(StockManagerHandler::class),
 
             RoleType::WORK_STATION_WORKER => app(WorkerHandler::class),
 

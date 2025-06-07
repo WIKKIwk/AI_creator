@@ -258,14 +258,15 @@ class SupplyOrderResource extends Resource
                 Tables\Actions\Action::make('confirm')
                     ->label('Confirm')
                     ->visible(fn($record) => !$record->isConfirmed())
-                    ->action(function (SupplyOrder $record, $livewire) {
+                    ->action(function (SupplyOrder $record, $livewire, $action) {
                         try {
                             $record->confirm();
                             showSuccess('Order confirmed successfully');
+                            $livewire->dispatch('$refresh');
                         } catch (Throwable $e) {
                             showError($e->getMessage());
+                            $action->halt();
                         }
-                        $livewire->dispatch('$refresh');
                     })
                     ->requiresConfirmation(),
                 Tables\Actions\EditAction::make()

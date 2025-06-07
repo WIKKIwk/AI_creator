@@ -34,8 +34,9 @@ class SupplyOrderNotification
 
         /** @var Collection<User> $supplyManagers */
         $supplyManagers = User::query()
+            ->ownOrganization()
+            ->exceptMe()
             ->whereIn('role', [RoleType::SENIOR_SUPPLY_MANAGER, RoleType::SUPPLY_MANAGER])
-            ->whereNot('id', auth()->user()->id)
             ->get();
 
         foreach ($supplyManagers as $supplyManager) {

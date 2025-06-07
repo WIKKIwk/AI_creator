@@ -259,6 +259,7 @@ class CreateExecutionScene implements SceneHandlerInterface
         $form = $this->handler->getCacheArray('executionForm');
 
         try {
+            dump($form);
             $execution = $this->prodOrderService->createExecutionByForm($this->getStep(), $form);
 
             $message = "<b>✅ Execution saved successfully!</b>\n\n";
@@ -268,10 +269,7 @@ class CreateExecutionScene implements SceneHandlerInterface
                 'chat_id' => $this->tgBot->chatId,
                 'message_id' => $this->handler->getCache('edit_msg_id'),
                 'text' => $message,
-                'parse_mode' => 'HTML',
-                'reply_markup' => TelegramService::getInlineKeyboard([
-                    [['text' => 'Approve', 'callback_data' => "approveExecution:$execution->id"]]
-                ]),
+                'parse_mode' => 'HTML'
             ]);
 
             $this->cancelExecution(false);
@@ -280,6 +278,7 @@ class CreateExecutionScene implements SceneHandlerInterface
 
             $this->handler->sendMainMenu();
         } catch (Throwable $e) {
+            dump($e->getMessage(), $e->getLine(), $e->getFile());
             $this->tgBot->sendRequestAsync('editMessageText', [
                 'chat_id' => $this->tgBot->chatId,
                 'message_id' => $this->handler->getCache('edit_msg_id'),

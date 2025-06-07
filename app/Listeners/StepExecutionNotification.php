@@ -2,17 +2,16 @@
 
 namespace App\Listeners;
 
-use App\Enums\ProdOrderGroupType;
 use App\Enums\RoleType;
 use App\Enums\TaskAction;
 use App\Events\StepExecutionCreated;
-use App\Models\ProdOrder\ProdOrderGroup;
 use App\Models\ProdOrder\ProdOrderStepExecution;
 use App\Models\User;
 use App\Services\TaskService;
 use App\Services\TelegramService;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Facades\Log;
+use Throwable;
 
 class StepExecutionNotification
 {
@@ -33,8 +32,9 @@ class StepExecutionNotification
 
         /** @var Collection<User> $stockManagers */
         $stockManagers = User::query()
-            ->where('role', RoleType::PRODUCTION_MANAGER)
-            ->whereNot('id', auth()->user()->id)
+            ->ownOrganization()
+            ->exceptMe()
+            ->whereIn('role', [RoleType::STOCK_MANAGER, RoleType::SENIOR_STOCK_MANAGER])
             ->get();
 
         foreach ($stockManagers as $stockManager) {
@@ -48,7 +48,7 @@ class StepExecutionNotification
                         [['text' => 'Approve', 'callback_data' => "approveExecution:$poStepExecution->id"]]
                     ]),
                 ]);
-            } catch (\Throwable $e) {
+            } catch (Throwable $e) {
                 // Log the error or handle it as needed
                 Log::error('Failed to send Telegram message', [
                     'user_id' => $stockManager->id,
@@ -73,17 +73,19 @@ class StepExecutionNotification
     {
         $message = "Prod order: <b>{$poStepExecution->prodOrderStep->prodOrder->number}</b>\n";
         $message .= "Step: <b>{$poStepExecution->prodOrderStep->workStation->name}</b>\n";
-        $message .= "Output product: <b>{$poStepExecution->prodOrderStep->product->catName}</b>\n";
-        $message .= "Created by: <b>{$poStepExecution->executedBy->name}</b>\n";
         $message .= "Created at: <b>{$poStepExecution->created_at->format('d M Y H:i')}</b>\n";
+        $message .= "Created by: <b>{$poStepExecution->executedBy->name}</b>\n";
 
-        $message .= "\nUsed materials:";
+        $message .= "\nUsed materials:\n";
         foreach ($poStepExecution->materials as $index => $material) {
             $index++;
-            $message .= "\n";
-            $message .= "$index) Product: <b>{$material->product->name}</b>\n";
-            $message .= "Quantity: <b>$material->used_quantity {$material->product->category->measure_unit->getLabel()}</b>\n";
+            $message .= "$index) <b>{$material->product->catName}:</b> $material->used_quantity {$material->product->category->measure_unit->getLabel()}\n";
         }
+        $message .= "\n";
+
+        $outputProduct = $poStepExecution->prodOrderStep->outputProduct;
+        $message .= "Output product: <b>$outputProduct->catName</b>\n";
+        $message .= "Output quantity: <b>$poStepExecution->output_quantity {$outputProduct->category->measure_unit->getLabel()}</b>\n";
 
         return $message;
     }

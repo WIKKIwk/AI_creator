@@ -8,6 +8,7 @@ use Exception;
 use Filament\Models\Contracts\FilamentUser;
 use Filament\Panel;
 use Illuminate\Database\Eloquent\Attributes\ScopedBy;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Foundation\Auth\User as Authenticatable;
@@ -81,6 +82,13 @@ class User extends Authenticatable implements FilamentUser
         'role' => RoleType::class,
     ];
 
+    protected static function booted(): void
+    {
+        static::creating(function (self $user) {
+            $user->generateAuthCode();
+        });
+    }
+
     public function organization(): BelongsTo
     {
         return $this->belongsTo(Organization::class);
@@ -96,11 +104,14 @@ class User extends Authenticatable implements FilamentUser
         return $this->belongsTo(WorkStation::class);
     }
 
-    protected static function booted(): void
+    public function scopeOwnOrganization(Builder $query): Builder
     {
-        static::creating(function (self $user) {
-            $user->generateAuthCode();
-        });
+        return $query->withGlobalScope('ownOrganization', new OwnOrganizationScope());
+    }
+
+    public function scopeExceptMe(Builder $query): Builder
+    {
+        return $query->whereNot('id', auth()->user()->id);
     }
 
     public function generateAuthCode(): void
@@ -114,7 +125,7 @@ class User extends Authenticatable implements FilamentUser
     public static function getFromChatId(int $chatId): self
     {
         /** @var User $user */
-        $user = self::query()->where('chat_id', $chatId)->first();
+        $user = self::findByChatId($chatId);
         if (!$user) {
             throw new Exception("User not found by chat_id: $chatId");
         }
@@ -128,11 +139,6 @@ class User extends Authenticatable implements FilamentUser
 
     public function canAccessPanel(Panel $panel): bool
     {
-        return !in_array(
-            $this->role,
-            [
-                RoleType::WORK_STATION_WORKER
-            ],
-        );
+        return $this->role != RoleType::WORK_STATION_WORKER;
     }
 }

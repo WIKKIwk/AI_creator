@@ -160,14 +160,15 @@ class ProdOrderResource extends Resource
                         RoleType::PLANNING_MANAGER,
                         RoleType::PRODUCTION_MANAGER,
                     ]))
-                    ->action(function (ProdOrder $record, $livewire) {
+                    ->action(function (ProdOrder $record, $livewire, $action) {
                         try {
                             $record->confirm();
                             showSuccess('Order confirmed successfully');
+                            $livewire->dispatch('$refresh');
                         } catch (Throwable $e) {
                             showError($e->getMessage());
+                            $action->halt();
                         }
-                        $livewire->dispatch('$refresh');
                     })
                     ->requiresConfirmation(),
 

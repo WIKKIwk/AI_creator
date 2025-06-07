@@ -64,11 +64,13 @@ class BaseHandler implements HandlerInterface
             return;
         }
 
-        $this->tgBot->rmLastMsg();
         if ($input) {
             $this->handleText($input);
+            $this->tgBot->settlePromises();
+            return;
         }
 
+        $this->tgBot->rmLastMsg();
         $this->tgBot->settlePromises();
     }
 

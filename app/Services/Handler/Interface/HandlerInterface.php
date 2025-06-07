@@ -10,8 +10,8 @@ interface HandlerInterface
 
     public function validateUser(User $user): bool;
     public function handleStart(): void;
-    public function handleInlineQuery(array $inlineQuery): void;
     public function handleHelp(): void;
-    public function handleCbQuery(string $cbData): void;
     public function handleText(string $text): void;
+    public function handleCbQuery(string $cbData): void;
+    public function handleInlineQuery(array $inlineQuery): void;
 }

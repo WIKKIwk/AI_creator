@@ -121,14 +121,15 @@ class ProdOrderGroupResource extends Resource
                 Tables\Actions\Action::make('confirm')
                     ->label('Confirm')
                     ->visible(fn($record) => !$record->isConfirmed())
-                    ->action(function (ProdOrderGroup $record, $livewire) {
+                    ->action(function (ProdOrderGroup $record, $livewire, $action) {
                         try {
                             $record->confirm();
                             showSuccess('Order confirmed successfully');
+                            $livewire->dispatch('$refresh');
                         } catch (Throwable $e) {
                             showError($e->getMessage());
+                            $action->halt();
                         }
-                        $livewire->dispatch('$refresh');
                     })
                     ->requiresConfirmation(),
                 Tables\Actions\EditAction::make(),

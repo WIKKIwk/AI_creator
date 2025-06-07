@@ -96,24 +96,25 @@ class StepExecution extends Component implements HasForms, HasTable
                     ->where('prod_order_step_id', $this->step->id)
             )
             ->headerActions([
-//                CreateAction::make('add')
-//                    ->label('Add execution')
-//                    ->hidden($this->step->status == ProdOrderStepStatus::Completed)
-//                    ->model(ProdOrderStepExecution::class)
-//                    ->form($this->getExecutionForm())
-//                    ->action(function($data) {
-//                        try {
-//                            /** @var ProdOrderService $prodOrderService */
-//                            $prodOrderService = app(ProdOrderService::class);
-//                            $prodOrderService->createExecution($this->step, $data);
-//
-//                            showSuccess('Execution created successfully');
-//                            $this->dispatch('refresh-page');
-//                        } catch (Throwable $e) {
-//                            showError($e->getMessage());
-//                        }
-//                    })
-//                    ->icon('heroicon-o-plus'),
+                CreateAction::make('add')
+                    ->label('Add execution')
+                    ->hidden($this->step->status == ProdOrderStepStatus::Completed)
+                    ->model(ProdOrderStepExecution::class)
+                    ->form($this->getExecutionForm())
+                    ->action(function($data, Action $action) {
+                        try {
+                            /** @var ProdOrderService $prodOrderService */
+                            $prodOrderService = app(ProdOrderService::class);
+                            $prodOrderService->createExecutionByForm($this->step, $data);
+
+                            showSuccess('Execution created successfully');
+                            $this->dispatch('refresh-page');
+                        } catch (Throwable $e) {
+                            showError($e->getMessage());
+                            $action->halt();
+                        }
+                    })
+                    ->icon('heroicon-o-plus'),
             ])
             ->columns([
                 TextColumn::make('materials')
@@ -157,7 +158,7 @@ class StepExecution extends Component implements HasForms, HasTable
                     })
                     ->icon('heroicon-o-check')
                     ->requiresConfirmation()
-                    ->action(function($record) {
+                    ->action(function($record, $action) {
                         /** @var ProdOrderService $prodOrderService */
                         $prodOrderService = app(ProdOrderService::class);
                         try {
@@ -166,6 +167,7 @@ class StepExecution extends Component implements HasForms, HasTable
                             $this->dispatch('refresh-page');
                         } catch (Throwable $e) {
                             showError($e->getMessage());
+                            $action->halt();
                         }
                     })
                     ->label('Approve')
