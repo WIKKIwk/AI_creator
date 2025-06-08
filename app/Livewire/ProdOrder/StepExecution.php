@@ -177,42 +177,6 @@ class StepExecution extends Component implements HasForms, HasTable
             ]);
     }
 
-    public function onChangeAvailable(array $data, ProdOrderStepExecution $record, self $livewire): void
-    {
-        /** @var ProdOrderService $prodOrderService */
-        $prodOrderService = app(ProdOrderService::class);
-        try {
-            $insufficientAssets = $prodOrderService->checkMaterialsExact(
-                $this->step,
-                $data['product_id'],
-                $data['available_quantity']
-            );
-            if (!empty($insufficientAssets)) {
-                $livewire->dispatch(
-                    'openModal',
-                    $this->step->prodOrder,
-                    $insufficientAssets,
-                    'editMaterials',
-                    [
-                        $this->step->id,
-                        $data['product_id'],
-                        $data['available_quantity']
-                    ]
-                );
-            } else {
-                $prodOrderService->changeMaterialAvailableExact(
-                    $this->step,
-                    $data['product_id'],
-                    $data['available_quantity']
-                );
-                showSuccess('Material added successfully');
-            }
-            $livewire->dispatch('$refresh');
-        } catch (Throwable $e) {
-            showError($e->getMessage());
-        }
-    }
-
     public function render(): View
     {
         return view('livewire.prod-order.step-execution');

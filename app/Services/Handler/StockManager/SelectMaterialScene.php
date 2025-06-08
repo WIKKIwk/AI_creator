@@ -9,18 +9,19 @@ use App\Services\Handler\Interface\SceneHandlerInterface;
 use App\Services\ProdOrderService;
 use App\Services\TelegramService;
 use App\Services\TgBot\TgBot;
+use Illuminate\Support\Arr;
 
 class SelectMaterialScene implements SceneHandlerInterface
 {
-    protected TgBot $tgBot;
-    protected Cache $cache;
-    protected ProdOrderService $prodOrderService;
+    public TgBot $tgBot;
+    public Cache $cache;
+    public ProdOrderService $prodOrderService;
 
-    protected const states = [
+    public const states = [
         'material_changeAvailable' => 'material_changeAvailable',
     ];
 
-    public function __construct(protected StockManagerHandler $handler)
+    public function __construct(public StockManagerHandler $handler)
     {
         $this->tgBot = $handler->tgBot;
         $this->cache = $handler->cache;
@@ -31,25 +32,19 @@ class SelectMaterialScene implements SceneHandlerInterface
     public function handleText($text): void
     {
         $activeState = $this->handler->getState();
-        dump("Active state: $activeState, Text: $text");
         switch ($activeState) {
             case self::states['material_changeAvailable']:
                 $this->inputAvailableQty($text);
                 return;
         }
 
-        if ($activeState) {
-            $this->tgBot->rmLastMsg();
-            return;
-        }
-
-        $this->handler->sendMainMenu();
+        $this->tgBot->rmLastMsg();
     }
 
     public function handleScene($params = []): void
     {
+        dump("Scene: " . $this->handler->getScene());
         $this->tgBot->answerCbQuery();
-        dump($params);
         $materialId = $params[0];
         $material = $this->getMaterial($materialId);
 
@@ -60,7 +55,7 @@ class SelectMaterialScene implements SceneHandlerInterface
             'parse_mode' => 'HTML',
             'reply_markup' => TelegramService::getInlineKeyboard([
                 [['text' => 'Change available', 'callback_data' => "changeAvailable:$material->id"]],
-                [['text' => '⬅️ Back', 'callback_data' => "materialsList:$material->prod_order_step_id"]],
+                [['text' => '⬅️ Back', 'callback_data' => "cancelMaterial:$material->prod_order_step_id"]],
             ]),
         ]);
 
@@ -69,6 +64,8 @@ class SelectMaterialScene implements SceneHandlerInterface
 
     public function changeAvailable($materialId): void
     {
+        dump("Updated");
+        dump(['id' => $materialId, 'available_quantity' => 0]);
         $this->tgBot->answerCbQuery();
         $this->handler->setCacheArray('materialForm', ['id' => $materialId, 'available_quantity' => 0]);
         $this->handler->setState(self::states['material_changeAvailable']);
@@ -84,12 +81,12 @@ class SelectMaterialScene implements SceneHandlerInterface
             'text' => $message,
             'parse_mode' => 'HTML',
             'reply_markup' => TelegramService::getInlineKeyboard([
-                [['text' => '⬅️ Back', 'callback_data' => "cancelMaterial"]],
+                [['text' => '⬅️ Back', 'callback_data' => "cancelMaterial:$material->prod_order_step_id"]],
             ]),
         ]);
     }
 
-    protected function inputAvailableQty($quantity): void
+    public function inputAvailableQty($quantity): void
     {
         $this->tgBot->rmLastMsg();
         $form = $this->handler->getCacheArray('materialForm');
@@ -101,28 +98,24 @@ class SelectMaterialScene implements SceneHandlerInterface
         $material = $this->getMaterial($form['id']);
 
         if (!is_numeric($quantity) || $quantity <= 0) {
-
             $message = "<i>❌ Invalid quantity format.</i>\n\n";
             $message .= ProdOrderNotification::getMaterialMsg($material);
-            $message .= "\n\n Input available quantity for this material:";
-
             $this->tgBot->sendRequestAsync('editMessageText', [
                 'chat_id' => $this->tgBot->chatId,
                 'message_id' => $this->handler->getCache('edit_msg_id'),
-                'text' => $message,
+                'text' => $message . "\n\n Input available quantity for this material:",
                 'parse_mode' => 'HTML',
                 'reply_markup' => TelegramService::getInlineKeyboard([
-                    [['text' => '⬅️ Back', 'callback_data' => 'cancelMaterial']],
+                    [['text' => '⬅️ Back', 'callback_data' => "cancelMaterial:$material->prod_order_step_id"]],
                 ]),
             ]);
             return;
         }
 
-        $form = $this->handler->getCacheArray('executionForm');
         $form['available_quantity'] = $quantity;
         $material->available_quantity = $quantity;
-        $this->handler->setCacheArray('executionForm', $form);
-dump($form);
+        $this->handler->setCacheArray('materialForm', $form);
+
         $message = ProdOrderNotification::getMaterialMsg($material);
         $message .= "\n\n Input available quantity for this material:";
 
@@ -133,14 +126,120 @@ dump($form);
             'parse_mode' => 'HTML',
             'reply_markup' => TelegramService::getInlineKeyboard([
                 [
-                    ['text' => '⬅️ Back', 'callback_data' => "materialsList:$material->prod_order_step_id"],
+                    ['text' => '⬅️ Back', 'callback_data' => "cancelMaterial:$material->prod_order_step_id"],
                     ['text' => '✅ Save', 'callback_data' => "saveMaterial:$material->id"],
                 ],
             ]),
         ]);
     }
 
-    protected function getMaterial($materialId): ?ProdOrderStepProduct
+    public function saveMaterial($materialId): void
+    {
+        $material = $this->getMaterial($materialId);
+
+        $form = $this->handler->getCacheArray('materialForm');
+        $availableQuantity = $form['available_quantity'];
+
+        $insufficientAssets = $this->prodOrderService->checkMaterials(
+            $material->step,
+            $material->product_id,
+            $availableQuantity
+        );
+        if (!empty($insufficientAssets)) {
+            $this->tgBot->answerCbQuery(['text' => '⚠️ Insufficient assets!']);
+            $message = "<i>⚠️ Insufficient assets:</i>\n\n";
+
+            foreach ($insufficientAssets as $missingAssets) {
+                foreach ($missingAssets as $item) {
+                    $product = Arr::get($item, 'product');
+                    $qty = Arr::get($item, 'quantity');
+                    $category = Arr::get($item, 'category');
+                    $measureUnit = Arr::get($item, 'measure_unit');
+
+                    $message .= "<b>$category {$product['name']}: $qty $measureUnit</b>\n";
+                }
+            }
+
+            $message .= "\n<b>Would you like to create Supply Orders for these assets?</b>";
+
+            $this->tgBot->sendRequestAsync('editMessageText', [
+                'chat_id' => $this->tgBot->chatId,
+                'message_id' => $this->tgBot->getMessageId(),
+                'text' => $message,
+                'parse_mode' => 'HTML',
+                'reply_markup' => TelegramService::getInlineKeyboard([
+                    [
+                        ['text' => '⬅️ Back', 'callback_data' => "cancelMaterial:$material->prod_order_step_id"],
+                        ['text' => '✅ Confirm', 'callback_data' => "confirmSupplyOrder:$material->id"]
+                    ],
+                ]),
+            ]);
+            return;
+        }
+
+        $this->prodOrderService->changeMaterialAvailableExact(
+            $material->step,
+            $material->product_id,
+            $availableQuantity
+        );
+        $material->available_quantity = $availableQuantity;
+
+        $this->tgBot->answerCbQuery(['text' => '✅ Material changed successfully!']);
+
+        $message = "<b>✅ Material changed successfully!</b>\n\n";
+        $message .= ProdOrderNotification::getMaterialMsg($material);
+
+        $this->tgBot->sendRequestAsync('editMessageText', [
+            'chat_id' => $this->tgBot->chatId,
+            'message_id' => $this->tgBot->getMessageId(),
+            'text' => $message,
+            'parse_mode' => 'HTML',
+            'reply_markup' => TelegramService::getInlineKeyboard([
+                [['text' => '⬅️ Back', 'callback_data' => "cancelMaterial:$material->prod_order_step_id"]],
+            ]),
+        ]);
+
+        // Clear the cache after saving
+        $this->handler->setCacheArray('executionForm', []);
+    }
+
+    public function confirmSupplyOrder($materialId): void
+    {
+        $material = $this->getMaterial($materialId);
+
+        $form = $this->handler->getCacheArray('materialForm');
+        $availableQuantity = $form['available_quantity'];
+
+        $this->prodOrderService->changeMaterialAvailableExact(
+            $material->step,
+            $material->product_id,
+            $availableQuantity
+        );
+        $material->available_quantity = $availableQuantity;
+
+        $this->tgBot->answerCbQuery(['text' => '✅ Supply Orders created successfully!']);
+
+        $message = "<b>✅ Supply Orders created successfully!</b>\n\n";
+        $message .= ProdOrderNotification::getMaterialMsg($material);
+
+        $this->tgBot->sendRequestAsync('editMessageText', [
+            'chat_id' => $this->tgBot->chatId,
+            'message_id' => $this->tgBot->getMessageId(),
+            'text' => $message,
+            'parse_mode' => 'HTML',
+            'reply_markup' => TelegramService::getInlineKeyboard([
+                [['text' => '⬅️ Back', 'callback_data' => "cancelMaterial:$material->prod_order_step_id"]],
+            ]),
+        ]);
+    }
+
+    public function cancelMaterial($stepId): void
+    {
+        $this->handler->resetCache();
+        $this->handler->materialsList($stepId);
+    }
+
+    public function getMaterial($materialId): ?ProdOrderStepProduct
     {
         /** @var ?ProdOrderStepProduct $material */
         $material = ProdOrderStepProduct::query()->find($materialId);

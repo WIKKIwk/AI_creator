@@ -378,6 +378,8 @@ class CreateProdOrderScene implements SceneHandlerInterface
         dump($form);
 
         if (empty($form['products'])) {
+            $this->tgBot->answerCbQuery(['text' => '❌ No products added!'], true);
+
             $this->tgBot->sendRequestAsync('editMessageText', [
                 'chat_id' => $this->tgBot->chatId,
                 'message_id' => $this->tgBot->getMessageId(),
@@ -413,6 +415,8 @@ class CreateProdOrderScene implements SceneHandlerInterface
 
             $this->handler->sendMainMenu();
         } catch (Throwable $e) {
+            $this->tgBot->answerCbQuery(['text' => '❌ Error saving ProdOrder!'], true);
+
             $this->tgBot->sendRequestAsync('editMessageText', [
                 'chat_id' => $this->tgBot->chatId,
                 'message_id' => $this->tgBot->getMessageId(),

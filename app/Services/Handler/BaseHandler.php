@@ -59,6 +59,13 @@ class BaseHandler implements HandlerInterface
             return;
         }
 
+        if ($input === '/cancel') {
+            $this->resetCache();
+            $this->tgBot->answerMsg(['text' => "Cancelled."]);
+            $this->tgBot->settlePromises();
+            return;
+        }
+
         if ($cbData = Arr::get($update, 'callback_query.data')) {
             $this->handleCbQuery($cbData);
             $this->tgBot->settlePromises();
@@ -66,7 +73,11 @@ class BaseHandler implements HandlerInterface
         }
 
         if ($input) {
-            $this->handleText($input);
+            if ($sceneHandler = $this->getSceneHandler()) {
+                $sceneHandler->handleText($input);
+            } else {
+                $this->handleText($input);
+            }
         }
 
         $this->tgBot->rmLastMsg();
@@ -137,11 +148,6 @@ class BaseHandler implements HandlerInterface
 
     public function handleText(string $text): void
     {
-        if ($sceneHandler = $this->getSceneHandler()) {
-            $sceneHandler->handleText($text);
-            return;
-        }
-
         $this->sendMainMenu();
     }
 
@@ -182,7 +188,6 @@ class BaseHandler implements HandlerInterface
 
     public function sendMainMenu($edit = false): void
     {
-        $this->resetCache();
         $msg = self::getUserDetailsMsg($this->user);
 
         $params = [

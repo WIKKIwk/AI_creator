@@ -93,9 +93,14 @@ class TgBot
 
     public function answerCbQuery(array $params = [], bool $async = false)
     {
+        $cbQueryId = Arr::get($this->update, 'callback_query.id');
+        if (!$cbQueryId) {
+            return;
+        }
+
         $method = $async ? 'sendRequestAsync' : 'sendRequest';
         return $this->{$method}('answerCallbackQuery', array_merge([
-            'callback_query_id' => Arr::get($this->update, 'callback_query.id')
+            'callback_query_id' => $cbQueryId
         ], $params));
     }
 

@@ -90,10 +90,27 @@ HTML,
         }
     }
 
+    public function handleText(string $text): void
+    {
+        $activeState = $this->getState();
+
+        if (str_starts_with($text, '/select_prod_order')) {
+            $orderId = trim(str_replace('/select_prod_order ', '', $text));
+            $this->selectProdOrder($orderId);
+            return;
+        }
+
+        if ($activeState || $this->getScene()) {
+            $this->tgBot->rmLastMsg();
+            return;
+        }
+
+        $this->sendMainMenu();
+    }
+
     public function selectProdOrder($orderId): void
     {
-        $this->tgBot->rmLastMsg();
-
+        $this->tgBot->answerCbQuery();
         /** @var ProdOrder $prodOrder */
         $prodOrder = ProdOrder::query()->started()->find($orderId);
 
@@ -113,14 +130,23 @@ HTML,
             $stepButtons[] = [['text' => $step->workStation->name, 'callback_data' => "selectPoStep:$step->id"]];
         }
 
-        $this->tgBot->sendRequestAsync('sendMessage', [
-            'chat_id' => $this->tgBot->chatId,
-            'text' => $message,
-            'reply_markup' => TelegramService::getInlineKeyboard($stepButtons),
-            'parse_mode' => 'HTML',
-        ]);
-
-        $this->setCache('edit_msg_id', $this->tgBot->getMessageId());
+        $messageId = $this->getCache('edit_msg_id');
+        if ($messageId) {
+            $this->tgBot->sendRequestAsync('editMessageText', [
+                'chat_id' => $this->tgBot->chatId,
+                'message_id' => $messageId,
+                'text' => $message,
+                'reply_markup' => TelegramService::getInlineKeyboard($stepButtons),
+                'parse_mode' => 'HTML',
+            ]);
+        } else {
+            $this->tgBot->sendRequestAsync('sendMessage', [
+                'chat_id' => $this->tgBot->chatId,
+                'text' => $message,
+                'reply_markup' => TelegramService::getInlineKeyboard($stepButtons),
+                'parse_mode' => 'HTML',
+            ]);
+        }
     }
 
     public function selectPoStep($stepId): void
@@ -149,6 +175,8 @@ HTML,
                 [['text' => '⬅️ Back', 'callback_data' => "selectProdOrder:$step->prod_order_id"]],
             ]),
         ]);
+
+        $this->setCache('edit_msg_id', $this->tgBot->getMessageId());
     }
 
     public function materialsList($stepId): void
