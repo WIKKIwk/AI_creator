@@ -7,12 +7,16 @@ use App\Enums\SupplyOrderState;
 use App\Enums\SupplyOrderStatus;
 use App\Enums\TaskAction;
 use App\Events\SupplyOrderClosed;
+use App\Listeners\ProdOrderNotification;
+use App\Listeners\SupplyOrderNotification;
 use App\Models\ProdOrder\ProdOrder;
 use App\Models\SupplyOrder\SupplyOrder;
+use App\Models\User;
 use Exception;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Validator;
 use Throwable;
 
@@ -156,6 +160,84 @@ class SupplyOrderService
         }
     }
 
+    public function notifyCompareProducts(SupplyOrder $supplyOrder): void
+    {
+        /** @var Collection<User> $stockManagers */
+        $stockManagers = User::query()
+            ->ownOrganization()
+            ->exceptMe()
+            ->where('warehouse_id', $supplyOrder->warehouse_id)
+            ->whereIn('role', [RoleType::SENIOR_STOCK_MANAGER, RoleType::STOCK_MANAGER])
+            ->get();
+
+        $message = "<b>SupplyOrder waiting for StockManager approval</b>\n\n";
+        $message .= SupplyOrderNotification::getSupplyOrderMsg($supplyOrder, false);
+
+        foreach ($stockManagers as $stockManager) {
+            try {
+                TelegramService::sendMessage($stockManager->chat_id, $message, [
+                    'parse_mode' => 'HTML',
+                    'reply_markup' => TelegramService::getInlineKeyboard([
+                        [['text' => 'Compare products', 'callback_data' => "compareSupplyOrder:$supplyOrder->id"]]
+                    ]),
+                ]);
+            } catch (Throwable $e) {
+                // Log the error or handle it as needed
+                Log::error('Failed to send Telegram message', [
+                    'user_id' => $stockManager->id,
+                    'error' => $e->getMessage(),
+                ]);
+            }
+        }
+
+        TaskService::createTaskForRoles(
+            toUserRoles: [RoleType::SENIOR_STOCK_MANAGER->value, RoleType::STOCK_MANAGER->value],
+            relatedType: SupplyOrder::class,
+            relatedId: $supplyOrder->id,
+            action: TaskAction::Check,
+            comment: 'Supply order delivered. Need to compare products.'
+        );
+    }
+
+    public function notifyCompareProductsDiff(SupplyOrder $supplyOrder): void
+    {
+        /** @var Collection<User> $supplyManagers */
+        $supplyManagers = User::query()
+            ->ownOrganization()
+            ->exceptMe()
+            ->whereIn('role', [RoleType::SENIOR_SUPPLY_MANAGER, RoleType::SUPPLY_MANAGER])
+            ->get();
+
+        $message = "<b>SupplyOrder products comparison</b>\n\n";
+        $message .= SupplyOrderNotification::getSupplyOrderMsg($supplyOrder);
+        $message .= "\nThere are some differences in quantities.";
+
+        foreach ($supplyManagers as $supplyManager) {
+            try {
+                TelegramService::sendMessage($supplyManager->chat_id, $message, [
+                    'parse_mode' => 'HTML',
+                    'reply_markup' => TelegramService::getInlineKeyboard([
+                        [['text' => 'Close order', 'callback_data' => "closeSupplyOrder:$supplyOrder->id"]]
+                    ]),
+                ]);
+            } catch (Throwable $e) {
+                // Log the error or handle it as needed
+                Log::error('Failed to send Telegram message', [
+                    'user_id' => $supplyManager->id,
+                    'error' => $e->getMessage(),
+                ]);
+            }
+        }
+
+        TaskService::createTaskForRoles(
+            toUserRoles: [RoleType::SENIOR_SUPPLY_MANAGER->value, RoleType::SUPPLY_MANAGER->value],
+            relatedType: SupplyOrder::class,
+            relatedId: $supplyOrder->id,
+            action: TaskAction::Check,
+            comment: 'Supply order products compared. There are some differences in quantities.'
+        );
+    }
+
     public function compareProducts(SupplyOrder $supplyOrder, array $products): void
     {
         try {
@@ -180,13 +262,7 @@ class SupplyOrderService
                     SupplyOrderState::Delivered,
                     SupplyOrderStatus::AwaitingSupplierApproval->value
                 );
-                TaskService::createTaskForRoles(
-                    toUserRoles: [RoleType::SUPPLY_MANAGER->value],
-                    relatedType: SupplyOrder::class,
-                    relatedId: $supplyOrder->id,
-                    action: TaskAction::Check,
-                    comment: 'Supply order compared. There are some differences in quantities.'
-                );
+                $this->notifyCompareProductsDiff($supplyOrder);
             }
 
             DB::commit();

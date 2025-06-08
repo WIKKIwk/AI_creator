@@ -2,12 +2,9 @@
 
 namespace App\Listeners;
 
-use App\Enums\ProdOrderGroupType;
 use App\Enums\RoleType;
 use App\Enums\TaskAction;
-use App\Events\ProdOrderChanged;
 use App\Events\SupplyOrderChanged;
-use App\Models\ProdOrder\ProdOrderGroup;
 use App\Models\SupplyOrder\SupplyOrder;
 use App\Models\User;
 use App\Services\TaskService;
@@ -39,15 +36,15 @@ class SupplyOrderNotification
             ->whereIn('role', [RoleType::SENIOR_SUPPLY_MANAGER, RoleType::SUPPLY_MANAGER])
             ->get();
 
+        if ($event->isNew) {
+            $message = "<b>New Supply order created</b>\n\n";
+        } else {
+            $message = "<b>Supply order updated</b>\n\n";
+        }
+        $message .= self::getSupplyOrderMsg($supplyOrder);
+
         foreach ($supplyManagers as $supplyManager) {
             try {
-                if ($event->isNew) {
-                    $message = "<b>New Supply order created</b>\n\n";
-                } else {
-                    $message = "<b>Supply order updated</b>\n\n";
-                }
-                $message .= self::getSupplyOrderMsg($supplyOrder);
-
                 TelegramService::sendMessage($supplyManager->chat_id, $message, [
                     'parse_mode' => 'HTML',
                     'reply_markup' => TelegramService::getInlineKeyboard([
@@ -75,7 +72,7 @@ class SupplyOrderNotification
         );
     }
 
-    public static function getSupplyOrderMsg(SupplyOrder $supplyOrder): string
+    public static function getSupplyOrderMsg(SupplyOrder $supplyOrder, $withProducts = true): string
     {
         $isConfirmed = $supplyOrder->isConfirmed() ? '✅' : '❌';
         $message = "Code: <b>{$supplyOrder->number}</b>\n";
@@ -87,12 +84,16 @@ class SupplyOrderNotification
         $message .= "Created at: <b>{$supplyOrder->created_at->format('d M Y H:i')}</b>\n";
         $message .= "Confirmed: $isConfirmed\n";
 
+        if (!$withProducts) {
+            return $message;
+        }
+
         $message .= "\nProducts:";
         foreach ($supplyOrder->products as $index => $product) {
             $index++;
             $message .= "\n";
             $message .= "$index) Product: <b>{$product->product->catName}</b>\n";
-            $message .= "Quantity: <b>$product->expected_quantity {$product->product->category->measure_unit->getLabel()}</b>\n";
+            $message .= "Quantity: <b>$product->actual_quantity {$product->product->category->measure_unit->getLabel()}</b>\n";
             $message .= "Price: <b>$product->price</b>\n";
         }
 

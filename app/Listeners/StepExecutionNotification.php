@@ -37,11 +37,11 @@ class StepExecutionNotification
             ->whereIn('role', [RoleType::STOCK_MANAGER, RoleType::SENIOR_STOCK_MANAGER])
             ->get();
 
+        $message = "<b>New execution created</b>\n\n";
+        $message .= self::getExecutionMsg($poStepExecution);
+
         foreach ($stockManagers as $stockManager) {
             try {
-                $message = "<b>New execution created</b>\n\n";
-                $message .= self::getExecutionMsg($poStepExecution);
-
                 TelegramService::sendMessage($stockManager->chat_id, $message, [
                     'parse_mode' => 'HTML',
                     'reply_markup' => TelegramService::getInlineKeyboard([

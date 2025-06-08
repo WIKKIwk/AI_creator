@@ -9,7 +9,9 @@ use App\Events\ProdOrderChanged;
 use App\Models\ProdOrder\ProdOrder;
 use App\Models\ProdOrder\ProdOrderGroup;
 use App\Models\ProdOrder\ProdOrderStep;
+use App\Models\ProdOrder\ProdOrderStepExecution;
 use App\Models\ProdOrder\ProdOrderStepProduct;
+use App\Models\Product;
 use App\Models\User;
 use App\Services\TaskService;
 use App\Services\TelegramService;
@@ -40,15 +42,15 @@ class ProdOrderNotification
             ->where('role', RoleType::PRODUCTION_MANAGER)
             ->get();
 
+        if ($event->isNew) {
+            $message = "<b>New ProdOrder created</b>\n\n";
+        } else {
+            $message = "<b>ProdOrder updated</b>\n\n";
+        }
+        $message .= self::getProdOrderGroupMsg($poGroup);
+
         foreach ($PMs as $PM) {
             try {
-                if ($event->isNew) {
-                    $message = "<b>New Production Order Created</b>\n\n";
-                } else {
-                    $message = "<b>Production Order Updated</b>\n\n";
-                }
-                $message .= self::getProdOrderGroupMsg($poGroup);
-
                 TelegramService::sendMessage($PM->chat_id, $message, [
                     'parse_mode' => 'HTML',
                     'reply_markup' => TelegramService::getInlineKeyboard([
@@ -146,6 +148,27 @@ class ProdOrderNotification
         $message .= "Required: <b>$material->required_quantity {$measureUnit->getLabel()}</b>\n";
         $message .= "Available: <b>$material->available_quantity {$measureUnit->getLabel()}</b>\n";
         $message .= "Used: <b>$material->used_quantity {$measureUnit->getLabel()}</b>\n";
+
+        return $message;
+    }
+
+    public static function getExecutionMsg(ProdOrderStepExecution $execution): string
+    {
+        $message = "Prod order: <b>{$execution->prodOrderStep->prodOrder->number}</b>\n";
+        $message .= "Step: <b>{$execution->prodOrderStep->workStation->name}</b>\n";
+        $message .= "Executed by: <b>{$execution->executedBy->name}</b>\n";
+        $message .= "Executed at: <b>{$execution->created_at->format('d M Y H:i')}</b>\n";
+        $message .= "Output product: <b>{$execution->prodOrderStep->outputProduct->catName}</b>\n";
+        $message .= "Output quantity: <b>$execution->output_quantity {$execution->prodOrderStep->outputProduct->getMeasureUnit()->getLabel()}</b>\n";
+        $message .= "Notes: <i>$execution->notes</i>\n";
+
+        if (!empty($execution->materials)) {
+            $message .= "\n<b>Used materials:</b>\n";
+            foreach ($execution->materials as $index => $material) {
+                $index++;
+                $message .= "$index) <b>{$material->product->catName}</b>: $material->used_quantity {$material->product->getMeasureUnit()->getLabel()}\n";
+            }
+        }
 
         return $message;
     }

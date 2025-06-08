@@ -73,7 +73,8 @@ class BaseHandler implements HandlerInterface
         }
 
         if ($input) {
-            if ($sceneHandler = $this->getSceneHandler()) {
+            $sceneHandler = $this->getSceneHandler();
+            if ($sceneHandler && method_exists($sceneHandler, 'handleText')) {
                 $sceneHandler->handleText($input);
             } else {
                 $this->handleText($input);
@@ -81,6 +82,7 @@ class BaseHandler implements HandlerInterface
         }
 
         $this->tgBot->rmLastMsg();
+        dump("HEREEE");
         $this->tgBot->settlePromises();
     }
 

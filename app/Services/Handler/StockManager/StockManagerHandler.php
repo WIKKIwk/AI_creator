@@ -8,7 +8,6 @@ use App\Listeners\StepExecutionNotification;
 use App\Models\ProdOrder\ProdOrder;
 use App\Models\ProdOrder\ProdOrderStep;
 use App\Models\ProdOrder\ProdOrderStepExecution;
-use App\Models\ProdOrder\ProdOrderStepProduct;
 use App\Models\User;
 use App\Services\Handler\BaseHandler;
 use App\Services\ProdOrderService;
@@ -20,6 +19,8 @@ class StockManagerHandler extends BaseHandler
 {
     protected array $sceneHandlers = [
         'selectMaterial' => SelectMaterialScene::class,
+        'selectExecution' => SelectExecutionScene::class,
+        'compareSupplyOrder' => CompareSupplyOrderScene::class,
     ];
 
     protected array $commandHandlers = [
@@ -27,7 +28,9 @@ class StockManagerHandler extends BaseHandler
     ];
 
     protected array $callbackHandlers = [
-//        'materialsList' => [SelectMaterialScene::class, 'materialsList'],
+        'cancelMaterial' => [SelectMaterialScene::class, 'cancelMaterial'],
+        'cancelExecution' => [SelectExecutionScene::class, 'cancelExecution'],
+        'cancelCompare' => [CompareSupplyOrderScene::class, 'cancelCompare'],
     ];
 
     protected const templates = [
@@ -157,21 +160,16 @@ HTML,
         $message = "<b>Selected step details:</b>\n\n";
         $message .= ProdOrderNotification::getPoStepMsg($step);
 
-        $buttons = [];
-        if ($step->status != ProdOrderStepStatus::Completed) {
-            $buttons[] = [
-                ['text' => 'Materials', 'callback_data' => "materialsList:$step->id"],
-                ['text' => 'Executions', 'callback_data' => "executionsList:$step->id"]
-            ];
-        }
-
         $this->tgBot->sendRequestAsync('editMessageText', [
             'chat_id' => $this->tgBot->chatId,
             'message_id' => $this->tgBot->getMessageId(),
             'text' => $message,
             'parse_mode' => 'HTML',
             'reply_markup' => TelegramService::getInlineKeyboard([
-                ...$buttons,
+                [
+                    ['text' => 'Materials', 'callback_data' => "materialsList:$step->id"],
+                    ['text' => 'Executions', 'callback_data' => "executionsList:$step->id"]
+                ],
                 [['text' => '⬅️ Back', 'callback_data' => "selectProdOrder:$step->prod_order_id"]],
             ]),
         ]);
@@ -182,11 +180,10 @@ HTML,
     public function materialsList($stepId): void
     {
         $step = $this->getStep($stepId);
-        $materials = $step->materials;
 
         $buttons = [];
         $message = "<b>Materials of {$step->workStation->name} step:</b>\n";
-        foreach ($materials as $index => $material) {
+        foreach ($step->materials as $index => $material) {
             $index++;
 
             $measureUnit = $material->product->getMeasureUnit();
@@ -197,6 +194,41 @@ HTML,
             $message .= "Used: <b>$material->used_quantity {$measureUnit->getLabel()}</b>\n";
 
             $buttons[] = [['text' => $material->product->catName, 'callback_data' => "selectMaterial:$material->id"]];
+        }
+
+        if ($step->status != ProdOrderStepStatus::Completed) {
+            $buttons = array_merge($buttons, [
+                [['text' => '⬅️ Back', 'callback_data' => "selectPoStep:$stepId"]],
+            ]);
+        }
+
+        $this->tgBot->sendRequestAsync('editMessageText', [
+            'chat_id' => $this->tgBot->chatId,
+            'message_id' => $this->tgBot->getMessageId(),
+            'text' => $message,
+            'parse_mode' => 'HTML',
+            'reply_markup' => TelegramService::getInlineKeyboard($buttons),
+        ]);
+    }
+
+    public function executionsList($stepId): void
+    {
+        $step = $this->getStep($stepId);
+
+        $buttons = [];
+        $message = "<b>Executions of {$step->workStation->name} step:</b>\n";
+        foreach ($step->executions as $index => $execution) {
+            $index++;
+
+//            $message .= "\n";
+//            $message .= "$index) <b>{$execution->executedBy->name}</b> at <b>{$execution->created_at->format('d M Y H:i')}</b>\n";
+
+            $buttons[] = [
+                [
+                    'text' => "{$execution->executedBy->name} at {$execution->created_at->format('d M Y H:i')}",
+                    'callback_data' => "selectExecution:$execution->id"
+                ]
+            ];
         }
 
         $this->tgBot->sendRequestAsync('editMessageText', [

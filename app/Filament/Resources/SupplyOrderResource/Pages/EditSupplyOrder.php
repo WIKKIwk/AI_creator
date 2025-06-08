@@ -48,13 +48,9 @@ class EditSupplyOrder extends EditRecord
                 }
 
                 if ($state == SupplyOrderState::Delivered->value && $status == SupplyOrderStatus::AwaitingWarehouseApproval->value) {
-                    TaskService::createTaskForRoles(
-                        toUserRoles: [RoleType::SENIOR_STOCK_MANAGER->value],
-                        relatedType: SupplyOrder::class,
-                        relatedId: $supplyOrder->id,
-                        action: TaskAction::Check,
-                        comment: 'Supply order delivered. Need to compare quantities.'
-                    );
+                    /** @var SupplyOrderService $supplyOrderService */
+                    $supplyOrderService = app(SupplyOrderService::class);
+                    $supplyOrderService->notifyCompareProducts($supplyOrder);
                 }
 
                 $data['state'] = $state;
