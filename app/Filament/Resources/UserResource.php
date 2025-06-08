@@ -13,6 +13,7 @@ use Filament\Resources\Resource;
 use Filament\Tables;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Validation\Rule;
 
 class UserResource extends Resource
 {
@@ -67,7 +68,9 @@ class UserResource extends Resource
                         ->options(RoleType::class)
                         ->required(),
                     Forms\Components\TextInput::make('chat_id')
-                        ->rules('unique:users,chat_id'),
+                        ->rules(fn ($get, $record) => [
+                            Rule::unique('users', 'chat_id')->ignore($record?->id),
+                        ]),
                 ]),
                 Forms\Components\Grid::make(3)->schema([
                     Forms\Components\Select::make('warehouse_id')

@@ -6,7 +6,10 @@ use App\Enums\ProdOrderGroupType;
 use App\Enums\RoleType;
 use App\Enums\TaskAction;
 use App\Events\ProdOrderChanged;
+use App\Models\ProdOrder\ProdOrder;
 use App\Models\ProdOrder\ProdOrderGroup;
+use App\Models\ProdOrder\ProdOrderStep;
+use App\Models\ProdOrder\ProdOrderStepProduct;
 use App\Models\User;
 use App\Services\TaskService;
 use App\Services\TelegramService;
@@ -44,7 +47,7 @@ class ProdOrderNotification
                 } else {
                     $message = "<b>Production Order Updated</b>\n\n";
                 }
-                $message .= self::getProdOrderMsg($poGroup);
+                $message .= self::getProdOrderGroupMsg($poGroup);
 
                 TelegramService::sendMessage($PM->chat_id, $message, [
                     'parse_mode' => 'HTML',
@@ -72,7 +75,7 @@ class ProdOrderNotification
         );
     }
 
-    public static function getProdOrderMsg(ProdOrderGroup $poGroup): string
+    public static function getProdOrderGroupMsg(ProdOrderGroup $poGroup): string
     {
         $isConfirmed = $poGroup->isConfirmed() ? '✅' : '❌';
         $message = "Type: <b>{$poGroup->type->getLabel()}</b>\n";
@@ -92,18 +95,57 @@ class ProdOrderNotification
         $message .= "\nProducts:";
         foreach ($poGroup->prodOrders as $index => $prodOrder) {
             $index++;
-            $isConfirmed = $prodOrder->isConfirmed() ? '✅' : '❌';
-
             $message .= "\n";
-            $message .= "$index) Code: <b>$prodOrder->number</b>\n";
-            $message .= "Product: <b>{$prodOrder->product->catName}</b>\n";
-            $message .= "Quantity: <b>$prodOrder->quantity {$prodOrder->product->category->measure_unit->getLabel()}</b>\n";
-            $message .= "Offer price: <b>$prodOrder->offer_price</b>\n";
-            $message .= "Progress: <b>{$prodOrder->getProgress()}%</b>\n";
-            $message .= "Expected cost: <b>$prodOrder->total_cost</b>\n";
-            $message .= "Expected deadline: <b>$prodOrder->deadline days</b>\n";
-            $message .= "Confirmed: $isConfirmed\n";
+            $message .= self::getProdOrderMsg($prodOrder, $index);
         }
+
+        return $message;
+    }
+
+    public static function getProdOrderMsg(ProdOrder $prodOrder, $index = null): string
+    {
+        $message = ($index ? "$index) " : '') . "Code: <b>$prodOrder->number</b>\n";
+        $message .= "Product: <b>{$prodOrder->product->catName}</b>\n";
+        $message .= "Quantity: <b>$prodOrder->quantity {$prodOrder->product->category->measure_unit->getLabel()}</b>\n";
+        $message .= "Offer price: <b>$prodOrder->offer_price</b>\n";
+        $message .= "Progress: <b>{$prodOrder->getProgress()}%</b>\n";
+        $message .= "Expected cost: <b>$prodOrder->total_cost</b>\n";
+        $message .= "Expected deadline: <b>$prodOrder->deadline days</b>\n";
+
+        $confirmed = $prodOrder->isConfirmed() ? '✅' : '❌';
+        $message .= "Confirmed: $confirmed\n";
+
+        return $message;
+    }
+
+    public static function getPoStepMsg(ProdOrderStep $poStep): string
+    {
+        $measureUnit = $poStep->outputProduct->getMeasureUnit();
+
+        $message = 'WorkStation: <b>' . $poStep->workStation->name . '</b>' . "\n";
+        $message .= 'Status: <b>' . $poStep->status->getLabel() . '</b>' . "\n";
+        $message .= 'Output product: <b>' . $poStep->outputProduct->catName . '</b>' . "\n";
+        $message .= 'Expected quantity: <b>' . $poStep->expected_quantity . ' ' . $measureUnit->getLabel(
+            ) . '</b>' . "\n";
+        $message .= 'Output quantity: <b>' . $poStep->output_quantity . ' ' . $measureUnit->getLabel() . '</b>' . "\n";
+
+        return $message;
+    }
+
+    public static function getMaterialMsg(ProdOrderStepProduct $material, $index = null): string
+    {
+        $measureUnit = $material->product->getMeasureUnit();
+
+        $message = '';
+        if (!$index) {
+            $message .= "Prod order: <b>{$material->step->prodOrder->number}</b>\n";
+            $message .= "Step: <b>{$material->step->workStation->name}</b>\n";
+        }
+
+        $message .= ($index ? "$index) ": '') . "Material: <b>{$material->product->catName}</b>\n";
+        $message .= "Required: <b>$material->required_quantity {$measureUnit->getLabel()}</b>\n";
+        $message .= "Available: <b>$material->available_quantity {$measureUnit->getLabel()}</b>\n";
+        $message .= "Used: <b>$material->used_quantity {$measureUnit->getLabel()}</b>\n";
 
         return $message;
     }

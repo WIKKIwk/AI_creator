@@ -68,6 +68,10 @@ class ProductsRelationManager extends RelationManager
                         ->required()
                         ->numeric(),
 
+                    Forms\Components\TextInput::make('price')
+                        ->required()
+                        ->numeric(),
+
                     Forms\Components\TextInput::make('actual_quantity')
                         ->visible(fn($record) => $record?->id)
                         ->suffix(function ($get) {
@@ -115,6 +119,7 @@ class ProductsRelationManager extends RelationManager
                     ->formatStateUsing(function ($record) {
                         return $record->expected_quantity . ' ' . $record->product->category?->measure_unit?->getLabel();
                     }),
+                Tables\Columns\TextColumn::make('price'),
                 Tables\Columns\TextColumn::make('actual_quantity')
                     ->formatStateUsing(function ($record) {
                         return ($record->actual_quantity ?? 0) . ' ' . $record->product->category?->measure_unit?->getLabel();

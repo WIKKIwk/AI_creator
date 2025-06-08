@@ -7,6 +7,7 @@ use App\Models\Product;
 use App\Models\SupplyOrder\SupplyOrder;
 use App\Models\User;
 use App\Observers\ProdOrderObserver;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -122,6 +123,36 @@ class ProdOrder extends Model
     public function supplyOrders(): HasMany
     {
         return $this->hasMany(SupplyOrder::class, 'prod_order_id');
+    }
+
+    public function scopeSearch(Builder $query, ?string $search): Builder
+    {
+        if (empty($search)) {
+            return $query;
+        }
+
+        $search = mb_strtolower(trim($search));
+
+        return $query->where(function (Builder $query) use ($search) {
+            $query->whereRaw('LOWER(number) LIKE ?', ["%$search%"]);
+        });
+    }
+
+    public function scopeOwnWarehouse(Builder $query): Builder
+    {
+        $warehouseId = auth()->user()->warehouse_id;
+        if (!$warehouseId) {
+            return $query;
+        }
+
+        return $query->whereHas('group', function (Builder $query) use ($warehouseId) {
+            $query->where('warehouse_id', $warehouseId);
+        });
+    }
+
+    public function scopeStarted(Builder $query): Builder
+    {
+        return $query->whereNotNull('started_at');
     }
 
     public function isConfirmed(): bool

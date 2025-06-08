@@ -94,7 +94,7 @@ class CreateSupplyOrderScene implements SceneHandlerInterface
         $this->handler->sendMainMenu();
     }
 
-    public function handleScene(): void
+    public function handleScene($params = []): void
     {
         $this->tgBot->answerCbQuery();
         $this->handler->setState(self::states['supplyOrder_selectWarehouse']);

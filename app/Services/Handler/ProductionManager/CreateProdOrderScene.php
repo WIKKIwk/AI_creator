@@ -49,7 +49,7 @@ class CreateProdOrderScene implements SceneHandlerInterface
         $poGroup->confirm();
 
         $message = "<b>✅ Order confirmed!</b>\n\n";
-        $message .= ProdOrderNotification::getProdOrderMsg($poGroup);
+        $message .= ProdOrderNotification::getProdOrderGroupMsg($poGroup);
 
         $this->tgBot->answerCbQuery(['text' => '✅ Order confirmed!'], true);
         $this->tgBot->sendRequestAsync('editMessageText', [
@@ -90,7 +90,7 @@ class CreateProdOrderScene implements SceneHandlerInterface
         $this->handler->sendMainMenu();
     }
 
-    public function handleScene(): void
+    public function handleScene($params = []): void
     {
         $this->handler->setState(self::states['prodOrder_selectType']);
 
@@ -394,8 +394,8 @@ class CreateProdOrderScene implements SceneHandlerInterface
         try {
             $poGroup = $this->prodOrderService->createOrderByForm($form);
 
-            $message = "<b✅ Execution saved successfully!>✅ ProdOrder saved</b>\n\n";
-            $message .= ProdOrderNotification::getProdOrderMsg($poGroup);
+            $message = "<b>✅ ProdOrder saved</b>\n\n";
+            $message .= ProdOrderNotification::getProdOrderGroupMsg($poGroup);
 
             $this->tgBot->sendRequestAsync('editMessageText', [
                 'chat_id' => $this->tgBot->chatId,
@@ -432,8 +432,7 @@ class CreateProdOrderScene implements SceneHandlerInterface
     public function cancelProdOrder($withResponse = true): void
     {
         $this->handler->forgetCache('prodOrderForm');
-        $this->handler->forgetCache('state');
-        $this->handler->forgetCache('edit_msg_id');
+        $this->handler->resetCache();
 
         if ($withResponse) {
             $this->tgBot->answerCbQuery(['text' => 'Operation cancelled.']);

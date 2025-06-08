@@ -2,20 +2,33 @@
 
 namespace App\Services\Handler\StockManager;
 
+use App\Enums\ProdOrderStepStatus;
+use App\Listeners\ProdOrderNotification;
 use App\Listeners\StepExecutionNotification;
 use App\Models\ProdOrder\ProdOrder;
+use App\Models\ProdOrder\ProdOrderStep;
 use App\Models\ProdOrder\ProdOrderStepExecution;
+use App\Models\ProdOrder\ProdOrderStepProduct;
 use App\Models\User;
 use App\Services\Handler\BaseHandler;
 use App\Services\ProdOrderService;
 use App\Services\TelegramService;
-use Exception;
 use GuzzleHttp\Exception\GuzzleException;
 use Throwable;
 
 class StockManagerHandler extends BaseHandler
 {
-    protected array $promises = [];
+    protected array $sceneHandlers = [
+        'selectMaterial' => SelectMaterialScene::class,
+    ];
+
+    protected array $commandHandlers = [
+        '/select_prod_order' => 'selectProdOrder',
+    ];
+
+    protected array $callbackHandlers = [
+//        'materialsList' => [SelectMaterialScene::class, 'materialsList'],
+    ];
 
     protected const templates = [
         'addRawMaterial' => <<<HTML
@@ -77,14 +90,109 @@ HTML,
         }
     }
 
+    public function selectProdOrder($orderId): void
+    {
+        $this->tgBot->rmLastMsg();
+
+        /** @var ProdOrder $prodOrder */
+        $prodOrder = ProdOrder::query()->started()->find($orderId);
+
+        if (!$prodOrder) {
+            $this->tgBot->sendRequestAsync('sendMessage', [
+                'chat_id' => $this->tgBot->chatId,
+                'text' => "❌ Order not found!",
+            ]);
+            return;
+        }
+
+        $message = "<b>Selected order details:</b>\n\n";
+        $message .= ProdOrderNotification::getProdOrderMsg($prodOrder);
+
+        $stepButtons = [];
+        foreach ($prodOrder->steps as $step) {
+            $stepButtons[] = [['text' => $step->workStation->name, 'callback_data' => "selectPoStep:$step->id"]];
+        }
+
+        $this->tgBot->sendRequestAsync('sendMessage', [
+            'chat_id' => $this->tgBot->chatId,
+            'text' => $message,
+            'reply_markup' => TelegramService::getInlineKeyboard($stepButtons),
+            'parse_mode' => 'HTML',
+        ]);
+
+        $this->setCache('edit_msg_id', $this->tgBot->getMessageId());
+    }
+
+    public function selectPoStep($stepId): void
+    {
+        $step = $this->getStep($stepId);
+        $this->tgBot->answerCbQuery();
+
+        $message = "<b>Selected step details:</b>\n\n";
+        $message .= ProdOrderNotification::getPoStepMsg($step);
+
+        $buttons = [];
+        if ($step->status != ProdOrderStepStatus::Completed) {
+            $buttons[] = [
+                ['text' => 'Materials', 'callback_data' => "materialsList:$step->id"],
+                ['text' => 'Executions', 'callback_data' => "executionsList:$step->id"]
+            ];
+        }
+
+        $this->tgBot->sendRequestAsync('editMessageText', [
+            'chat_id' => $this->tgBot->chatId,
+            'message_id' => $this->tgBot->getMessageId(),
+            'text' => $message,
+            'parse_mode' => 'HTML',
+            'reply_markup' => TelegramService::getInlineKeyboard([
+                ...$buttons,
+                [['text' => '⬅️ Back', 'callback_data' => "selectProdOrder:$step->prod_order_id"]],
+            ]),
+        ]);
+    }
+
+    public function materialsList($stepId): void
+    {
+        $step = $this->getStep($stepId);
+        $materials = $step->materials;
+
+        $buttons = [];
+        $message = "<b>Materials of {$step->workStation->name} step:</b>\n";
+        foreach ($materials as $index => $material) {
+            $index++;
+
+            $measureUnit = $material->product->getMeasureUnit();
+            $message .= "\n";
+            $message .= "$index) Material: <b>{$material->product->catName}</b>\n";
+            $message .= "Required: <b>$material->required_quantity {$measureUnit->getLabel()}</b>\n";
+            $message .= "Available: <b>$material->available_quantity {$measureUnit->getLabel()}</b>\n";
+            $message .= "Used: <b>$material->used_quantity {$measureUnit->getLabel()}</b>\n";
+
+            $buttons[] = [['text' => $material->product->catName, 'callback_data' => "selectMaterial:$material->id"]];
+        }
+
+        $this->tgBot->sendRequestAsync('editMessageText', [
+            'chat_id' => $this->tgBot->chatId,
+            'message_id' => $this->tgBot->getMessageId(),
+            'text' => $message,
+            'parse_mode' => 'HTML',
+            'reply_markup' => TelegramService::getInlineKeyboard(
+                array_merge($buttons, [
+                    [['text' => '⬅️ Back', 'callback_data' => "selectPoStep:$stepId"]],
+                ])
+            ),
+        ]);
+    }
+
     public function handleInlineQuery($inlineQuery): void
     {
         $search = $inlineQuery['query'] ?? '';
-        $search = mb_strtolower(trim($search));
         dump("Search: $search");
 
         $results = ProdOrder::query()
-            ->whereRaw('LOWER(number) LIKE ?', ["%$search%"])
+            ->ownWarehouse()
+            ->started()
+            ->search($search)
             ->limit(30)
             ->get()
             ->map(function (ProdOrder $order) {
@@ -94,16 +202,8 @@ HTML,
                     'title' => $order->number,
                     'description' => "{$order->product->catName}: $order->quantity {$order->product->getMeasureUnit()->getLabel()}",
                     'input_message_content' => [
-                        'message_text' => "/select_order $order->id"
-                    ],
-                    'reply_markup' => [
-                        'inline_keyboard' => [
-                            [
-                                ['text' => '📦 Materials', 'callback_data' => "selectMaterial:$order->id"],
-                                ['text' => '🧪 Executions', 'callback_data' => "selectExecution:$order->id"],
-                            ]
-                        ]
-                    ],
+                        'message_text' => "/select_prod_order $order->id"
+                    ]
                 ];
             });
 
@@ -114,6 +214,13 @@ HTML,
             'results' => $results->toArray(),
             'cache_time' => 0,
         ]);
+    }
+
+    protected function getStep(int $stepId): ?ProdOrderStep
+    {
+        /** @var ?ProdOrderStep $step */
+        $step = ProdOrderStep::query()->find($stepId);
+        return $step;
     }
 
     protected function getMainKb(): array

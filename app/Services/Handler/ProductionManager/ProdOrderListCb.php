@@ -60,7 +60,7 @@ class ProdOrderListCb
 
         $pages = ProdOrderGroup::query()->count();
         $message = "<b>Production Orders (Page $page of $pages):</b>\n\n";
-        $message .= ProdOrderNotification::getProdOrderMsg($poGroup);
+        $message .= ProdOrderNotification::getProdOrderGroupMsg($poGroup);
 
         $buttons = [];
         if (!$poGroup->isConfirmed()) {

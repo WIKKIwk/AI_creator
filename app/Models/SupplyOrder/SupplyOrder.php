@@ -154,6 +154,11 @@ class SupplyOrder extends Model
         return $this->hasMany(SupplyOrderProduct::class);
     }
 
+    public function getTotalPriceAttribute(): int
+    {
+        return $this->products->sum('price');
+    }
+
     public function setStatus(SupplyOrderState $state, ?string $status = null): void
     {
         $changed = $this->state?->value != $state->value || $this->status != $status;

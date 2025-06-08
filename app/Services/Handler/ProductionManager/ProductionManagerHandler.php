@@ -2,23 +2,16 @@
 
 namespace App\Services\Handler\ProductionManager;
 
-use App\Enums\ProductType;
-use App\Listeners\ProdOrderNotification;
-use App\Models\Product;
-use App\Models\User;
 use App\Services\Handler\BaseHandler;
 use App\Services\TelegramService;
-use Illuminate\Database\Eloquent\Collection;
 
 class ProductionManagerHandler extends BaseHandler
 {
-    public User $user;
-    protected array $promises = [];
     protected array $sceneHandlers = [
         'createProdOrder' => CreateProdOrderScene::class,
     ];
 
-    protected array $callbackRegistry = [
+    protected array $callbackHandlers = [
         'confirmProdOrder' => [CreateProdOrderScene::class, 'confirmProdOrder'],
 
         'confirmListOrder' => [ProdOrderListCb::class, 'confirmOrder'],

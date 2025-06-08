@@ -4,5 +4,5 @@ namespace App\Services\Handler\Interface;
 
 interface SceneHandlerInterface
 {
-    public function handleScene(): void;
+    public function handleScene(array $params = []): void;
 }

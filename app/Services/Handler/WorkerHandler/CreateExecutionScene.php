@@ -59,7 +59,7 @@ class CreateExecutionScene implements SceneHandlerInterface
         $this->handler->sendMainMenu();
     }
 
-    public function handleScene(): void
+    public function handleScene($params = []): void
     {
         if (!$this->handler->user->workStation->prodOrder) {
             $this->tgBot->answerCbQuery(['text' => 'No production order assigned to your work station.']);
@@ -90,7 +90,7 @@ class CreateExecutionScene implements SceneHandlerInterface
         $this->handler->setCache('edit_msg_id', $this->tgBot->getMessageId());
     }
 
-    public function selectMaterial($materialId): void
+    protected function selectMaterial($materialId): void
     {
         $this->tgBot->answerCbQuery();
 
@@ -139,7 +139,7 @@ class CreateExecutionScene implements SceneHandlerInterface
         ]);
     }
 
-    public function inputUsedQty($quantity): void
+    protected function inputUsedQty($quantity): void
     {
         // check quantity is integer
         if (!is_numeric($quantity) || $quantity <= 0) {
@@ -184,7 +184,7 @@ class CreateExecutionScene implements SceneHandlerInterface
         ]);
     }
 
-    public function finishMaterials(): void
+    protected function finishMaterials(): void
     {
         $this->handler->setState(self::states['worker_inputOutputQty']);
 
@@ -199,7 +199,7 @@ class CreateExecutionScene implements SceneHandlerInterface
         ]);
     }
 
-    public function inputOutputQty($quantity): void
+    protected function inputOutputQty($quantity): void
     {
         if (!is_numeric($quantity) || $quantity <= 0) {
             $this->tgBot->sendRequestAsync('editMessageText', [

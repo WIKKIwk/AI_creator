@@ -15,7 +15,7 @@ class SupplyManagerHandler extends BaseHandler
         'createSupplyOrder' => CreateSupplyOrderScene::class,
     ];
 
-    protected array $callbackRegistry = [
+    protected array $callbackHandlers = [
         'confirmSupplyOrder' => [CreateSupplyOrderScene::class, 'confirmSupplyOrder'],
 
         'confirmListOrder' => [SupplyOrderListCb::class, 'confirmOrder'],

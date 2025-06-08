@@ -17,7 +17,7 @@ class BaseHandler implements HandlerInterface
 
     public User $user;
     protected array $sceneHandlers = [];
-    protected array $callbackRegistry = [];
+    protected array $callbackHandlers = [];
 
     public function __construct(public TgBot $tgBot, public Cache $cache)
     {
@@ -40,6 +40,7 @@ class BaseHandler implements HandlerInterface
 
         if ($this->tgBot->update['inline_query'] ?? false) {
             $this->handleInlineQuery($this->tgBot->update['inline_query']);
+            $this->tgBot->settlePromises();
             return;
         }
 
@@ -66,8 +67,6 @@ class BaseHandler implements HandlerInterface
 
         if ($input) {
             $this->handleText($input);
-            $this->tgBot->settlePromises();
-            return;
         }
 
         $this->tgBot->rmLastMsg();
@@ -99,10 +98,6 @@ class BaseHandler implements HandlerInterface
         $this->tgBot->answerMsg(['text' => "What do you need help with?"]);
     }
 
-    /**
-     * @throws GuzzleException
-     * @throws Exception
-     */
     public function handleCbQuery(string $cbData): void
     {
         $params = [];
@@ -120,7 +115,7 @@ class BaseHandler implements HandlerInterface
             return;
         }
 
-        if (array_key_exists($method, $this->callbackRegistry)) {
+        if (array_key_exists($method, $this->callbackHandlers)) {
             $this->dispatchCallback($method, $params);
             return;
         }
@@ -128,7 +123,7 @@ class BaseHandler implements HandlerInterface
         $sceneHandler = $this->getSceneHandler($method);
         if ($sceneHandler) {
             $this->setScene($method);
-            call_user_func([$sceneHandler, 'handleScene'], ...$params);
+            call_user_func([$sceneHandler, 'handleScene'], $params);
             return;
         }
 
@@ -147,14 +142,13 @@ class BaseHandler implements HandlerInterface
             return;
         }
 
-        $this->tgBot->rmLastMsg();
         $this->sendMainMenu();
     }
 
     public function backMainMenu(): void
     {
         $this->tgBot->answerCbQuery();
-        $this->setScene('');
+        $this->resetCache();
         $this->sendMainMenu(true);
     }
 
@@ -173,12 +167,9 @@ class BaseHandler implements HandlerInterface
         return new $sceneClass($this);
     }
 
-    /**
-     * @throws Exception
-     */
     public function dispatchCallback(string $method, array $params = []): void
     {
-        [$class, $action] = $this->callbackRegistry[$method];
+        [$class, $action] = $this->callbackHandlers[$method];
 
         // Pass the bot handler as context
         $cbHandler = new $class($this);
@@ -191,6 +182,7 @@ class BaseHandler implements HandlerInterface
 
     public function sendMainMenu($edit = false): void
     {
+        $this->resetCache();
         $msg = self::getUserDetailsMsg($this->user);
 
         $params = [
@@ -275,5 +267,12 @@ HTML,
     {
         $value = $this->cache->get($this->getCacheKey($key));
         return $value ? json_decode($value, true) : null;
+    }
+
+    public function resetCache(): void
+    {
+        $this->cache->forget($this->getCacheKey('state'));
+        $this->cache->forget($this->getCacheKey('scene'));
+        $this->cache->forget($this->getCacheKey('edit_msg_id'));
     }
 }
