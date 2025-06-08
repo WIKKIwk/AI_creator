@@ -44,6 +44,37 @@ class CreateSupplyOrderScene implements SceneHandlerInterface
         $this->supplyOrderService = app(SupplyOrderService::class);
     }
 
+    public function closeSupplyOrder($supplyOrderId): void
+    {
+        try {
+            /** @var SupplyOrder $supplyOrder */
+            $supplyOrder = SupplyOrder::query()->find($supplyOrderId);
+
+            $this->supplyOrderService->closeOrder($supplyOrder);
+
+            $message = "<b>✅ Order closed!</b>\n\n";;
+            $message .= SupplyOrderNotification::getSupplyOrderMsg($supplyOrder);
+
+            $this->tgBot->answerCbQuery(['text' => '✅ Order closed!'], true);
+            $this->tgBot->sendRequestAsync('editMessageText', [
+                'chat_id' => $this->tgBot->chatId,
+                'message_id' => $this->tgBot->getMessageId(),
+                'text' => $message,
+                'parse_mode' => 'HTML',
+            ]);
+        } catch (Throwable $e) {
+            $this->tgBot->answerCbQuery(['text' => "❌ Error closing SupplyOrder: {$e->getMessage()}"], true);
+
+            $this->tgBot->sendRequestAsync('editMessageText', [
+                'chat_id' => $this->tgBot->chatId,
+                'message_id' => $this->tgBot->getMessageId(),
+                'text' => "<i>❌ Error closing SupplyOrder: {$e->getMessage()}</i>",
+                'parse_mode' => 'HTML',
+            ]);
+            return;
+        }
+    }
+
     public function confirmSupplyOrder($id): void
     {
         /** @var SupplyOrder $supplyOrder */

@@ -2,6 +2,7 @@
 
 namespace App\Services\Handler\SupplyManager;
 
+use App\Models\SupplyOrder\SupplyOrder;
 use App\Models\User;
 use App\Services\Handler\BaseHandler;
 use App\Services\TelegramService;
@@ -17,6 +18,7 @@ class SupplyManagerHandler extends BaseHandler
 
     protected array $callbackHandlers = [
         'confirmSupplyOrder' => [CreateSupplyOrderScene::class, 'confirmSupplyOrder'],
+        'closeSupplyOrder' => [CreateSupplyOrderScene::class, 'closeSupplyOrder'],
 
         'confirmListOrder' => [SupplyOrderListCb::class, 'confirmOrder'],
         'supplyOrdersList' => [SupplyOrderListCb::class, 'sendList'],
