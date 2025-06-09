@@ -17,14 +17,14 @@ return new class extends Migration
             $table->dropForeign(['agent_id']);
             $table->dropColumn('agent_id');
 
-            $table->foreignId('agent_organization_id')->constrained('organizations');
+            $table->foreignId('agent_organization_id')->nullable()->constrained('organizations');
         });
 
         Schema::table('supply_orders', function (Blueprint $table) {
             $table->dropForeign(['supplier_id']);
             $table->dropColumn('supplier_id');
 
-            $table->foreignId('supplier_organization_id')->constrained('organizations');
+            $table->foreignId('supplier_organization_id')->nullable()->constrained('organizations');
         });
 
         Schema::enableForeignKeyConstraints();
