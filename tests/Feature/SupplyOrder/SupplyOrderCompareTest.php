@@ -153,7 +153,7 @@ class SupplyOrderCompareTest extends TestCase
         ]);
         $this->assertDatabaseHas('tasks', [
             'from_user_id' => $this->user->id,
-            'to_user_roles' => json_encode([RoleType::SUPPLY_MANAGER->value]),
+            'to_user_roles' => json_encode([RoleType::SENIOR_SUPPLY_MANAGER->value, RoleType::SUPPLY_MANAGER->value]),
             'related_type' => SupplyOrder::class,
             'related_id' => $supplyOrder->id,
             'action' => TaskAction::Check->value,

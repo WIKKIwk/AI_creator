@@ -124,7 +124,6 @@ class User extends Authenticatable implements FilamentUser
      */
     public static function getFromChatId(int $chatId): self
     {
-        /** @var User $user */
         $user = self::findByChatId($chatId);
         if (!$user) {
             throw new Exception("User not found by chat_id: $chatId");
@@ -134,11 +133,21 @@ class User extends Authenticatable implements FilamentUser
 
     public static function findByChatId(int $chatId): ?self
     {
-        return self::query()->where('chat_id', $chatId)->first();
+        /** @var User $user */
+        $user = self::query()->where('chat_id', $chatId)->first();
+        return $user;
     }
 
     public function canAccessPanel(Panel $panel): bool
     {
-        return $this->role != RoleType::WORK_STATION_WORKER;
+        if ($this->role == RoleType::WORK_STATION_WORKER) {
+            return false;
+        }
+
+        if ($this->organization_id) {
+            return $this->organization->isActive();
+        }
+
+        return true;
     }
 }

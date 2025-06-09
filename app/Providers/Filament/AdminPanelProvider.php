@@ -2,6 +2,8 @@
 
 namespace App\Providers\Filament;
 
+use Closure;
+use Filament\Facades\Filament;
 use Filament\Http\Middleware\Authenticate;
 use Filament\Http\Middleware\AuthenticateSession;
 use Filament\Http\Middleware\DisableBladeIconComponents;

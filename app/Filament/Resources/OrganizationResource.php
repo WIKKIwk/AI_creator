@@ -3,6 +3,7 @@
 namespace App\Filament\Resources;
 
 use App\Enums\RoleType;
+use App\Enums\OrganizationStatus;
 use App\Filament\Resources\OrganizationResource\Pages;
 use App\Filament\Resources\OrganizationResource\RelationManagers;
 use App\Models\Organization;
@@ -31,7 +32,7 @@ class OrganizationResource extends Resource
     {
         return $form
             ->schema([
-                Forms\Components\Grid::make(3)->schema([
+                Forms\Components\Grid::make(4)->schema([
                     Forms\Components\TextInput::make('name')
                         ->required()
                         ->maxLength(255),
@@ -41,6 +42,8 @@ class OrganizationResource extends Resource
                     Forms\Components\TextInput::make('email')
                         ->email()
                         ->maxLength(255),
+                    Forms\Components\Select::make('status')
+                        ->options(OrganizationStatus::class),
                 ])
             ]);
     }
@@ -55,6 +58,8 @@ class OrganizationResource extends Resource
                     ->searchable(),
                 Tables\Columns\TextColumn::make('email')
                     ->searchable(),
+                Tables\Columns\TextColumn::make('status')
+                    ->badge(),
                 Tables\Columns\TextColumn::make('created_at')
                     ->dateTime()
                     ->sortable()

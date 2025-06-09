@@ -234,7 +234,7 @@ class SupplyOrderService
             relatedType: SupplyOrder::class,
             relatedId: $supplyOrder->id,
             action: TaskAction::Check,
-            comment: 'Supply order products compared. There are some differences in quantities.'
+            comment: 'Supply order compared. There are some differences in quantities.'
         );
     }
 

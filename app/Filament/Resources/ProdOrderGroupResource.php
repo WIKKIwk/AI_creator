@@ -2,21 +2,19 @@
 
 namespace App\Filament\Resources;
 
-use App\Enums\ProdOrderGroupType;
+use Throwable;
+use Filament\Forms;
+use Filament\Tables;
 use App\Enums\RoleType;
+use Filament\Forms\Form;
+use Filament\Tables\Table;
+use Filament\Resources\Resource;
+use App\Enums\ProdOrderGroupType;
+use Filament\Forms\Components\Grid;
+use App\Models\ProdOrder\ProdOrderGroup;
+use RyanChandler\FilamentProgressColumn\ProgressColumn;
 use App\Filament\Resources\ProdOrderGroupResource\Pages;
 use App\Filament\Resources\ProdOrderGroupResource\RelationManagers\ProdOrdersRelationManager;
-use App\Models\ProdOrder\ProdOrder;
-use App\Models\ProdOrder\ProdOrderGroup;
-use App\Models\ProdOrder\ProdOrderStep;
-use Filament\Forms;
-use Filament\Forms\Components\Grid;
-use Filament\Forms\Form;
-use Filament\Resources\Resource;
-use Filament\Tables;
-use Filament\Tables\Table;
-use RyanChandler\FilamentProgressColumn\ProgressColumn;
-use Throwable;
 
 class ProdOrderGroupResource extends Resource
 {
@@ -97,10 +95,10 @@ class ProdOrderGroupResource extends Resource
 
                 ProgressColumn::make('progress')
                     ->width('150px')
-                    ->progress(fn (ProdOrderGroup $record) => $record->getProgress()),
+                    ->progress(fn(ProdOrderGroup $record) => $record->getProgress()),
 
                 Tables\Columns\TextColumn::make('confirmed_at')
-                    ->getStateUsing(function (ProdOrderGroup $record) {
+                    ->getStateUsing(function(ProdOrderGroup $record) {
                         if ($record->isConfirmed()) {
                             return '<span class="text-green-500">✔️</span>';
                         }
@@ -121,7 +119,7 @@ class ProdOrderGroupResource extends Resource
                 Tables\Actions\Action::make('confirm')
                     ->label('Confirm')
                     ->visible(fn($record) => !$record->isConfirmed())
-                    ->action(function (ProdOrderGroup $record, $livewire, $action) {
+                    ->action(function(ProdOrderGroup $record, $livewire, $action) {
                         try {
                             $record->confirm();
                             showSuccess('Order confirmed successfully');
