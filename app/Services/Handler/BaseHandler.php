@@ -88,6 +88,7 @@ class BaseHandler implements HandlerInterface
     public function handleInlineQuery($inlineQuery): void
     {
         $sceneHandler = $this->getSceneHandler();
+        dump($sceneHandler);
         if ($sceneHandler && method_exists($sceneHandler, 'handleInlineQuery')) {
             call_user_func([$sceneHandler, 'handleInlineQuery'], $inlineQuery);
             return;
