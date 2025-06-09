@@ -17,6 +17,7 @@ class ProductionManagerHandler extends BaseHandler
     protected array $callbackHandlers = [
         'confirmProdOrder' => [CreateProdOrderScene::class, 'confirmProdOrder'],
         'cancelStartOrder' => [StartProdOrderScene::class, 'cancelStartOrder'],
+        'cancelProdOrder' => [CreateProdOrderScene::class, 'cancelProdOrder'],
 
         'confirmListOrder' => [ProdOrderListCb::class, 'confirmOrder'],
         'prodOrdersList' => [ProdOrderListCb::class, 'sendList'],
