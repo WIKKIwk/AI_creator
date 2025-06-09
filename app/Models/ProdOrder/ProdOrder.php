@@ -70,9 +70,9 @@ class ProdOrder extends Model
         self::creating(function (ProdOrder $model) {
             $model->number = 'PO-' . $model->group?->organization?->code . $model->product->code . now()->format('dmy');
         });
-        static::updating(function (ProdOrder $model) {
-            $model->number = 'PO-' . $model->group?->organization?->code . $model->product->code . now()->format('dmy');
-        });
+//        static::updating(function (ProdOrder $model) {
+//            $model->number = 'PO-' . $model->group?->organization?->code . $model->product->code . now()->format('dmy');
+//        });
     }
 
     public function group(): BelongsTo
@@ -158,6 +158,11 @@ class ProdOrder extends Model
     public function isConfirmed(): bool
     {
         return !!$this->confirmed_at;
+    }
+
+    public function isStarted(): bool
+    {
+        return !!$this->started_at;
     }
 
     public function confirm(): void

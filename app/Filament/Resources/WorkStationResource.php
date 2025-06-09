@@ -148,7 +148,7 @@ class WorkStationResource extends Resource
     {
         return [
             RelationManagers\MiniInventoriesRelationManager::class,
-            RelationManagers\PerformanceRatesRelationManager::class
+//            RelationManagers\PerformanceRatesRelationManager::class
         ];
     }
 

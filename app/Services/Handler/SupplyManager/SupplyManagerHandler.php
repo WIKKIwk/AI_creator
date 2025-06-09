@@ -38,7 +38,7 @@ HTML,
     public function getMainKb(): array
     {
         return TelegramService::getInlineKeyboard([
-            [['text' => '🔍 Search order', 'callback_data' => 'searchSupplyOrder']],
+//            [['text' => '🔍 Search order', 'callback_data' => 'searchSupplyOrder']],
             [['text' => '➕ Create SupplyOrder', 'callback_data' => 'createSupplyOrder']],
             [['text' => '📋 SupplyOrders List', 'callback_data' => 'supplyOrdersList']]
         ]);

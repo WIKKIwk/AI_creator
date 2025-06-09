@@ -82,7 +82,6 @@ class BaseHandler implements HandlerInterface
         }
 
         $this->tgBot->rmLastMsg();
-        dump("HEREEE");
         $this->tgBot->settlePromises();
     }
 
@@ -280,6 +279,5 @@ HTML,
     {
         $this->cache->forget($this->getCacheKey('state'));
         $this->cache->forget($this->getCacheKey('scene'));
-        $this->cache->forget($this->getCacheKey('edit_msg_id'));
     }
 }

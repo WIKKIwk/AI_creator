@@ -23,10 +23,6 @@ class StockManagerHandler extends BaseHandler
         'compareSupplyOrder' => CompareSupplyOrderScene::class,
     ];
 
-    protected array $commandHandlers = [
-        '/select_prod_order' => 'selectProdOrder',
-    ];
-
     protected array $callbackHandlers = [
         'cancelMaterial' => [SelectMaterialScene::class, 'cancelMaterial'],
         'cancelExecution' => [SelectExecutionScene::class, 'cancelExecution'],
