@@ -39,7 +39,7 @@ class BaseHandler implements HandlerInterface
         $this->tgBot->setUpdate($update);
 
         if ($this->tgBot->update['inline_query'] ?? false) {
-            $this->handleInlineQuery($this->tgBot->update['inline_query']);
+            $this->handleInlineQueryBase($this->tgBot->update['inline_query']);
             $this->tgBot->settlePromises();
             return;
         }
@@ -85,15 +85,19 @@ class BaseHandler implements HandlerInterface
         $this->tgBot->settlePromises();
     }
 
-    public function handleInlineQuery($inlineQuery): void
+    public function handleInlineQueryBase($inlineQuery): void
     {
         $sceneHandler = $this->getSceneHandler();
-        dump($sceneHandler);
         if ($sceneHandler && method_exists($sceneHandler, 'handleInlineQuery')) {
             call_user_func([$sceneHandler, 'handleInlineQuery'], $inlineQuery);
             return;
         }
 
+        $this->handleInlineQuery($inlineQuery);
+    }
+
+    public function handleInlineQuery($inlineQuery): void
+    {
         $this->tgBot->answerInlineQuery([
             'results' => [],
             'cache_time' => 0,
@@ -191,6 +195,7 @@ class BaseHandler implements HandlerInterface
 
     public function sendMainMenu($edit = false): void
     {
+        $this->resetCache();
         $msg = self::getUserDetailsMsg($this->user);
 
         $params = [
@@ -279,6 +284,7 @@ HTML,
 
     public function resetCache(): void
     {
+        $this->cache->forget($this->getCacheKey('edit_msg_id'));
         $this->cache->forget($this->getCacheKey('state'));
         $this->cache->forget($this->getCacheKey('scene'));
     }
