@@ -162,6 +162,7 @@ class BaseHandler implements HandlerInterface
     protected function getSceneHandler($scene = null): ?SceneHandlerInterface
     {
         $scene = $scene ?: $this->getScene();
+        dump("active scene: $scene");
         if (!$scene) {
             return null;
         }
