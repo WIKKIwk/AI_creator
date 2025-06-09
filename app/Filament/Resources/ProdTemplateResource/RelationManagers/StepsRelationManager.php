@@ -109,9 +109,9 @@ class StepsRelationManager extends RelationManager
                         ->reactive(),
                 ]),
 
-                Forms\Components\Repeater::make('requiredItems')
+                Forms\Components\Repeater::make('materials')
                     ->columnSpanFull()
-                    ->relationship('requiredItems')
+                    ->relationship('materials')
                     ->addActionAlignment('end')
                     ->schema([
                         Forms\Components\Hidden::make('type'),
