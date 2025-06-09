@@ -1,0 +1,211 @@
+[
+    {
+        "product_name": "Hot Lunch 100gr",
+        "category": "Etiketka",
+        "category_short_code": "et",
+        "product_short_code": "hl100",
+        "product_type": "RP",
+        "quantity": "1000",
+        "measure_unit": "KG",
+        "description": "",
+        "price": "1"
+    },
+    {
+        "product_name": "Opp",
+        "category": "Plyonka",
+        "category_short_code": "pl",
+        "product_short_code": "OPP",
+        "product_type": "RP",
+        "quantity": "84904",
+        "measure_unit": "Kg",
+        "description": "",
+        "price": ""
+    },
+    {
+        "product_name": "Mopp",
+        "category": "Plyonka",
+        "category_short_code": "pl",
+        "product_short_code": "Mopp",
+        "product_type": "RP",
+        "quantity": "18383",
+        "measure_unit": "Kg",
+        "description": "",
+        "price": ""
+    },
+    {
+        "product_name": "Matoviy",
+        "category": "Plyonka",
+        "category_short_code": "pl",
+        "product_short_code": "Pvx",
+        "product_type": "RP",
+        "quantity": "29544",
+        "measure_unit": "Kg",
+        "description": "",
+        "price": ""
+    },
+    {
+        "product_name": "Jemchuk",
+        "category": "Plyonka",
+        "category_short_code": "pl",
+        "product_short_code": "Pz",
+        "product_type": "RP",
+        "quantity": "28794",
+        "measure_unit": "Kg",
+        "description": "",
+        "price": ""
+    },
+    {
+        "product_name": "Cpp",
+        "category": "Plyonka",
+        "category_short_code": "pl",
+        "product_short_code": "Cpp",
+        "product_type": "RP",
+        "quantity": "13874",
+        "measure_unit": "Kg",
+        "description": "",
+        "price": ""
+    },
+    {
+        "product_name": "Mcpp",
+        "category": "Plyonka",
+        "category_short_code": "pl",
+        "product_short_code": "Mcpp",
+        "product_type": "RP",
+        "quantity": "49967",
+        "measure_unit": "Kg",
+        "description": "",
+        "price": ""
+    },
+    {
+        "product_name": "Pet",
+        "category": "Plyonka",
+        "category_short_code": "pl",
+        "product_short_code": "Pet",
+        "product_type": "RP",
+        "quantity": "21030",
+        "measure_unit": "Kg",
+        "description": "",
+        "price": ""
+    },
+    {
+        "product_name": "Mpet",
+        "category": "Plyonka",
+        "category_short_code": "pl",
+        "product_short_code": "Mpet",
+        "product_type": "RP",
+        "quantity": "4248",
+        "measure_unit": "Kg",
+        "description": "",
+        "price": ""
+    },
+    {
+        "product_name": "Pe pr",
+        "category": "Plyonka",
+        "category_short_code": "pl",
+        "product_short_code": "Pepr",
+        "product_type": "RP",
+        "quantity": "6794",
+        "measure_unit": "Kg",
+        "description": "",
+        "price": ""
+    },
+    {
+        "product_name": "Pe oq",
+        "category": "Plyonka",
+        "category_short_code": "pl",
+        "product_short_code": "Peoq",
+        "product_type": "RP",
+        "quantity": "2086",
+        "measure_unit": "Kg",
+        "description": "",
+        "price": ""
+    },
+    {
+        "product_name": "Kraska",
+        "category": "Rang",
+        "category_short_code": "Kr",
+        "product_short_code": "Mr",
+        "product_type": "RP",
+        "quantity": "31996",
+        "measure_unit": "Kg",
+        "description": "",
+        "price": ""
+    },
+    {
+        "product_name": "Mix",
+        "category": "Rang",
+        "category_short_code": "Rang",
+        "product_short_code": "Mix",
+        "product_type": "RP",
+        "quantity": "12000",
+        "measure_unit": "Kg",
+        "description": "",
+        "price": ""
+    },
+    {
+        "product_name": "Qolip",
+        "category": "Temir val",
+        "category_short_code": "Tmv",
+        "product_short_code": "Qol",
+        "product_type": "RP",
+        "quantity": "5180",
+        "measure_unit": "Pcs",
+        "description": "",
+        "price": ""
+    },
+    {
+        "product_name": "Kley a",
+        "category": "Kley",
+        "category_short_code": "Kley",
+        "product_short_code": "Kla",
+        "product_type": "RP",
+        "quantity": "13400",
+        "measure_unit": "Kg",
+        "description": "",
+        "price": ""
+    },
+    {
+        "product_name": "Kley b",
+        "category": "Kley",
+        "category_short_code": "Kley",
+        "product_short_code": "Kley",
+        "product_type": "RP",
+        "quantity": "3600",
+        "measure_unit": "Kg",
+        "description": "",
+        "price": ""
+    },
+    {
+        "product_name": "Ethylene",
+        "category": "Suyuqlik",
+        "category_short_code": "Suy",
+        "product_short_code": "Etl",
+        "product_type": "RP",
+        "quantity": "640",
+        "measure_unit": "Kg",
+        "description": "",
+        "price": ""
+    },
+    {
+        "product_name": "Solvent",
+        "category": "Suyuqlik",
+        "category_short_code": "Suy",
+        "product_short_code": "Sol",
+        "product_type": "RP",
+        "quantity": "22000",
+        "measure_unit": "Kg",
+        "description": "",
+        "price": ""
+    },
+    {
+        "product_name": "Methoxyl",
+        "category": "Suyuqlik",
+        "category_short_code": "Suy",
+        "product_short_code": "Met",
+        "product_type": "RP",
+        "quantity": "2090",
+        "measure_unit": "Kg",
+        "description": "",
+        "price": ""
+    }
+]

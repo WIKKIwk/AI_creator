@@ -26,7 +26,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
  * @property-read Warehouse $warehouse
  * @property-read Collection<InventoryItem> $items
  */
-#[ScopedBy(OwnWarehouseScope::class)]
+//#[ScopedBy(OwnWarehouseScope::class)]
 class Inventory extends Model
 {
     use HasFactory;
