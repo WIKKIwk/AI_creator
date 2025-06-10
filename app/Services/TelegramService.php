@@ -75,4 +75,26 @@ class TelegramService
 
         return $data;
     }
+
+    public static function inlineResults($items, string $idKey, string $titleKey, string $prefixCommand = ''): array
+    {
+        $results = [];
+
+        foreach ($items as $item) {
+            $results[] = [
+                'type' => 'article',
+                'id' => (string) $item[$idKey],
+                'title' => (string) $item[$titleKey],
+                'input_message_content' => [
+                    'message_text' => $prefixCommand . $item[$idKey],
+                ],
+                'description' => method_exists($item, 'getInlineDescription')
+                    ? $item->getInlineDescription()
+                    : '',
+            ];
+        }
+
+        return $results;
+    }
+
 }

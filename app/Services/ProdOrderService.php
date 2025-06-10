@@ -8,7 +8,6 @@ use App\Enums\ProdOrderGroupType;
 use App\Enums\ProdOrderStepProductStatus;
 use App\Enums\ProdOrderStepStatus;
 use App\Events\StepExecutionCreated;
-use App\Models\PerformanceRate;
 use App\Models\ProdOrder\ProdOrder;
 use App\Models\ProdOrder\ProdOrderGroup;
 use App\Models\ProdOrder\ProdOrderStep;
@@ -257,6 +256,27 @@ class ProdOrderService
         ]);
 
         return $lackStock;
+    }
+
+    public function createTemplateByForm(array $data): ProdTemplate
+    {
+        $validator = Validator::make($data, [
+            'product_id' => 'required|exists:products,id',
+            'comment' => 'string',
+        ]);
+
+        if ($validator->fails()) {
+            throw new Exception('Validation failed: ' . implode(', ', $validator->errors()->all()));
+        }
+
+        /** @var ProdTemplate $prodTemplate */
+        $prodTemplate = ProdTemplate::query()->create([
+            'product_id' => $data['product_id'],
+            'organization_id' => auth()->user()->organization_id,
+            'created_by' => auth()->user()->id,
+        ]);
+
+        return $prodTemplate;
     }
 
     /**

@@ -4,6 +4,7 @@ namespace App\Services\Handler\ProductionManager;
 
 use App\Listeners\ProdOrderNotification;
 use App\Models\ProdOrder\ProdOrder;
+use App\Models\ProdTemplate\ProdTemplate;
 use App\Services\Handler\BaseHandler;
 use App\Services\TelegramService;
 
@@ -11,6 +12,7 @@ class ProductionManagerHandler extends BaseHandler
 {
     protected array $sceneHandlers = [
         'createProdTemplate' => CreateProdTemplateScene::class,
+        'createProdTemplateStep' => CreateProdTemplateStepScene::class,
         'createProdOrder' => CreateProdOrderScene::class,
         'startProdOrder' => StartProdOrderScene::class,
     ];
@@ -19,6 +21,8 @@ class ProductionManagerHandler extends BaseHandler
         'confirmProdOrder' => [CreateProdOrderScene::class, 'confirmProdOrder'],
         'cancelStartOrder' => [StartProdOrderScene::class, 'cancelStartOrder'],
         'cancelProdOrder' => [CreateProdOrderScene::class, 'cancelProdOrder'],
+        'cancelProdTemplate' => [CreateProdTemplateScene::class, 'cancelProdTemplate'],
+        'cancelStep' => [CreateProdTemplateStepScene::class, 'cancelStep'],
 
         'confirmListOrder' => [ProdOrderListCb::class, 'confirmOrder'],
         'prodOrdersList' => [ProdOrderListCb::class, 'sendList'],
@@ -28,6 +32,18 @@ class ProductionManagerHandler extends BaseHandler
 
     public const templates = [
         'prodOrderGroup' => <<<HTML
+{errorMsg}
+
+{details}
+{prompt}
+HTML,
+        'prodTemplate' => <<<HTML
+{errorMsg}
+
+{details}
+{prompt}
+HTML,
+        'prodTemplateStep' => <<<HTML
 {errorMsg}
 
 {details}
@@ -45,12 +61,50 @@ HTML,
             return;
         }
 
+        if (str_starts_with($text, '/select_prod_template')) {
+            $templateId = trim(str_replace('/select_prod_template ', '', $text));
+            $this->selectProdTemplate($templateId);
+            return;
+        }
+
         if ($activeState || $this->getScene()) {
             $this->tgBot->rmLastMsg();
             return;
         }
 
         $this->sendMainMenu();
+    }
+
+    public function selectProdTemplate($templateId): void
+    {
+        dump("Selecting ProdTemplate: $templateId");
+        $this->tgBot->answerCbQuery();
+        /** @var ProdTemplate $prodTemplate */
+        $prodTemplate = ProdTemplate::query()->find($templateId);
+
+        if (!$prodTemplate) {
+            $this->tgBot->sendRequestAsync('sendMessage', [
+                'chat_id' => $this->tgBot->chatId,
+                'text' => "❌ Template not found!",
+            ]);
+            return;
+        }
+
+        $message = "<b>ProdTemplate details:</b>\n\n";
+        $message .= ProdOrderNotification::getProdTemplateMsg($prodTemplate);
+
+        $messageId = $this->getCache('edit_msg_id');
+        dump("msg_id: $messageId");
+
+        $this->tgBot->sendRequestAsync($messageId ? 'editMessageText' : 'sendMessage', [
+            'chat_id' => $this->tgBot->chatId,
+            'message_id' => $messageId,
+            'text' => $message,
+            'parse_mode' => 'HTML',
+            'reply_markup' => TelegramService::getInlineKeyboard([
+                [['text' => '➕ Create step', 'callback_data' => "createProdTemplateStep:$templateId"]]
+            ]),
+        ]);
     }
 
     public function selectProdOrder($orderId): void
@@ -87,6 +141,19 @@ HTML,
     {
         $search = $inlineQuery['query'] ?? '';
         dump("Search: $search");
+
+        if (str_starts_with($search, 'prodTmp')) {
+            $search = str_replace('prodTmp', '', $search);
+
+            $prodTemplates = ProdTemplate::query()->get();
+
+            $this->tgBot->sendRequest('answerInlineQuery', [
+                'inline_query_id' => $inlineQuery['id'],
+                'results' => TelegramService::inlineResults($prodTemplates, 'id', 'name', '/select_prod_template '),
+                'cache_time' => 0,
+            ]);
+            return;
+        }
 
         $results = ProdOrder::query()
             ->ownWarehouse()
@@ -131,6 +198,7 @@ HTML,
             [['text' => '➕ Create ProdTemplate', 'callback_data' => 'createProdTemplate']],
             [['text' => '➕ Create ProdOrder', 'callback_data' => 'createProdOrder']],
             [['text' => '🔍 Search PO', 'switch_inline_query_current_chat' => '']],
+            [['text' => '🔍 Search PT', 'switch_inline_query_current_chat' => 'prodTmp']],
 //            [['text' => '📋 ProdOrders List', 'callback_data' => 'prodOrdersList']]
         ]);
     }

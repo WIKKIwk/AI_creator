@@ -74,6 +74,10 @@ class ProdTemplateResource extends Resource
                 Tables\Columns\TextColumn::make('comment')
                     ->searchable()
                     ->sortable(),
+                Tables\Columns\TextColumn::make('created_at')
+                    ->label('Created at')
+                    ->dateTime()
+                    ->sortable(),
             ])
             ->filters([
                 //

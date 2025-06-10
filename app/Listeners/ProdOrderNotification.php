@@ -11,6 +11,7 @@ use App\Models\ProdOrder\ProdOrderGroup;
 use App\Models\ProdOrder\ProdOrderStep;
 use App\Models\ProdOrder\ProdOrderStepExecution;
 use App\Models\ProdOrder\ProdOrderStepProduct;
+use App\Models\ProdTemplate\ProdTemplate;
 use App\Models\Product;
 use App\Models\User;
 use App\Services\TaskService;
@@ -116,6 +117,28 @@ class ProdOrderNotification
 
         $confirmed = $prodOrder->isConfirmed() ? '✅' : '❌';
         $message .= "Confirmed: $confirmed\n";
+
+        return $message;
+    }
+
+    public static function getProdTemplateMsg(ProdTemplate $prodTemplate): string
+    {
+        $message = "<b>{$prodTemplate->name}</b>\n";
+        $message .= "Ready product: <b>{$prodTemplate->product->catName}</b>\n";
+        $message .= "Created at: <b>{$prodTemplate->created_at->format('d M Y H:i')}</b>\n";
+
+        if ($prodTemplate->steps->isNotEmpty()) {
+            $message .= "\n<b>Steps:</b>\n";
+            foreach ($prodTemplate->steps as $index => $step) {
+                $index++;
+                $message .= "\n";
+                $message .= "$index) WorkStation: <b>{$step->workStation->name}</b>\n";
+                $message .= "Output product: <b>{$step->outputProduct->catName}</b>\n";
+                $message .= "Expected quantity: <b>{$step->expected_quantity} {$step->outputProduct->getMeasureUnit()->getLabel()}</b>\n";
+            }
+        } else {
+            $message .= "\n<b>No steps defined</b>\n";
+        }
 
         return $message;
     }

@@ -2,19 +2,15 @@
 
 namespace App\Services\Handler\ProductionManager;
 
-use App\Enums\ProdOrderGroupType;
 use App\Enums\ProductType;
 use App\Listeners\ProdOrderNotification;
-use App\Models\Organization;
 use App\Models\Product;
-use App\Models\Warehouse;
 use App\Services\Cache\Cache;
 use App\Services\Handler\Interface\SceneHandlerInterface;
 use App\Services\ProdOrderService;
 use App\Services\TelegramService;
 use App\Services\TgBot\TgBot;
 use Illuminate\Database\Eloquent\Collection;
-use RuntimeException;
 use Throwable;
 
 class CreateProdTemplateScene implements SceneHandlerInterface
@@ -63,312 +59,74 @@ class CreateProdTemplateScene implements SceneHandlerInterface
 
     public function handleScene($params = []): void
     {
-        $this->handler->setState(self::states['']);
+        $this->handler->setState(self::states['prodTemp_selectProduct']);
 
         $this->tgBot->sendRequestAsync('editMessageText', [
             'chat_id' => $this->tgBot->chatId,
             'message_id' => $this->tgBot->getMessageId(),
-            'text' => $this->getProdOrderPrompt('Select type of ProdOrder:'),
+            'text' => $this->getProdTemplatePrompt('Select product:'),
             'parse_mode' => 'HTML',
             'reply_markup' => TelegramService::getInlineKeyboard([
-                [
-                    ['text' => 'By order', 'callback_data' => 'selectType:1'],
-                    ['text' => 'By catalog', 'callback_data' => 'selectType:2']
-                ],
-                [['text' => '🚫 Cancel', 'callback_data' => 'cancelProdOrder']]
+                [['text' => '🔍 Select product', 'switch_inline_query_current_chat' => '']],
+                [['text' => '🚫 Cancel', 'callback_data' => 'cancelProdTemplate']]
             ]),
         ]);
 
         $this->handler->setCache('edit_msg_id', $this->tgBot->getMessageId());
     }
 
-    public function selectType($type): void
-    {
-        dump("Type: $type");
-        $this->tgBot->answerCbQuery();
-
-        $form = $this->handler->getCacheArray('prodOrderForm');
-        $form['type'] = $type;
-        $this->handler->setCacheArray('prodOrderForm', $form);
-
-        $this->handler->setState(self::states['prodTemp_inputWarehouse']);
-
-        $buttons = Warehouse::query()->get()->map(function (Warehouse $warehouse) {
-            return [['text' => $warehouse->name, 'callback_data' => "selectWarehouse:$warehouse->id"]];
-        })->toArray();
-
-        $this->tgBot->sendRequestAsync('editMessageText', [
-            'chat_id' => $this->tgBot->chatId,
-            'message_id' => $this->tgBot->getMessageId(),
-            'text' => $this->getProdOrderPrompt('Select warehouse for ProdOrder:'),
-            'parse_mode' => 'HTML',
-            'reply_markup' => TelegramService::getInlineKeyboard([
-                ...$buttons,
-                [['text' => '🚫 Cancel', 'callback_data' => 'cancelProdOrder']],
-            ]),
-        ]);
-    }
-
-    public function selectWarehouse($warehouseId): void
-    {
-        dump("Warehouse: $warehouseId");
-        $this->tgBot->answerCbQuery();
-
-        $form = $this->handler->getCacheArray('prodOrderForm');
-        $form['warehouse_id'] = $warehouseId;
-        $this->handler->setCacheArray('prodOrderForm', $form);
-        $this->handler->setCacheArray('prodOrderForm', $form);
-
-        $buttons = [];
-        $type = $form['type'] ?? null;
-        if ($type == 1) {
-            $this->handler->setState(self::states['prodTemp_inputAgent']);
-            $prompt = 'Select agent for ProdOrder:';
-            $buttons = Organization::query()->whereNot('id', $this->handler->user->organization_id)->get()->map(
-                fn(Organization $organization) => [
-                    ['text' => $organization->name, 'callback_data' => "selectAgent:$organization->id"]
-                ]
-            )->toArray();
-        } else {
-            $this->handler->setState(self::states['prodTemp_inputDeadline']);
-            $prompt = 'Input deadline for ProdOrder (YYYY-MM-DD):';
-        }
-
-        $this->tgBot->sendRequestAsync('editMessageText', [
-            'chat_id' => $this->tgBot->chatId,
-            'message_id' => $this->tgBot->getMessageId(),
-            'text' => $this->getProdOrderPrompt($prompt),
-            'parse_mode' => 'HTML',
-            'reply_markup' => TelegramService::getInlineKeyboard([
-                ...$buttons,
-                [['text' => '🚫 Cancel', 'callback_data' => 'cancelProdOrder']]
-            ]),
-        ]);
-    }
-
-    public function selectAgent($agentId): void
-    {
-        dump("Agent: $agentId");
-        $this->tgBot->answerCbQuery();
-
-        $form = $this->handler->getCacheArray('prodOrderForm');
-        $form['organization_id'] = $agentId;
-        $this->handler->setCacheArray('prodOrderForm', $form);
-
-        $this->handler->setState(self::states['prodTemp_products']);
-
-        $this->tgBot->sendRequestAsync('editMessageText', [
-            'chat_id' => $this->tgBot->chatId,
-            'message_id' => $this->tgBot->getMessageId(),
-            'text' => $this->getProdOrderPrompt('Select product:'),
-            'parse_mode' => 'HTML',
-            'reply_markup' => TelegramService::getInlineKeyboard([
-                [['text' => '🔍 Select Product', 'switch_inline_query_current_chat' => '']],
-                [['text' => '🚫 Cancel', 'callback_data' => 'cancelProdOrder']]
-            ]),
-        ]);
-    }
-
-    public function inputDeadlineText($deadline): void
-    {
-        if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $deadline)) {
-            $this->tgBot->sendRequestAsync('editMessageText', [
-                'chat_id' => $this->tgBot->chatId,
-                'message_id' => $this->handler->getCache('edit_msg_id'),
-                'text' => $this->getProdOrderPrompt(
-                    'Input deadline for ProdOrder (YYYY-MM-DD):',
-                    '<i>❌ Invalid date format.</i>'
-                ),
-                'parse_mode' => 'HTML',
-                'reply_markup' => TelegramService::getInlineKeyboard([
-                    [['text' => '🚫 Cancel', 'callback_data' => 'cancelProdOrder']]
-                ]),
-            ]);
-            return;
-        }
-
-        dump("Deadline: $deadline");
-
-        $form = $this->handler->getCacheArray('prodOrderForm');
-        $form['deadline'] = $deadline;
-        $this->handler->setCacheArray('prodOrderForm', $form);
-
-        $this->handler->setState(self::states['prodTemp_products']);
-
-        $this->tgBot->sendRequestAsync('editMessageText', [
-            'chat_id' => $this->tgBot->chatId,
-            'message_id' => $this->handler->getCache('edit_msg_id'),
-            'text' => $this->getProdOrderPrompt('Select product:'),
-            'parse_mode' => 'HTML',
-            'reply_markup' => TelegramService::getInlineKeyboard([
-                [['text' => '🔍 Search Product', 'switch_inline_query_current_chat' => '']],
-                [['text' => '🚫 Cancel', 'callback_data' => 'cancelProdOrder']]
-            ]),
-        ]);
-    }
-
     public function selectProduct($productId): void
     {
         dump("Product ID: $productId");
 
-        $form = $this->handler->getCacheArray('prodOrderForm');
-        if (empty($form)) {
-            return;
-        }
-
-        $products = $form['products'] ?? [];
-
-        // Check if product already exists in the order
-        foreach ($products as $productItem) {
-            if ($productItem['product_id'] == $productId) {
-                $this->tgBot->sendRequestAsync('editMessageText', [
-                    'chat_id' => $this->tgBot->chatId,
-                    'message_id' => $this->tgBot->getMessageId(),
-                    'text' => $this->getProdOrderPrompt('Select product:', '<i>❌ Product already added.</i>'),
-                    'parse_mode' => 'HTML',
-                    'reply_markup' => TelegramService::getInlineKeyboard([
-                        [['text' => '🔍 Search Product', 'switch_inline_query_current_chat' => '']],
-                        [['text' => '🚫 Cancel', 'callback_data' => 'cancelProdOrder']]
-                    ]),
-                ]);
-                return;
-            }
-        }
-
-        // Add product to the order
-        $products[] = ['product_id' => $productId, 'quantity' => 0, 'offer_price' => 0];
-        $form['products'] = $products;
-        $this->handler->setCacheArray('prodOrderForm', $form);
+        $form = $this->handler->getCacheArray('prodTemplateForm');
+        $form['product_id'] = $productId;
+        $this->handler->setCacheArray('prodTemplateForm', $form);
 
         // Ask for quantity
-        $this->handler->setState(self::states['prodTemp_inputQuantity']);
+        $this->handler->setState(self::states['prodTemp_inputComment']);
 
         $this->tgBot->sendRequestAsync('editMessageText', [
             'chat_id' => $this->tgBot->chatId,
             'message_id' => $this->handler->getCache('edit_msg_id'),
-            'text' => $this->getProdOrderPrompt('Input quantity for product:'),
+            'text' => $this->getProdTemplatePrompt('Input comment:'),
             'parse_mode' => 'HTML',
             'reply_markup' => TelegramService::getInlineKeyboard([
-                [['text' => '🚫 Cancel', 'callback_data' => 'cancelProdOrder']]
+                [['text' => '🚫 Cancel', 'callback_data' => 'cancelProdTemplate']]
             ]),
         ]);
     }
 
-    public function inputQuantityText($quantity): void
+    public function inputComment($comment): void
     {
-        dump("Quantity: $quantity");
-
-        if (!is_numeric($quantity) || $quantity <= 0) {
-            $this->tgBot->sendRequestAsync('editMessageText', [
-                'chat_id' => $this->tgBot->chatId,
-                'message_id' => $this->handler->getCache('edit_msg_id'),
-                'text' => $this->getProdOrderPrompt('Input quantity for product:', '<i>❌ Invalid quantity.</i>'),
-                'parse_mode' => 'HTML',
-                'reply_markup' => TelegramService::getInlineKeyboard([
-                    [['text' => '🚫 Cancel', 'callback_data' => 'cancelProdOrder']]
-                ]),
-            ]);
-            return;
-        }
-
-        $form = $this->handler->getCacheArray('prodOrderForm');
-        $products = $form['products'] ?? [];
-        $lastProductIndex = count($products) - 1;
-
-        // Update last product's quantity
-        if (isset($products[$lastProductIndex])) {
-            $products[$lastProductIndex]['quantity'] = (float)$quantity;
-            $form['products'] = $products;
-            $this->handler->setCacheArray('prodOrderForm', $form);
-        }
-
-        // Ask for offer price
-        $this->handler->setState(self::states['prodTemp_inputOfferPrice']);
+        $form = $this->handler->getCacheArray('prodTemplateForm');
+        $form['comment'] = $comment;
+        $this->handler->setCacheArray('prodTemplateForm', $form);
 
         $this->tgBot->sendRequestAsync('editMessageText', [
             'chat_id' => $this->tgBot->chatId,
             'message_id' => $this->handler->getCache('edit_msg_id'),
-            'text' => $this->getProdOrderPrompt('Input offer price for product:'),
+            'text' => $this->getProdTemplatePrompt('Input offer price for product:'),
             'parse_mode' => 'HTML',
             'reply_markup' => TelegramService::getInlineKeyboard([
-                [['text' => '🚫 Cancel', 'callback_data' => 'cancelProdOrder']]
-            ]),
-        ]);
-    }
-
-    public function inputOfferPriceText($offerPrice): void
-    {
-        dump("Offer Price: $offerPrice");
-
-        if (!is_numeric($offerPrice) || $offerPrice <= 0) {
-            $this->tgBot->sendRequestAsync('editMessageText', [
-                'chat_id' => $this->tgBot->chatId,
-                'message_id' => $this->handler->getCache('edit_msg_id'),
-                'text' => $this->getProdOrderPrompt('Input offer price for product:', '<i>❌ Invalid price.</i>'),
-                'parse_mode' => 'HTML',
-                'reply_markup' => TelegramService::getInlineKeyboard([
-                    [['text' => '🚫 Cancel', 'callback_data' => 'cancelProdOrder']]
-                ]),
-            ]);
-            return;
-        }
-
-        $form = $this->handler->getCacheArray('prodOrderForm');
-        $products = $form['products'] ?? [];
-        $lastProductIndex = count($products) - 1;
-
-        // Update last product's offer price
-        if (isset($products[$lastProductIndex])) {
-            $products[$lastProductIndex]['offer_price'] = (float)$offerPrice;
-            $form['products'] = $products;
-            $this->handler->setCacheArray('prodOrderForm', $form);
-        }
-
-        $this->handler->setState(self::states['prodTemp_products']);
-
-        $this->tgBot->sendRequestAsync('editMessageText', [
-            'chat_id' => $this->tgBot->chatId,
-            'message_id' => $this->handler->getCache('edit_msg_id'),
-            'text' => $this->getProdOrderPrompt(
-                'Product added successfully! You can add more products or save ProdOrder.'
-            ),
-            'parse_mode' => 'HTML',
-            'reply_markup' => TelegramService::getInlineKeyboard([
-                [['text' => '🔍 Select Product', 'switch_inline_query_current_chat' => '']],
                 [
-                    ['text' => '🚫 Cancel', 'callback_data' => 'cancelProdOrder'],
-                    ['text' => '✅ Save', 'callback_data' => 'saveProdOrder']
+                    ['text' => '🚫 Cancel', 'callback_data' => 'cancelProdTemplate'],
+                    ['text' => '✅ Save', 'callback_data' => 'saveProdTemplate']
                 ]
             ]),
         ]);
     }
 
-    public function saveProdOrder(): void
+    public function saveProdTemplate(): void
     {
-        $form = $this->handler->getCacheArray('prodOrderForm');
+        $form = $this->handler->getCacheArray('prodTemplateForm');
         dump($form);
 
-        if (empty($form['products'])) {
-            $this->tgBot->answerCbQuery(['text' => '❌ No products added!'], true);
-
-            $this->tgBot->sendRequestAsync('editMessageText', [
-                'chat_id' => $this->tgBot->chatId,
-                'message_id' => $this->tgBot->getMessageId(),
-                'text' => $this->getProdOrderPrompt('', '<i>❌ No products added to the ProdOrder.</i>'),
-                'parse_mode' => 'HTML',
-                'reply_markup' => TelegramService::getInlineKeyboard([
-                    [['text' => '🔍 Select Product', 'switch_inline_query_current_chat' => '']],
-                    [['text' => '🚫 Cancel', 'callback_data' => 'cancelProdOrder']]
-                ]),
-            ]);
-            return;
-        }
-
         try {
-            $poGroup = $this->prodOrderService->createOrderByForm($form);
+            $prodTmp = $this->prodOrderService->createTemplateByForm($form);
 
-            $message = "<b>✅ ProdOrder saved</b>\n\n";
-            $message .= ProdOrderNotification::getProdOrderGroupMsg($poGroup);
+            $message = "<b>✅ ProdTemplate saved</b>\n\n";
+            $message .= ProdOrderNotification::getProdTemplateMsg($prodTmp);
 
             $this->tgBot->sendRequestAsync('editMessageText', [
                 'chat_id' => $this->tgBot->chatId,
@@ -376,37 +134,36 @@ class CreateProdTemplateScene implements SceneHandlerInterface
                 'text' => $message,
                 'parse_mode' => 'HTML',
                 'reply_markup' => TelegramService::getInlineKeyboard([
-                    [['text' => 'Confirm order', 'callback_data' => "confirmProdOrder:$poGroup->id"]]
-                ])
+                    [['text' => '➕ Create step', 'callback_data' => "createProdTemplateStep:$prodTmp->id"]]
+                ]),
             ]);
 
-            $this->cancelProdOrder(false);
+            $this->handler->forgetCache('prodTemplateForm');
+            $this->handler->forgetCache('state');
+            $this->handler->forgetCache('scene');
 
-            $this->tgBot->answerCbQuery(['text' => '✅ ProdOrder saved successfully!'], true);
-
-            $this->handler->sendMainMenu();
+            $this->tgBot->answerCbQuery(['text' => '✅ ProdTemplate saved successfully!'], true);
         } catch (Throwable $e) {
-            $this->tgBot->answerCbQuery(['text' => '❌ Error saving ProdOrder!'], true);
+            $this->tgBot->answerCbQuery(['text' => '❌ Error saving ProdTemplate!'], true);
 
             $this->tgBot->sendRequestAsync('editMessageText', [
                 'chat_id' => $this->tgBot->chatId,
                 'message_id' => $this->tgBot->getMessageId(),
-                'text' => $this->getProdOrderPrompt('', "<i>❌ Error saving ProdOrder: {$e->getMessage()}</i>"),
+                'text' => $this->getProdTemplatePrompt('', "<i>❌ Error saving ProdTemplate: {$e->getMessage()}</i>"),
                 'parse_mode' => 'HTML',
                 'reply_markup' => TelegramService::getInlineKeyboard([
-                    [['text' => '🔍 Select Product', 'switch_inline_query_current_chat' => '']],
                     [
-                        ['text' => '🚫 Cancel', 'callback_data' => 'cancelProdOrder'],
-                        ['text' => '✅ Save again', 'callback_data' => 'saveProdOrder']
+                        ['text' => '🚫 Cancel', 'callback_data' => 'cancelProdTemplate'],
+                        ['text' => '✅ Save again', 'callback_data' => 'saveProdTemplate']
                     ]
                 ]),
             ]);
         }
     }
 
-    public function cancelProdOrder($withResponse = true): void
+    public function cancelProdTemplate($withResponse = true): void
     {
-        $this->handler->forgetCache('prodOrderForm');
+        $this->handler->forgetCache('prodTemplateForm');
         $this->handler->resetCache();
 
         if ($withResponse) {
@@ -452,65 +209,29 @@ class CreateProdTemplateScene implements SceneHandlerInterface
         ]);
     }
 
-    protected function getProdOrderPrompt(string $prompt, $errorMsg = null): string
+    protected function getProdTemplatePrompt(string $prompt, $errorMsg = null): string
     {
-        return strtr($this->handler::templates['prodOrderGroup'], [
+        return strtr($this->handler::templates['prodTemplate'], [
             '{errorMsg}' => $errorMsg ?? '',
-            '{details}' => $this->getProdOrderDetails(),
+            '{details}' => $this->getProdTemplateDetails(),
             '{prompt}' => $prompt,
         ]);
     }
 
-    protected function getProdOrderDetails(): string
+    protected function getProdTemplateDetails(): string
     {
-        $result = "<b>ProdOrder details:</b>\n\n";
+        $result = "<b>ProdTemplate details:</b>\n\n";
 
-        $form = $this->handler->getCacheArray('prodOrderForm');
+        $form = $this->handler->getCacheArray('prodTemplateForm');
+        dump($form);
+        $productId = $form['product_id'] ?? null;
+        $product = Product::query()->find($productId);
 
-        $type = $form['type'] ?? null;
-        $typeName = $type ? ProdOrderGroupType::tryFrom($type)->getLabel() : '-';
+        $productName = $product?->catName ?? '-';
+        $comment = $form['comment'] ?? '-';
 
-        $warehouse = isset($form['warehouse_id']) ? Warehouse::query()->find($form['warehouse_id']) : null;
-        $warehouseName = $warehouse?->name ?? '-';
-
-        $agent = isset($form['organization_id']) ? Organization::query()->find($form['organization_id']) : null;
-        $agentName = $agent?->name ?? '-';
-        $agentName = $type == 1 ? $agentName : null;
-
-        $deadline = $form['deadline'] ?? '-';
-        $deadline = $type == 2 ? $deadline : null;
-
-        $products = $form['products'] ?? [];
-
-        $result .= "Type: <b>$typeName</b>\n";
-        $result .= "Warehouse: <b>$warehouseName</b>\n";
-        if ($agentName) {
-            $result .= "Agent: <b>$agentName</b>\n";
-        }
-        if ($deadline) {
-            $result .= "Deadline: <b>$deadline</b>\n";
-        }
-
-        $result .= "\n<b>Products List:</b>\n";
-        if (!empty($products)) {
-            foreach ($products as $index => $productItem) {
-                $index++;
-                // fill product name, quantity, and offer price
-                /** @var Product $product */
-                $product = Product::query()->find($productItem['product_id']);
-                if (!$product) {
-                    throw new RuntimeException("Product with ID {$productItem['product_id']} not found.");
-                }
-
-                $productName = $product?->catName ?? '-';
-                $quantity = $productItem['quantity'] ?? '-';
-                $offerPrice = $productItem['offer_price'] ?? '-';
-
-                $result .= "$index) <b>$productName</b>\n";
-                $result .= "Quantity: <b>$quantity {$product?->getMeasureUnit()->getLabel()}</b>\n";
-                $result .= "Offer Price: <b>$offerPrice</b>\n\n";
-            }
-        }
+        $result .= "Product: <b>$productName</b>\n";
+        $result .= "Comment: <i>$comment</i>\n";
 
         return $result;
     }

@@ -15,6 +15,7 @@ use Illuminate\Database\Eloquent\Attributes\ScopedBy;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\HasManyThrough;
+use Illuminate\Support\Carbon;
 
 /**
  * @property int $id
@@ -22,8 +23,8 @@ use Illuminate\Database\Eloquent\Relations\HasManyThrough;
  * @property int $product_id
  * @property int $organization_id
  * @property string $comment
- * @property string $created_at
- * @property string $updated_at
+ * @property Carbon $created_at
+ * @property Carbon $updated_at
  *
  * @property Product $product
  * @property ProdOrderStep $firstStep
@@ -38,10 +39,15 @@ class ProdTemplate extends Model
 
     protected $guarded = ['id'];
 
+    protected $casts = [
+        'created_at' => 'datetime',
+        'updated_at' => 'datetime',
+    ];
+
     protected static function booted(): void
     {
         static::creating(function(ProdTemplate $template) {
-            if (!empty($template->name)) {
+            if (empty($template->name)) {
                 /** @var Product $product */
                 $product = Product::query()->findOrFail($template->product_id);
                 $template->name = $product->catName . ' TMP';
