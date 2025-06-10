@@ -10,6 +10,7 @@ use App\Services\TelegramService;
 class ProductionManagerHandler extends BaseHandler
 {
     protected array $sceneHandlers = [
+        'createProdTemplate' => CreateProdTemplateScene::class,
         'createProdOrder' => CreateProdOrderScene::class,
         'startProdOrder' => StartProdOrderScene::class,
     ];
@@ -127,9 +128,10 @@ HTML,
     public function getMainKb(): array
     {
         return TelegramService::getInlineKeyboard([
+            [['text' => '➕ Create ProdTemplate', 'callback_data' => 'createProdTemplate']],
             [['text' => '➕ Create ProdOrder', 'callback_data' => 'createProdOrder']],
             [['text' => '🔍 Search PO', 'switch_inline_query_current_chat' => '']],
-            [['text' => '📋 ProdOrders List', 'callback_data' => 'prodOrdersList']]
+//            [['text' => '📋 ProdOrders List', 'callback_data' => 'prodOrdersList']]
         ]);
     }
 }

@@ -2,19 +2,19 @@
 
 namespace App\Models\ProdTemplate;
 
+use App\Models\Product;
+use App\Models\WorkStation;
 use App\Models\Organization;
 use App\Models\ProdOrder\ProdOrderStep;
-use App\Models\Product;
-use App\Models\Scopes\OwnOrganizationScope;
-use App\Models\WorkStation;
-use Illuminate\Database\Eloquent\Attributes\ScopedBy;
-use Illuminate\Database\Eloquent\Collection;
-use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\Relations\BelongsTo;
-use Illuminate\Database\Eloquent\Relations\HasMany;
-use Illuminate\Database\Eloquent\Relations\HasManyThrough;
+use App\Models\Scopes\OwnOrganizationScope;
+use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Relations\HasOne;
+use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Attributes\ScopedBy;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Relations\HasManyThrough;
 
 /**
  * @property int $id
@@ -37,6 +37,17 @@ class ProdTemplate extends Model
     use HasFactory;
 
     protected $guarded = ['id'];
+
+    protected static function booted(): void
+    {
+        static::creating(function(ProdTemplate $template) {
+            if (!empty($template->name)) {
+                /** @var Product $product */
+                $product = Product::query()->findOrFail($template->product_id);
+                $template->name = $product->catName . ' TMP';
+            }
+        });
+    }
 
     public function product(): BelongsTo
     {
