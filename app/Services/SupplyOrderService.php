@@ -171,7 +171,7 @@ class SupplyOrderService
             ->get();
 
         $message = "<b>SupplyOrder waiting for StockManager approval</b>\n\n";
-        $message .= SupplyOrderNotification::getSupplyOrderMsg($supplyOrder, false);
+        $message .= TgMessageService::getSupplyOrderMsg($supplyOrder, false);
 
         foreach ($stockManagers as $stockManager) {
             try {
@@ -209,7 +209,7 @@ class SupplyOrderService
             ->get();
 
         $message = "<b>SupplyOrder products comparison</b>\n\n";
-        $message .= SupplyOrderNotification::getSupplyOrderMsg($supplyOrder);
+        $message .= TgMessageService::getSupplyOrderMsg($supplyOrder);
         $message .= "\nThere are some differences in quantities.";
 
         foreach ($supplyManagers as $supplyManager) {

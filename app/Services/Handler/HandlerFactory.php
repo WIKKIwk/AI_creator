@@ -15,6 +15,7 @@ class HandlerFactory
     public static function make(User $user): HandlerInterface
     {
         return match ($user->role) {
+            RoleType::SENIOR_PRODUCTION_MANAGER,
             RoleType::PRODUCTION_MANAGER => app(ProductionManagerHandler::class),
 
             RoleType::SUPPLY_MANAGER,

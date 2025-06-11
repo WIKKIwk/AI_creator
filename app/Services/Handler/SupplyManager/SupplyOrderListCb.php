@@ -8,6 +8,7 @@ use App\Services\Cache\Cache;
 use App\Services\SupplyOrderService;
 use App\Services\TelegramService;
 use App\Services\TgBot\TgBot;
+use App\Services\TgMessageService;
 
 class SupplyOrderListCb
 {
@@ -40,7 +41,7 @@ class SupplyOrderListCb
 
         $pages = SupplyOrder::query()->count();
         $message = "<b>Supply orders (Page $page of $pages):</b>\n\n";
-        $message .= SupplyOrderNotification::getSupplyOrderMsg($supplyOrder);
+        $message .= TgMessageService::getSupplyOrderMsg($supplyOrder);
 
         $buttons = [];
         if (!$supplyOrder->isConfirmed()) {

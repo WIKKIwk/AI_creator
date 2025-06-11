@@ -23,6 +23,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
  * @property int $prod_order_id
  * @property int $performance_qty
  * @property int $performance_duration
+ * @property int $prod_manager_id
  * @property array $measure_units
  * @property DurationUnit $performance_duration_unit
  *
@@ -31,6 +32,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
  * @property Organization $organization
  * @property Collection<PerformanceRate> $performanceRates
  * @property Collection<MiniInventory> $miniInventories
+ * @property User $prodManager
  */
 #[ScopedBy(OwnOrganizationScope::class)]
 class WorkStation extends Model
@@ -85,5 +87,10 @@ class WorkStation extends Model
     public function prodOrder(): BelongsTo
     {
         return $this->belongsTo(ProdOrder::class);
+    }
+
+    public function prodManager(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'prod_manager_id');
     }
 }

@@ -2,11 +2,14 @@
 
 namespace App\Services\Handler\ProductionManager;
 
-use App\Listeners\ProdOrderNotification;
+use App\Enums\RoleType;
+use App\Models\Inventory\Inventory;
 use App\Models\ProdOrder\ProdOrder;
 use App\Models\ProdTemplate\ProdTemplate;
 use App\Services\Handler\BaseHandler;
 use App\Services\TelegramService;
+use App\Services\TgMessageService;
+use Illuminate\Database\Eloquent\Collection;
 
 class ProductionManagerHandler extends BaseHandler
 {
@@ -15,6 +18,7 @@ class ProductionManagerHandler extends BaseHandler
         'createProdTemplateStep' => CreateProdTemplateStepScene::class,
         'createProdOrder' => CreateProdOrderScene::class,
         'startProdOrder' => StartProdOrderScene::class,
+        'workStationsList' => WorkStationManagerScene::class,
     ];
 
     protected array $callbackHandlers = [
@@ -24,6 +28,13 @@ class ProductionManagerHandler extends BaseHandler
         'cancelProdTemplate' => [CreateProdTemplateScene::class, 'cancelProdTemplate'],
         'cancelStep' => [CreateProdTemplateStepScene::class, 'cancelStep'],
 
+        'workStationsList' => [WorkStationManagerScene::class, 'handleScene'],
+        'showWorkStation' => [WorkStationManagerScene::class, 'showWorkStation'],
+        'assignProdOrders' => [WorkStationManagerScene::class, 'assignProdOrders'],
+        'assignProdOrder' => [WorkStationManagerScene::class, 'assignProdOrder'],
+        'backWsMenu' => [WorkStationManagerScene::class, 'backWsMenu'],
+        'backWsShowMenu' => [WorkStationManagerScene::class, 'backWsShowMenu'],
+
         'confirmListOrder' => [ProdOrderListCb::class, 'confirmOrder'],
         'prodOrdersList' => [ProdOrderListCb::class, 'sendList'],
         'prodOrderPrev' => [ProdOrderListCb::class, 'prev'],
@@ -31,6 +42,12 @@ class ProductionManagerHandler extends BaseHandler
     ];
 
     public const templates = [
+        'tmp' => <<<HTML
+{errorMsg}
+
+{details}
+{prompt}
+HTML,
         'prodOrderGroup' => <<<HTML
 {errorMsg}
 
@@ -91,7 +108,7 @@ HTML,
         }
 
         $message = "<b>ProdTemplate details:</b>\n\n";
-        $message .= ProdOrderNotification::getProdTemplateMsg($prodTemplate);
+        $message .= TgMessageService::getProdTemplateMsg($prodTemplate);
 
         $messageId = $this->getCache('edit_msg_id');
         dump("msg_id: $messageId");
@@ -123,7 +140,7 @@ HTML,
         }
 
         $message = "<b>ProdOrder details:</b>\n\n";
-        $message .= ProdOrderNotification::getProdOrderMsg($prodOrder);
+        $message .= TgMessageService::getProdOrderMsg($prodOrder);
 
         $messageId = $this->getCache('edit_msg_id');
         dump("msg_id: $messageId");
@@ -137,6 +154,30 @@ HTML,
         ]);
     }
 
+    public function inventoryList(): void
+    {
+        $inventoryMsg = "<b>Inventory List</b>\n\n";
+
+        /** @var Collection<Inventory> $inventories */
+        $inventories = Inventory::query()->get();
+        foreach ($inventories as $inventory) {
+            if ($inventory->quantity > 0) {
+                $product = $inventory->product;
+                $inventoryMsg .= "<b>{$product->catName}:</b> $inventory->quantity {$product->getMeasureUnit()->getLabel()}\n";
+            }
+        }
+
+        $this->tgBot->sendRequestAsync('editMessageText', [
+            'chat_id' => $this->tgBot->chatId,
+            'message_id' => $this->tgBot->getMessageId(),
+            'text' => $inventoryMsg,
+            'parse_mode' => 'HTML',
+            'reply_markup' => TelegramService::getInlineKeyboard([
+                [['text' => '🔙 Back', 'callback_data' => 'backMainMenu']]
+            ]),
+        ]);
+    }
+
     public function handleInlineQuery($inlineQuery): void
     {
         $search = $inlineQuery['query'] ?? '';
@@ -144,7 +185,7 @@ HTML,
 
         if (str_starts_with($search, 'prodTmp')) {
             $search = str_replace('prodTmp', '', $search);
-
+            dump($search);
             $prodTemplates = ProdTemplate::query()->get();
 
             $this->tgBot->sendRequest('answerInlineQuery', [
@@ -194,12 +235,22 @@ HTML,
 
     public function getMainKb(): array
     {
+        $wsButton = [];
+        if ($this->user->role != RoleType::SENIOR_PRODUCTION_MANAGER) {
+            $wsButton[] = [['text' => '🛠 WorkStations', 'callback_data' => 'workStationsList']];
+        }
+
         return TelegramService::getInlineKeyboard([
-            [['text' => '➕ Create ProdTemplate', 'callback_data' => 'createProdTemplate']],
-            [['text' => '➕ Create ProdOrder', 'callback_data' => 'createProdOrder']],
-            [['text' => '🔍 Search PO', 'switch_inline_query_current_chat' => '']],
-            [['text' => '🔍 Search PT', 'switch_inline_query_current_chat' => 'prodTmp']],
-//            [['text' => '📋 ProdOrders List', 'callback_data' => 'prodOrdersList']]
+            [
+                ['text' => '🔍 ProdTemplates', 'switch_inline_query_current_chat' => 'prodTmp'],
+                ['text' => '➕ Create ProdTemplate', 'callback_data' => 'createProdTemplate'],
+            ],
+            [
+                ['text' => '🔍 ProdOrder', 'switch_inline_query_current_chat' => ''],
+                ['text' => '➕ Create ProdOrder', 'callback_data' => 'createProdOrder']
+            ],
+            ...$wsButton,
+            [['text' => '📋 Inventory', 'callback_data' => 'inventoryList']],
         ]);
     }
 }

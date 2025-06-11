@@ -12,6 +12,7 @@ use App\Services\Handler\Interface\SceneHandlerInterface;
 use App\Services\ProdOrderService;
 use App\Services\TelegramService;
 use App\Services\TgBot\TgBot;
+use App\Services\TgMessageService;
 use Illuminate\Database\Eloquent\Collection;
 use Throwable;
 
@@ -263,7 +264,7 @@ class CreateExecutionScene implements SceneHandlerInterface
             $execution = $this->prodOrderService->createExecutionByForm($this->getStep(), $form);
 
             $message = "<b>✅ Execution saved successfully!</b>\n\n";
-            $message .= StepExecutionNotification::getExecutionMsg($execution);
+            $message .= TgMessageService::getExecutionMsg($execution);
 
             $this->tgBot->sendRequestAsync('editMessageText', [
                 'chat_id' => $this->tgBot->chatId,

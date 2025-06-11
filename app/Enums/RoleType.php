@@ -11,6 +11,7 @@ enum RoleType: int implements HasLabel, HasColor, HasIcon
     case ADMIN = 1;
     case PLANNING_MANAGER = 2;
     case PRODUCTION_MANAGER = 3;
+    case SENIOR_PRODUCTION_MANAGER = 10;
     case ALLOCATION_MANAGER = 4;
     case STOCK_MANAGER = 5;
     case SENIOR_STOCK_MANAGER = 6;
@@ -30,6 +31,7 @@ enum RoleType: int implements HasLabel, HasColor, HasIcon
             self::WORK_STATION_WORKER => 'Work Station worker',
             self::SUPPLY_MANAGER => 'Supply Manager',
             self::SENIOR_SUPPLY_MANAGER => 'Senior Supply Manager',
+            self::SENIOR_PRODUCTION_MANAGER => 'Senior Production Manager',
         };
     }
 
@@ -45,6 +47,7 @@ enum RoleType: int implements HasLabel, HasColor, HasIcon
             self::WORK_STATION_WORKER => 'info',
             self::SUPPLY_MANAGER => 'success',
             self::SENIOR_SUPPLY_MANAGER => 'success',
+            self::SENIOR_PRODUCTION_MANAGER => 'warning',
         };
     }
 
@@ -60,6 +63,7 @@ enum RoleType: int implements HasLabel, HasColor, HasIcon
             self::WORK_STATION_WORKER => 'heroicon-o-cog',
             self::SUPPLY_MANAGER => 'heroicon-o-cog',
             self::SENIOR_SUPPLY_MANAGER => 'heroicon-o-cog',
+            self::SENIOR_PRODUCTION_MANAGER => 'heroicon-o-cog',
         };
     }
 }

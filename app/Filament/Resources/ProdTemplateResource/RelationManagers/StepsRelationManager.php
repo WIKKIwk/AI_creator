@@ -52,18 +52,6 @@ class StepsRelationManager extends RelationManager
                     }),
 
                 Forms\Components\Grid::make(3)->schema([
-//                    Forms\Components\TextInput::make('output_product')
-//                        ->label('Output product')
-//                        ->readOnly()
-//                        ->formatStateUsing(function($record) {
-//                            /** @var ProdTemplateStep $record */
-//                            if ($record?->outputProduct) {
-//                                return $record->outputProduct->getDisplayName();
-//                            } else {
-//                                return "-";
-//                            }
-//                        })
-//                        ->reactive(),
 
                 Forms\Components\Select::make('output_product_id')
                     ->label('Output product')
@@ -131,8 +119,8 @@ class StepsRelationManager extends RelationManager
                                 ->preload()
                                 ->reactive()
                                 ->required(),
-                            Forms\Components\TextInput::make('quantity')
-                                ->label('Quantity')
+                            Forms\Components\TextInput::make('required_quantity')
+                                ->label('Required quantity')
                                 ->numeric()
                                 ->suffix(function($get) {
                                     /** @var Product|null $product */

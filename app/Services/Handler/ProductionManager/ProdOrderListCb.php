@@ -8,6 +8,7 @@ use App\Services\Cache\Cache;
 use App\Services\ProdOrderService;
 use App\Services\TelegramService;
 use App\Services\TgBot\TgBot;
+use App\Services\TgMessageService;
 
 class ProdOrderListCb
 {
@@ -60,7 +61,7 @@ class ProdOrderListCb
 
         $pages = ProdOrderGroup::query()->count();
         $message = "<b>Production Orders (Page $page of $pages):</b>\n\n";
-        $message .= ProdOrderNotification::getProdOrderGroupMsg($poGroup);
+        $message .= TgMessageService::getProdOrderGroupMsg($poGroup);
 
         $buttons = [];
         if (!$poGroup->isConfirmed()) {

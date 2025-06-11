@@ -13,6 +13,7 @@ use App\Services\Handler\Interface\SceneHandlerInterface;
 use App\Services\ProdOrderService;
 use App\Services\TelegramService;
 use App\Services\TgBot\TgBot;
+use App\Services\TgMessageService;
 use Illuminate\Database\Eloquent\Collection;
 use RuntimeException;
 use Throwable;
@@ -49,7 +50,7 @@ class CreateProdOrderScene implements SceneHandlerInterface
         $poGroup->confirm();
 
         $message = "<b>✅ Order confirmed!</b>\n\n";
-        $message .= ProdOrderNotification::getProdOrderGroupMsg($poGroup);
+        $message .= TgMessageService::getProdOrderGroupMsg($poGroup);
 
         $this->tgBot->answerCbQuery(['text' => '✅ Order confirmed!'], true);
         $this->tgBot->sendRequestAsync('editMessageText', [
@@ -397,7 +398,7 @@ class CreateProdOrderScene implements SceneHandlerInterface
             $poGroup = $this->prodOrderService->createOrderByForm($form);
 
             $message = "<b>✅ ProdOrder saved</b>\n\n";
-            $message .= ProdOrderNotification::getProdOrderGroupMsg($poGroup);
+            $message .= TgMessageService::getProdOrderGroupMsg($poGroup);
 
             $this->tgBot->sendRequestAsync('editMessageText', [
                 'chat_id' => $this->tgBot->chatId,

@@ -14,6 +14,7 @@ use App\Models\ProdOrder\ProdOrderStep;
 use App\Models\ProdOrder\ProdOrderStepExecution;
 use App\Models\ProdOrder\ProdOrderStepProduct;
 use App\Models\ProdTemplate\ProdTemplate;
+use App\Models\ProdTemplate\ProdTemplateStep;
 use App\Models\Product;
 use Exception;
 use Illuminate\Support\Facades\DB;
@@ -277,6 +278,42 @@ class ProdOrderService
         ]);
 
         return $prodTemplate;
+    }
+
+    public function createTmpStepByForm(ProdTemplate $prodTemplate, array $form): ProdTemplateStep
+    {
+        $validator = Validator::make($form, [
+            'sequence' => 'required|integer|min:1',
+            'work_station_id' => 'required|exists:work_stations,id',
+            'output_product_id' => 'nullable|exists:products,id',
+            'expected_quantity' => 'required|numeric|min:1',
+            'is_last' => 'boolean',
+            'materials' => 'required|array',
+            'materials.*.product_id' => 'required|exists:products,id',
+            'materials.*.required_quantity' => 'required|numeric|min:1',
+        ]);
+
+        if ($validator->fails()) {
+            throw new Exception('Validation failed: ' . implode(', ', $validator->errors()->all()));
+        }
+
+        /** @var ProdTemplateStep $prodTemplateStep */
+        $prodTemplateStep = $prodTemplate->steps()->create([
+            'sequence' => $form['sequence'],
+            'work_station_id' => $form['work_station_id'],
+            'output_product_id' => $form['output_product_id'] ?? null,
+            'expected_quantity' => $form['expected_quantity'],
+            'is_last' => $form['is_last'] ?? false,
+        ]);
+
+        foreach ($form['materials'] as $material) {
+            $prodTemplateStep->materials()->create([
+                'product_id' => $material['product_id'],
+                'required_quantity' => $material['required_quantity'],
+            ]);
+        }
+
+        return $prodTemplateStep;
     }
 
     /**

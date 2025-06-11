@@ -10,6 +10,7 @@ use App\Services\Handler\Interface\SceneHandlerInterface;
 use App\Services\ProdOrderService;
 use App\Services\TelegramService;
 use App\Services\TgBot\TgBot;
+use App\Services\TgMessageService;
 
 class SelectExecutionScene implements SceneHandlerInterface
 {
@@ -41,7 +42,7 @@ class SelectExecutionScene implements SceneHandlerInterface
         $this->tgBot->sendRequestAsync('editMessageText', [
             'chat_id' => $this->tgBot->chatId,
             'message_id' => $this->tgBot->getMessageId(),
-            'text' => ProdOrderNotification::getExecutionMsg($execution),
+            'text' => TgMessageService::getExecutionMsg($execution),
             'parse_mode' => 'HTML',
             'reply_markup' => TelegramService::getInlineKeyboard([
                 ...$buttons,

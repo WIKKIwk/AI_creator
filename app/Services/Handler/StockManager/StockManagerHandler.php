@@ -12,6 +12,7 @@ use App\Models\User;
 use App\Services\Handler\BaseHandler;
 use App\Services\ProdOrderService;
 use App\Services\TelegramService;
+use App\Services\TgMessageService;
 use GuzzleHttp\Exception\GuzzleException;
 use Throwable;
 
@@ -66,7 +67,7 @@ HTML,
             $poService->approveExecution($poExecution);
 
             $message = "<b>✅ Execution approved!</b>\n\n";
-            $message .= StepExecutionNotification::getExecutionMsg($poExecution);
+            $message .= TgMessageService::getExecutionMsg($poExecution);
 
             $this->tgBot->answerCbQuery(['text' => '✅ Execution approved!'], true);
             $this->tgBot->sendRequestAsync('editMessageText', [
@@ -77,7 +78,7 @@ HTML,
             ]);
         } catch (Throwable $e) {
             $message = "<i>❌ {$e->getMessage()}!</i>\n\n";
-            $message .= StepExecutionNotification::getExecutionMsg($poExecution);
+            $message .= TgMessageService::getExecutionMsg($poExecution);
 
             $this->tgBot->answerCbQuery(['text' => '❌ Error occurred!'], true);
             $this->tgBot->sendRequestAsync('editMessageText', [
@@ -122,7 +123,7 @@ HTML,
         }
 
         $message = "<b>Selected order details:</b>\n\n";
-        $message .= ProdOrderNotification::getProdOrderMsg($prodOrder);
+        $message .= TgMessageService::getProdOrderMsg($prodOrder);
 
         $stepButtons = [];
         foreach ($prodOrder->steps as $step) {
@@ -154,7 +155,7 @@ HTML,
         $this->tgBot->answerCbQuery();
 
         $message = "<b>Selected step details:</b>\n\n";
-        $message .= ProdOrderNotification::getPoStepMsg($step);
+        $message .= TgMessageService::getPoStepMsg($step);
 
         $this->tgBot->sendRequestAsync('editMessageText', [
             'chat_id' => $this->tgBot->chatId,

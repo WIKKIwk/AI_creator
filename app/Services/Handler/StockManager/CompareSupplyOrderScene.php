@@ -9,6 +9,7 @@ use App\Services\Handler\Interface\SceneHandlerInterface;
 use App\Services\SupplyOrderService;
 use App\Services\TelegramService;
 use App\Services\TgBot\TgBot;
+use App\Services\TgMessageService;
 
 class CompareSupplyOrderScene implements SceneHandlerInterface
 {
@@ -140,7 +141,7 @@ class CompareSupplyOrderScene implements SceneHandlerInterface
         $this->tgBot->answerCbQuery(['text' => '✅ SupplyOrder compared successfully.']);
 
         $message = "<b>✅ SupplyOrder compared</b>\n\n";
-        $message .= SupplyOrderNotification::getSupplyOrderMsg($supplyOrder);
+        $message .= TgMessageService::getSupplyOrderMsg($supplyOrder);
 
         $this->tgBot->sendRequestAsync('editMessageText', [
             'chat_id' => $this->tgBot->chatId,
@@ -158,7 +159,7 @@ class CompareSupplyOrderScene implements SceneHandlerInterface
 
         $supplyOrder = $this->getSupplyOrder($supplyOrderId);
         $message = "<b>SupplyOrder waiting for StockManager approval</b>\n\n";
-        $message .= SupplyOrderNotification::getSupplyOrderMsg($supplyOrder);
+        $message .= TgMessageService::getSupplyOrderMsg($supplyOrder);
 
         $this->tgBot->sendRequestAsync('editMessageText', [
             'chat_id' => $this->tgBot->chatId,
@@ -180,7 +181,7 @@ class CompareSupplyOrderScene implements SceneHandlerInterface
         $form = $this->handler->getCacheArray('compareSupplyForm');
         $formProducts = $form['products'] ?? [];
 
-        $message = SupplyOrderNotification::getSupplyOrderMsg($supplyOrder, false);
+        $message = TgMessageService::getSupplyOrderMsg($supplyOrder, false);
 
         $message .= "\nProducts:\n";
         foreach ($supplyOrder->products as $index => $productItem) {

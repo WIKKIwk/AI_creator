@@ -9,8 +9,11 @@ use Filament\Models\Contracts\FilamentUser;
 use Filament\Panel;
 use Illuminate\Database\Eloquent\Attributes\ScopedBy;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Illuminate\Support\Carbon;
@@ -38,6 +41,7 @@ use Laravel\Sanctum\HasApiTokens;
  * @property Organization $organization
  * @property Warehouse $warehouse
  * @property WorkStation $workStation
+ * @property Collection<WorkStation> $workStations
  */
 class User extends Authenticatable implements FilamentUser
 {
@@ -102,6 +106,11 @@ class User extends Authenticatable implements FilamentUser
     public function workStation(): BelongsTo
     {
         return $this->belongsTo(WorkStation::class);
+    }
+
+    public function workStations(): HasMany
+    {
+        return $this->hasMany(WorkStation::class, 'prod_manager_id', 'id');
     }
 
     public function scopeOwnOrganization(Builder $query): Builder

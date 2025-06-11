@@ -14,6 +14,7 @@ use App\Services\Handler\Interface\SceneHandlerInterface;
 use App\Services\SupplyOrderService;
 use App\Services\TelegramService;
 use App\Services\TgBot\TgBot;
+use App\Services\TgMessageService;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Arr;
 use RuntimeException;
@@ -53,7 +54,7 @@ class CreateSupplyOrderScene implements SceneHandlerInterface
             $this->supplyOrderService->closeOrder($supplyOrder);
 
             $message = "<b>✅ Order closed!</b>\n\n";;
-            $message .= SupplyOrderNotification::getSupplyOrderMsg($supplyOrder);
+            $message .= TgMessageService::getSupplyOrderMsg($supplyOrder);
 
             $this->tgBot->answerCbQuery(['text' => '✅ Order closed!'], true);
             $this->tgBot->sendRequestAsync('editMessageText', [
@@ -87,7 +88,7 @@ class CreateSupplyOrderScene implements SceneHandlerInterface
         $supplyOrder->confirm();
 
         $message = "<b>✅ Order confirmed!</b>\n\n";;
-        $message .= SupplyOrderNotification::getSupplyOrderMsg($supplyOrder);
+        $message .= TgMessageService::getSupplyOrderMsg($supplyOrder);
 
         $this->tgBot->answerCbQuery(['text' => '✅ Order confirmed!'], true);
         $this->tgBot->sendRequestAsync('editMessageText', [
@@ -393,7 +394,7 @@ class CreateSupplyOrderScene implements SceneHandlerInterface
             ]);
 
             $message = "<b>✅ SupplyOrder saved</b>\n\n";
-            $message .= SupplyOrderNotification::getSupplyOrderMsg($supplyOrder);
+            $message .= TgMessageService::getSupplyOrderMsg($supplyOrder);
 
             $this->tgBot->sendRequestAsync('editMessageText', [
                 'chat_id' => $this->tgBot->chatId,

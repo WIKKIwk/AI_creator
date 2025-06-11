@@ -9,6 +9,7 @@ use App\Services\Handler\Interface\SceneHandlerInterface;
 use App\Services\ProdOrderService;
 use App\Services\TelegramService;
 use App\Services\TgBot\TgBot;
+use App\Services\TgMessageService;
 use Illuminate\Support\Arr;
 
 class StartProdOrderScene implements SceneHandlerInterface
@@ -75,7 +76,7 @@ class StartProdOrderScene implements SceneHandlerInterface
             $this->tgBot->answerCbQuery(['text' => '✅ ProdOrder started successfully!']);
 
             $message = "<b>✅ ProdOrder started successfully!</b>\n\n";
-            $message .= ProdOrderNotification::getProdOrderMsg($prodOrder);
+            $message .= TgMessageService::getProdOrderMsg($prodOrder);
 
             $this->tgBot->sendRequestAsync('editMessageText', [
                 'chat_id' => $this->tgBot->chatId,
@@ -88,7 +89,7 @@ class StartProdOrderScene implements SceneHandlerInterface
             $this->tgBot->answerCbQuery(['text' => '❌ Error starting ProdOrder!']);
 
             $message = "<i>❌ Error starting ProdOrder: {$e->getMessage()}</i>\n\n";
-            $message .= ProdOrderNotification::getProdOrderMsg($prodOrder);
+            $message .= TgMessageService::getProdOrderMsg($prodOrder);
 
             $this->tgBot->sendRequestAsync('editMessageText', [
                 'chat_id' => $this->tgBot->chatId,
@@ -109,7 +110,7 @@ class StartProdOrderScene implements SceneHandlerInterface
         $this->tgBot->answerCbQuery(['text' => '✅ Supply Orders created successfully!']);
 
         $message = "<b>✅ Supply Orders created successfully!</b>\n\n";
-        $message .= ProdOrderNotification::getProdOrderMsg($prodOrder);
+        $message .= TgMessageService::getProdOrderMsg($prodOrder);
 
         $this->tgBot->sendRequestAsync('editMessageText', [
             'chat_id' => $this->tgBot->chatId,

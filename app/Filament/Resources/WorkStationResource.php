@@ -49,11 +49,15 @@ class WorkStationResource extends Resource
                         ->relationship('category', 'name')
                         ->reactive(),
 
-                    Forms\Components\Select::make('measure_units')
-                        ->options(MeasureUnit::class)
-                        ->preload()
-                        ->multiple()
-                        ->required(),
+                    Forms\Components\Select::make('prod_manager_id')
+                        ->label('Production manager')
+                        ->relationship(
+                            'prodManager',
+                            'name',
+                            fn($query) => $query
+                                ->where('organization_id', auth()->user()->organization_id)
+                                ->where('role', RoleType::PRODUCTION_MANAGER)
+                        ),
 
                     Forms\Components\Select::make('prod_order_id')
                         ->native(false)
@@ -79,6 +83,12 @@ class WorkStationResource extends Resource
 
                 Forms\Components\Grid::make(4)->schema([
 
+                    Forms\Components\Select::make('measure_units')
+                        ->options(MeasureUnit::class)
+                        ->preload()
+                        ->multiple()
+                        ->required(),
+
                     Forms\Components\TextInput::make('performance_qty')
                         ->suffix(function($state, $get) {
                             /** @var ProductCategory $prodCategory */
@@ -99,13 +109,14 @@ class WorkStationResource extends Resource
     {
         return $table
             ->modifyQueryUsing(function(Builder $query) {
-                $query->with('category');
+                $query->with(['category', 'prodManager']);
             })
             ->columns([
                 Tables\Columns\TextColumn::make('name')
                     ->searchable(),
                 Tables\Columns\TextColumn::make('category.name')
                     ->sortable(),
+                Tables\Columns\TextColumn::make('prodManager.name'),
                 Tables\Columns\TextColumn::make('measure_units')
                     ->formatStateUsing(function(WorkStation $record) {
                         return $record->getMeasureUnitLabels()->implode(', ');

@@ -9,6 +9,7 @@ use App\Models\ProdOrder\ProdOrderStepExecution;
 use App\Models\User;
 use App\Services\TaskService;
 use App\Services\TelegramService;
+use App\Services\TgMessageService;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Facades\Log;
 use Throwable;
@@ -38,7 +39,7 @@ class StepExecutionNotification
             ->get();
 
         $message = "<b>New execution created</b>\n\n";
-        $message .= self::getExecutionMsg($poStepExecution);
+        $message .= TgMessageService::getExecutionMsg($poStepExecution);
 
         foreach ($stockManagers as $stockManager) {
             try {
@@ -67,26 +68,5 @@ class StepExecutionNotification
             action: TaskAction::Confirm,
             comment: 'New execution created for production order step',
         );
-    }
-
-    public static function getExecutionMsg(ProdOrderStepExecution $poStepExecution): string
-    {
-        $message = "Prod order: <b>{$poStepExecution->prodOrderStep->prodOrder->number}</b>\n";
-        $message .= "Step: <b>{$poStepExecution->prodOrderStep->workStation->name}</b>\n";
-        $message .= "Created at: <b>{$poStepExecution->created_at->format('d M Y H:i')}</b>\n";
-        $message .= "Created by: <b>{$poStepExecution->executedBy->name}</b>\n";
-
-        $message .= "\nUsed materials:\n";
-        foreach ($poStepExecution->materials as $index => $material) {
-            $index++;
-            $message .= "$index) <b>{$material->product->catName}:</b> $material->used_quantity {$material->product->category->measure_unit->getLabel()}\n";
-        }
-        $message .= "\n";
-
-        $outputProduct = $poStepExecution->prodOrderStep->outputProduct;
-        $message .= "Output product: <b>$outputProduct->catName</b>\n";
-        $message .= "Output quantity: <b>$poStepExecution->output_quantity {$outputProduct->category->measure_unit->getLabel()}</b>\n";
-
-        return $message;
     }
 }

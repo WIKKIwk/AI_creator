@@ -9,6 +9,7 @@ use App\Services\Handler\Interface\SceneHandlerInterface;
 use App\Services\ProdOrderService;
 use App\Services\TelegramService;
 use App\Services\TgBot\TgBot;
+use App\Services\TgMessageService;
 use Illuminate\Support\Arr;
 
 class SelectMaterialScene implements SceneHandlerInterface
@@ -51,7 +52,7 @@ class SelectMaterialScene implements SceneHandlerInterface
         $this->tgBot->sendRequestAsync('editMessageText', [
             'chat_id' => $this->tgBot->chatId,
             'message_id' => $this->tgBot->getMessageId(),
-            'text' => ProdOrderNotification::getMaterialMsg($material),
+            'text' => TgMessageService::getMaterialMsg($material),
             'parse_mode' => 'HTML',
             'reply_markup' => TelegramService::getInlineKeyboard([
                 [['text' => 'Change available', 'callback_data' => "changeAvailable:$material->id"]],
@@ -72,7 +73,7 @@ class SelectMaterialScene implements SceneHandlerInterface
 
         $material = $this->getMaterial($materialId);
 
-        $message = ProdOrderNotification::getMaterialMsg($material);
+        $message = TgMessageService::getMaterialMsg($material);
         $message .= "\n\n Input available quantity for this material:";
 
         $this->tgBot->sendRequestAsync('editMessageText', [
@@ -99,7 +100,7 @@ class SelectMaterialScene implements SceneHandlerInterface
 
         if (!is_numeric($quantity) || $quantity <= 0) {
             $message = "<i>❌ Invalid quantity format.</i>\n\n";
-            $message .= ProdOrderNotification::getMaterialMsg($material);
+            $message .= TgMessageService::getMaterialMsg($material);
             $this->tgBot->sendRequestAsync('editMessageText', [
                 'chat_id' => $this->tgBot->chatId,
                 'message_id' => $this->handler->getCache('edit_msg_id'),
@@ -116,7 +117,7 @@ class SelectMaterialScene implements SceneHandlerInterface
         $material->available_quantity = $quantity;
         $this->handler->setCacheArray('materialForm', $form);
 
-        $message = ProdOrderNotification::getMaterialMsg($material);
+        $message = TgMessageService::getMaterialMsg($material);
         $message .= "\n\n Input available quantity for this material:";
 
         $this->tgBot->sendRequestAsync('editMessageText', [
@@ -187,7 +188,7 @@ class SelectMaterialScene implements SceneHandlerInterface
         $this->tgBot->answerCbQuery(['text' => '✅ Material changed successfully!']);
 
         $message = "<b>✅ Material changed successfully!</b>\n\n";
-        $message .= ProdOrderNotification::getMaterialMsg($material);
+        $message .= TgMessageService::getMaterialMsg($material);
 
         $this->tgBot->sendRequestAsync('editMessageText', [
             'chat_id' => $this->tgBot->chatId,
@@ -220,7 +221,7 @@ class SelectMaterialScene implements SceneHandlerInterface
         $this->tgBot->answerCbQuery(['text' => '✅ Supply Orders created successfully!']);
 
         $message = "<b>✅ Supply Orders created successfully!</b>\n\n";
-        $message .= ProdOrderNotification::getMaterialMsg($material);
+        $message .= TgMessageService::getMaterialMsg($material);
 
         $this->tgBot->sendRequestAsync('editMessageText', [
             'chat_id' => $this->tgBot->chatId,

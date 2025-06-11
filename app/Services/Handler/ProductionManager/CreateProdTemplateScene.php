@@ -10,6 +10,7 @@ use App\Services\Handler\Interface\SceneHandlerInterface;
 use App\Services\ProdOrderService;
 use App\Services\TelegramService;
 use App\Services\TgBot\TgBot;
+use App\Services\TgMessageService;
 use Illuminate\Database\Eloquent\Collection;
 use Throwable;
 
@@ -126,7 +127,7 @@ class CreateProdTemplateScene implements SceneHandlerInterface
             $prodTmp = $this->prodOrderService->createTemplateByForm($form);
 
             $message = "<b>✅ ProdTemplate saved</b>\n\n";
-            $message .= ProdOrderNotification::getProdTemplateMsg($prodTmp);
+            $message .= TgMessageService::getProdTemplateMsg($prodTmp);
 
             $this->tgBot->sendRequestAsync('editMessageText', [
                 'chat_id' => $this->tgBot->chatId,
