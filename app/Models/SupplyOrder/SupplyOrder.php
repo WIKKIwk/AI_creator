@@ -11,6 +11,7 @@ use App\Models\Scopes\OwnWarehouseScope;
 use App\Models\User;
 use App\Models\Warehouse;
 use Illuminate\Database\Eloquent\Attributes\ScopedBy;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -152,6 +153,19 @@ class SupplyOrder extends Model
     public function products(): HasMany
     {
         return $this->hasMany(SupplyOrderProduct::class);
+    }
+
+    public function scopeSearch(Builder $query, ?string $search): Builder
+    {
+        if (empty($search)) {
+            return $query;
+        }
+
+        $search = mb_strtolower(trim($search));
+
+        return $query->where(function (Builder $query) use ($search) {
+            $query->whereRaw('LOWER(number) LIKE ?', ["%$search%"]);
+        });
     }
 
     public function getTotalPriceAttribute(): int

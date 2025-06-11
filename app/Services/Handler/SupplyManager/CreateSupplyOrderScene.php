@@ -86,6 +86,7 @@ class CreateSupplyOrderScene implements SceneHandlerInterface
         }
 
         $supplyOrder->confirm();
+        $supplyOrder->refresh();
 
         $message = "<b>✅ Order confirmed!</b>\n\n";;
         $message .= TgMessageService::getSupplyOrderMsg($supplyOrder);
@@ -96,6 +97,7 @@ class CreateSupplyOrderScene implements SceneHandlerInterface
             'message_id' => $this->tgBot->getMessageId(),
             'text' => $message,
             'parse_mode' => 'HTML',
+            'reply_markup' => TelegramService::getInlineKeyboard($this->handler->getSupplyOrderButtons($supplyOrder)),
         ]);
     }
 

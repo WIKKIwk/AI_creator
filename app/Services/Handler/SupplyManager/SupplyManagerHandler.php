@@ -2,8 +2,6 @@
 
 namespace App\Services\Handler\SupplyManager;
 
-use App\Models\ProdOrder\ProdOrder;
-use App\Models\ProdTemplate\ProdTemplate;
 use App\Models\SupplyOrder\SupplyOrder;
 use App\Models\User;
 use App\Services\Handler\BaseHandler;
@@ -73,7 +71,7 @@ HTML,
             'message_id' => $messageId,
             'text' => $message,
             'parse_mode' => 'HTML',
-            'reply_markup' => TelegramService::getInlineKeyboard($this->getProdOrderButtons($supplyOrder)),
+            'reply_markup' => TelegramService::getInlineKeyboard($this->getSupplyOrderButtons($supplyOrder)),
         ]);
     }
 
@@ -92,16 +90,16 @@ HTML,
         ]);
     }
 
-    public function getProdOrderButtons(SupplyOrder $supplyOrder): array
+    public function getSupplyOrderButtons(SupplyOrder $supplyOrder): array
     {
         $buttons = [];
         if (!$supplyOrder->isConfirmed()) {
-            $buttons[] = [['text' => '✅ Confirm', 'callback_data' => "confirmProdOrder:$supplyOrder->id"]];
+            $buttons[] = [['text' => '✅ Confirm', 'callback_data' => "confirmSupplyOrder:$supplyOrder->id"]];
         }
         if (!$supplyOrder->isClosed()) {
             $buttons[] = [['text' => 'Change status', 'callback_data' => "changeSupplyOrderStatus:$supplyOrder->id"]];
         }
-        if (!$supplyOrder->isReadyForClose()) {
+        if ($supplyOrder->isReadyForClose()) {
             $buttons[] = [['text' => 'Close order', 'callback_data' => "closeSupplyOrder:$supplyOrder->id"]];
         }
         return $buttons;
@@ -120,7 +118,7 @@ HTML,
                 return [
                     'type' => 'article',
                     'id' => 'order_' . $order->id,
-                    'title' => $order->number,
+                    'title' => "{$order->productCategory->name} - {$order->getStatus()}",
                     'description' => "Category: {$order->productCategory->name}, Date: {$order->created_at->format('d M Y H:i')}",
                     'input_message_content' => [
                         'message_text' => "/select_supply_order $order->id"
@@ -140,7 +138,7 @@ HTML,
         return TelegramService::getInlineKeyboard([
 //            [['text' => '🔍 Search order', 'callback_data' => 'searchSupplyOrder']],
             [['text' => '➕ Create SupplyOrder', 'callback_data' => 'createSupplyOrder']],
-            [['text' => '🔍 SupplyOrders', 'switch_inline_query' => 'supplyOrders']],
+            [['text' => '🔍 SupplyOrders', 'switch_inline_query_current_chat' => '']],
         ]);
     }
 }
