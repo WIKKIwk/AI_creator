@@ -16,6 +16,12 @@ use Throwable;
 
 class StepExecutionNotification
 {
+    public const actions = [
+        'approved_prod_senior_manager' => 'approved_prod_senior_manager',
+        'approved_prod_manager' => 'approved_prod_manager',
+        'approved_stock_manager' => 'approved_stock_manager',
+    ];
+
     /**
      * Create the event listener.
      */
@@ -29,21 +35,28 @@ class StepExecutionNotification
      */
     public function handle(StepExecutionCreated $event): void
     {
+        $action = $event->action;
         $poStepExecution = $event->poStepExecution;
 
-        /** @var Collection<User> $stockManagers */
-        $stockManagers = User::query()
+        $roles = match ($action) {
+            'approved_prod_senior_manager' => [RoleType::STOCK_MANAGER->value, RoleType::SENIOR_STOCK_MANAGER->value],
+            'approved_prod_manager' => [RoleType::SENIOR_PRODUCTION_MANAGER->value],
+            default => [RoleType::PRODUCTION_MANAGER->value],
+        };
+
+        /** @var Collection<User> $users */
+        $users = User::query()
             ->ownOrganization()
             ->exceptMe()
-            ->whereIn('role', [RoleType::STOCK_MANAGER, RoleType::SENIOR_STOCK_MANAGER])
+            ->whereIn('role', $roles)
             ->get();
 
-        $message = "<b>New execution created</b>\n\n";
+        $message = "<b>Execution process</b>\n\n";
         $message .= TgMessageService::getExecutionMsg($poStepExecution);
 
-        foreach ($stockManagers as $stockManager) {
+        foreach ($users as $user) {
             try {
-                TelegramService::sendMessage($stockManager->chat_id, $message, [
+                TelegramService::sendMessage($user->chat_id, $message, [
                     'parse_mode' => 'HTML',
                     'reply_markup' => TelegramService::getInlineKeyboard([
                         [['text' => 'Approve', 'callback_data' => "approveExecution:$poStepExecution->id"]]
@@ -52,21 +65,18 @@ class StepExecutionNotification
             } catch (Throwable $e) {
                 // Log the error or handle it as needed
                 Log::error('Failed to send Telegram message', [
-                    'user_id' => $stockManager->id,
+                    'user_id' => $user->id,
                     'error' => $e->getMessage(),
                 ]);
             }
         }
 
         TaskService::createTaskForRoles(
-            toUserRoles: [
-                RoleType::STOCK_MANAGER->value,
-                RoleType::SENIOR_STOCK_MANAGER->value
-            ],
+            toUserRoles: $roles,
             relatedType: ProdOrderStepExecution::class,
             relatedId: $poStepExecution->id,
-            action: TaskAction::Confirm,
-            comment: 'New execution created for production order step',
+            action: TaskAction::Approve,
+            comment: 'Execution process. Need to approve',
         );
     }
 }

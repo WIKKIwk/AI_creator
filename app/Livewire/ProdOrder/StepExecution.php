@@ -3,6 +3,7 @@
 namespace App\Livewire\ProdOrder;
 
 use App\Enums\ProdOrderStepStatus;
+use App\Enums\RoleType;
 use Throwable;
 use App\Models\Product;
 use Livewire\Component;
@@ -154,7 +155,9 @@ class StepExecution extends Component implements HasForms, HasTable
             ->actions([
                 Action::make('approve')
                     ->hidden(function (ProdOrderStepExecution $record) {
-                        return $record->approved_at || $this->step->status == ProdOrderStepStatus::Completed;
+                        $approvedField = $record->getApprovedField();
+
+                        return $record->$approvedField || $this->step->status == ProdOrderStepStatus::Completed;
                     })
                     ->icon('heroicon-o-check')
                     ->requiresConfirmation()

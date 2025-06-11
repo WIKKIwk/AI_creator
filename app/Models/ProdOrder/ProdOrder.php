@@ -6,7 +6,6 @@ use App\Enums\OrderStatus;
 use App\Models\Product;
 use App\Models\SupplyOrder\SupplyOrder;
 use App\Models\User;
-use App\Observers\ProdOrderObserver;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Factories\HasFactory;

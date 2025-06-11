@@ -197,6 +197,18 @@ class SupplyOrder extends Model
         return "$state: $status";
     }
 
+    public function isReadyForClose(): bool
+    {
+        return !$this->closed_at &&
+            $this->state == SupplyOrderState::Delivered &&
+            $this->status == SupplyOrderStatus::AwaitingSupplierApproval->value;
+    }
+
+    public function isClosed(): bool
+    {
+        return !!$this->closed_at;
+    }
+
     public function isConfirmed(): bool
     {
         return !!$this->confirmed_at;

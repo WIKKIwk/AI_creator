@@ -5,11 +5,14 @@ namespace App\Services\Handler\ProductionManager;
 use App\Enums\RoleType;
 use App\Models\Inventory\Inventory;
 use App\Models\ProdOrder\ProdOrder;
+use App\Models\ProdOrder\ProdOrderStepExecution;
 use App\Models\ProdTemplate\ProdTemplate;
 use App\Services\Handler\BaseHandler;
+use App\Services\ProdOrderService;
 use App\Services\TelegramService;
 use App\Services\TgMessageService;
 use Illuminate\Database\Eloquent\Collection;
+use Throwable;
 
 class ProductionManagerHandler extends BaseHandler
 {
@@ -90,6 +93,40 @@ HTML,
         }
 
         $this->sendMainMenu();
+    }
+
+    public function approveExecution($executionId): void
+    {
+        /** @var ProdOrderStepExecution $poExecution */
+        $poExecution = ProdOrderStepExecution::query()->find($executionId);
+
+        try {
+            /** @var ProdOrderService $poService */
+            $poService = app(ProdOrderService::class);
+            $poService->approveExecution($poExecution);
+
+            $message = "<b>✅ Execution approved!</b>\n\n";
+            $message .= TgMessageService::getExecutionMsg($poExecution);
+
+            $this->tgBot->answerCbQuery(['text' => '✅ Execution approved!'], true);
+            $this->tgBot->sendRequestAsync('editMessageText', [
+                'chat_id' => $this->tgBot->chatId,
+                'message_id' => $this->tgBot->getMessageId(),
+                'text' => $message,
+                'parse_mode' => 'HTML',
+            ]);
+        } catch (Throwable $e) {
+            $message = "<i>❌ {$e->getMessage()}!</i>\n\n";
+            $message .= TgMessageService::getExecutionMsg($poExecution);
+
+            $this->tgBot->answerCbQuery(['text' => '❌ Error occurred!'], true);
+            $this->tgBot->sendRequestAsync('editMessageText', [
+                'chat_id' => $this->tgBot->chatId,
+                'message_id' => $this->tgBot->getMessageId(),
+                'text' => $message,
+                'parse_mode' => 'HTML',
+            ]);
+        }
     }
 
     public function selectProdTemplate($templateId): void

@@ -14,7 +14,7 @@ class StepExecutionCreated
     /**
      * Create a new event instance.
      */
-    public function __construct(public ProdOrderStepExecution $poStepExecution)
+    public function __construct(public ProdOrderStepExecution $poStepExecution, public ?string $action = null)
     {
         //
     }

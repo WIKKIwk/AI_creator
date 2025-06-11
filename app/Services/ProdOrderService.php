@@ -7,6 +7,7 @@ use App\Enums\OrderStatus;
 use App\Enums\ProdOrderGroupType;
 use App\Enums\ProdOrderStepProductStatus;
 use App\Enums\ProdOrderStepStatus;
+use App\Enums\RoleType;
 use App\Events\StepExecutionCreated;
 use App\Models\ProdOrder\ProdOrder;
 use App\Models\ProdOrder\ProdOrderGroup;
@@ -434,7 +435,8 @@ class ProdOrderService
      */
     public function approveExecution(ProdOrderStepExecution $execution): void
     {
-        if ($execution->approved_at) {
+        $approvedField = $execution->getApprovedField();
+        if ($execution->$approvedField) {
             throw new Exception('Execution is already approved');
         }
 
@@ -444,8 +446,8 @@ class ProdOrderService
             $this->outputMaterial($execution->prodOrderStep, $execution->output_quantity);
 
             $execution->update([
-                'approved_at' => now(),
-                'approved_by' => auth()->user()->id
+                $approvedField => now(),
+                $execution->getApprovedByField() => auth()->user()->id
             ]);
 
             DB::commit();

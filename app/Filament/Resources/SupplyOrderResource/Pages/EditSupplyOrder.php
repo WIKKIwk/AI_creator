@@ -72,9 +72,7 @@ class EditSupplyOrder extends EditRecord
             $this->getSaveFormAction(),
             Actions\Action::make('Close order')
                 ->visible(function() {
-                    return !$this->record->closed_at
-                        && $this->record->state == SupplyOrderState::Delivered
-                        && $this->record->status == SupplyOrderStatus::AwaitingSupplierApproval->value;
+                    return $this->record->isReadyForClose();
                 })
                 ->action(function () {
                     try {
