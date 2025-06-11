@@ -140,7 +140,7 @@ HTML,
         return TelegramService::getInlineKeyboard([
 //            [['text' => '🔍 Search order', 'callback_data' => 'searchSupplyOrder']],
             [['text' => '➕ Create SupplyOrder', 'callback_data' => 'createSupplyOrder']],
-            [['text' => '?? SupplyOrders', 'switch_inline_query' => 'supplyOrders']],
+            [['text' => '🔍 SupplyOrders', 'switch_inline_query' => 'supplyOrders']],
         ]);
     }
 }
