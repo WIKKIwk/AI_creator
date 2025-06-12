@@ -15,11 +15,13 @@ class SupplyManagerHandler extends BaseHandler
 
     protected array $sceneHandlers = [
         'createSupplyOrder' => CreateSupplyOrderScene::class,
+        'changeSupplyOrderStatus' => ChangeStatusSupplyScene::class,
     ];
 
     protected array $callbackHandlers = [
         'confirmSupplyOrder' => [CreateSupplyOrderScene::class, 'confirmSupplyOrder'],
         'closeSupplyOrder' => [CreateSupplyOrderScene::class, 'closeSupplyOrder'],
+        'cancelMoveStatus' => [ChangeStatusSupplyScene::class, 'cancelMoveStatus'],
 
         'confirmListOrder' => [SupplyOrderListCb::class, 'confirmOrder'],
         'supplyOrdersList' => [SupplyOrderListCb::class, 'sendList'],
@@ -96,7 +98,7 @@ HTML,
         if (!$supplyOrder->isConfirmed()) {
             $buttons[] = [['text' => '✅ Confirm', 'callback_data' => "confirmSupplyOrder:$supplyOrder->id"]];
         }
-        if (!$supplyOrder->isClosed()) {
+        if ($supplyOrder->isConfirmed() && !$supplyOrder->isClosed()) {
             $buttons[] = [['text' => 'Change status', 'callback_data' => "changeSupplyOrderStatus:$supplyOrder->id"]];
         }
         if ($supplyOrder->isReadyForClose()) {

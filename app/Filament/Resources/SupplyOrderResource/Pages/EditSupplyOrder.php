@@ -28,34 +28,12 @@ class EditSupplyOrder extends EditRecord
 
         $state = $data['state'] ?? SupplyOrderState::Closed->value;
         $status = $data['custom_status'] ?? $data['status'] ?? null;
-        $lastStep = $supplyOrder->steps()->latest()->first();
 
         try {
             DB::beginTransaction();
 
-            $changed = $lastStep?->state?->value != $state || $lastStep?->status != $status;
-            if ($changed) {
-                $supplyOrder->steps()->create([
-                    'state' => $state,
-                    'status' => $status,
-                    'created_by' => auth()->user()->id,
-                    'created_at' => now(),
-                ]);
-
-                if ($state == SupplyOrderState::Delivered->value && !$supplyOrder->delivered_at) {
-                    $data['delivered_at'] = now();
-                    $data['delivered_by'] = auth()->user()->id;
-                }
-
-                if ($state == SupplyOrderState::Delivered->value && $status == SupplyOrderStatus::AwaitingWarehouseApproval->value) {
-                    /** @var SupplyOrderService $supplyOrderService */
-                    $supplyOrderService = app(SupplyOrderService::class);
-                    $supplyOrderService->notifyCompareProducts($supplyOrder);
-                }
-
-                $data['state'] = $state;
-                $data['status'] = $status;
-            }
+            $attributes = $supplyOrder->changeStatus($state, $status);
+            $data = array_merge($data, $attributes);
 
             DB::commit();
         } catch (Throwable $e) {

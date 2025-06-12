@@ -10,6 +10,7 @@ use App\Models\ProductCategory;
 use App\Models\Scopes\OwnWarehouseScope;
 use App\Models\User;
 use App\Models\Warehouse;
+use App\Services\SupplyOrderService;
 use Illuminate\Database\Eloquent\Attributes\ScopedBy;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection;
@@ -236,5 +237,43 @@ class SupplyOrder extends Model
                 'confirmed_by' => auth()->user()->id,
             ]);
         }
+    }
+
+    public function isStatusChanged($newState, $newStatus): bool
+    {
+        /** @var SupplyOrderStep $lastStep */
+        $lastStep = $this->steps()->latest()->first();
+        return $lastStep?->state?->value != $newState || $lastStep?->status != $newStatus;
+    }
+
+    public function changeStatus($newState, $newStatus): array
+    {
+        $attributes = [];
+        if (!$this->isStatusChanged($newState, $newStatus)) {
+            return $attributes;
+        }
+
+        $this->steps()->create([
+            'state' => $newState,
+            'status' => $newStatus,
+            'created_by' => auth()->user()->id,
+            'created_at' => now(),
+        ]);
+
+        if ($newState == SupplyOrderState::Delivered->value && !$this->delivered_at) {
+            $attributes['delivered_at'] = now();
+            $attributes['delivered_by'] = auth()->user()->id;
+        }
+
+        if ($newState == SupplyOrderState::Delivered->value && $newStatus == SupplyOrderStatus::AwaitingWarehouseApproval->value) {
+            /** @var SupplyOrderService $supplyOrderService */
+            $supplyOrderService = app(SupplyOrderService::class);
+            $supplyOrderService->notifyCompareProducts($this);
+        }
+
+        $attributes['state'] = $newState;
+        $attributes['status'] = $newStatus;
+
+        return $attributes;
     }
 }

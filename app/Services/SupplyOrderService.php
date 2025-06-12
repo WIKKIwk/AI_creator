@@ -167,7 +167,7 @@ class SupplyOrderService
             ->ownOrganization()
             ->exceptMe()
             ->where('warehouse_id', $supplyOrder->warehouse_id)
-            ->whereIn('role', [RoleType::SENIOR_STOCK_MANAGER, RoleType::STOCK_MANAGER])
+            ->whereIn('role', [RoleType::PRODUCTION_MANAGER])
             ->get();
 
         $message = "<b>SupplyOrder waiting for StockManager approval</b>\n\n";
