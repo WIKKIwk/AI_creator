@@ -148,7 +148,7 @@ class StepMaterial extends Component implements HasForms, HasTable
                     ]
                 );
             } else {
-                $prodOrderService->updateMaterialExact(
+                $prodOrderService->updateMaterialsExact(
                     $this->step,
                     $data['product_id'],
                     $data['available_quantity']
