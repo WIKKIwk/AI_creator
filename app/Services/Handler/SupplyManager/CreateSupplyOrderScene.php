@@ -3,8 +3,7 @@
 namespace App\Services\Handler\SupplyManager;
 
 use App\Enums\ProductType;
-use App\Listeners\SupplyOrderNotification;
-use App\Models\Organization;
+use App\Models\OrganizationPartner;
 use App\Models\Product;
 use App\Models\ProductCategory;
 use App\Models\SupplyOrder\SupplyOrder;
@@ -192,11 +191,13 @@ class CreateSupplyOrderScene implements SceneHandlerInterface
 
         $this->handler->setState(self::states['supplyOrder_selectSupplier']);
 
-        $buttons = Organization::query()->whereNot('id', $this->handler->user->organization_id)->get()->map(
-            fn(Organization $organization) => [
-                ['text' => $organization->name, 'callback_data' => "selectSupplier:$organization->id"]
-            ]
-        )->toArray();
+        $buttons = OrganizationPartner::query()
+            ->with('partner')
+            ->supplier()
+            ->get()
+            ->map(fn(OrganizationPartner $partner) => [
+                ['text' => $partner->partner->name, 'callback_data' => "selectSupplier:$partner->id"]
+            ])->toArray();
 
         $this->tgBot->sendRequestAsync('editMessageText', [
             'chat_id' => $this->tgBot->chatId,
@@ -522,8 +523,8 @@ class CreateSupplyOrderScene implements SceneHandlerInterface
         $category = isset($form['category_id']) ? ProductCategory::query()->find($form['category_id']) : null;
         $categoryName = $category?->name ?? '-';
 
-        $supplier = isset($form['supplier_id']) ? Organization::query()->find($form['supplier_id']) : null;
-        $supplierName = $supplier?->name ?? '-';
+        $supplier = isset($form['supplier_id']) ? OrganizationPartner::query()->find($form['supplier_id']) : null;
+        $supplierName = $supplier?->partner?->name ?? '-';
 
         $products = $form['products'] ?? [];
 
