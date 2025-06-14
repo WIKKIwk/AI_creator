@@ -18,19 +18,19 @@ use Throwable;
 
 class CreateExecutionScene implements SceneHandlerInterface
 {
-    protected TgBot $tgBot;
-    protected Cache $cache;
+    public TgBot $tgBot;
+    public Cache $cache;
 
-    protected const states = [
+    public const states = [
         'worker_selectMaterial' => 'worker_selectMaterial',
         'worker_inputUsedQty' => 'worker_inputUsedQty',
         'worker_inputOutputQty' => 'worker_inputOutputQty',
         'worker_inputNotes' => 'worker_inputNotes',
     ];
 
-    protected ProdOrderService $prodOrderService;
+    public ProdOrderService $prodOrderService;
 
-    public function __construct(protected WorkerHandler $handler)
+    public function __construct(public WorkerHandler $handler)
     {
         $this->tgBot = $handler->tgBot;
         $this->cache = $handler->cache;
@@ -91,7 +91,7 @@ class CreateExecutionScene implements SceneHandlerInterface
         $this->handler->setCache('edit_msg_id', $this->tgBot->getMessageId());
     }
 
-    protected function selectMaterial($materialId): void
+    public function selectMaterial($materialId): void
     {
         $this->tgBot->answerCbQuery();
 
@@ -140,7 +140,7 @@ class CreateExecutionScene implements SceneHandlerInterface
         ]);
     }
 
-    protected function inputUsedQty($quantity): void
+    public function inputUsedQty($quantity): void
     {
         // check quantity is integer
         if (!is_numeric($quantity) || $quantity <= 0) {
@@ -185,7 +185,7 @@ class CreateExecutionScene implements SceneHandlerInterface
         ]);
     }
 
-    protected function finishMaterials(): void
+    public function finishMaterials(): void
     {
         $this->handler->setState(self::states['worker_inputOutputQty']);
 
@@ -200,7 +200,7 @@ class CreateExecutionScene implements SceneHandlerInterface
         ]);
     }
 
-    protected function inputOutputQty($quantity): void
+    public function inputOutputQty($quantity): void
     {
         if (!is_numeric($quantity) || $quantity <= 0) {
             $this->tgBot->sendRequestAsync('editMessageText', [
@@ -232,7 +232,7 @@ class CreateExecutionScene implements SceneHandlerInterface
         ]);
     }
 
-    protected function inputNotes(string $text): void
+    public function inputNotes(string $text): void
     {
         $form = $this->handler->getCacheArray('executionForm');
         $form['notes'] = $text === '-' ? '' : $text;
@@ -303,15 +303,11 @@ class CreateExecutionScene implements SceneHandlerInterface
 
         if ($withResponse) {
             $this->tgBot->answerCbQuery(['text' => 'Operation cancelled.']);
-            $this->tgBot->sendRequestAsync('deleteMessage', [
-                'chat_id' => $this->tgBot->chatId,
-                'message_id' => $this->tgBot->getMessageId(),
-            ]);
-            $this->handler->sendMainMenu();
+            $this->handler->sendMainMenu(true);
         }
     }
 
-    protected function getExecutionPrompt(string $prompt, $errorMsg = null): string
+    public function getExecutionPrompt(string $prompt, $errorMsg = null): string
     {
         return strtr($this->handler::templates['createExecutionForm'], [
             '{errorMsg}' => $errorMsg ?? '',
@@ -320,7 +316,7 @@ class CreateExecutionScene implements SceneHandlerInterface
         ]);
     }
 
-    protected function getExecutionDetails(): string
+    public function getExecutionDetails(): string
     {
         $step = $this->getStep();
         $form = $this->handler->getCacheArray('executionForm');
@@ -348,7 +344,7 @@ class CreateExecutionScene implements SceneHandlerInterface
         return $result;
     }
 
-    protected function getStep(): ?ProdOrderStep
+    public function getStep(): ?ProdOrderStep
     {
         $user = $this->handler->user;
 
@@ -360,7 +356,7 @@ class CreateExecutionScene implements SceneHandlerInterface
         return $step;
     }
 
-    protected function getMaterialsKb(): array
+    public function getMaterialsKb(): array
     {
         /** @var Collection<ProdOrderStepProduct> $actualMaterials */
         $actualMaterials = $this->getStep()->materials()->get();

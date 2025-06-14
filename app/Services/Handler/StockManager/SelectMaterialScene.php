@@ -139,7 +139,7 @@ class SelectMaterialScene implements SceneHandlerInterface
         $form = $this->handler->getCacheArray('materialForm');
         $availableQuantity = $form['available_quantity'];
 
-        $insufficientAssets = $this->prodOrderService->checkMaterials(
+        $insufficientAssets = $this->prodOrderService->checkMaterialsExact(
             $material->step,
             $material->product_id,
             $availableQuantity

@@ -439,11 +439,7 @@ class CreateSupplyOrderScene implements SceneHandlerInterface
 
         if ($withResponse) {
             $this->tgBot->answerCbQuery(['text' => 'Operation cancelled.']);
-            $this->tgBot->sendRequestAsync('deleteMessage', [
-                'chat_id' => $this->tgBot->chatId,
-                'message_id' => $this->tgBot->getMessageId(),
-            ]);
-            $this->handler->sendMainMenu();
+            $this->handler->sendMainMenu(true);
         }
     }
 
