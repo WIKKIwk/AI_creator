@@ -391,7 +391,7 @@ class CreateSupplyOrderScene implements SceneHandlerInterface
             $supplyOrder = $this->supplyOrderService->createOrderByForm([
                 'warehouse_id' => $form['warehouse_id'],
                 'product_category_id' => $form['category_id'],
-                'supplier_organization_id' => $form['supplier_id'],
+                'supplier_id' => $form['supplier_id'],
                 'products' => $form['products'],
             ]);
 

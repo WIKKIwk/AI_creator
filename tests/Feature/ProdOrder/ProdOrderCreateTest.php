@@ -37,7 +37,7 @@ class ProdOrderCreateTest extends TestCase
         $formData = [
             'type' => ProdOrderGroupType::ByOrder->value,
             'warehouse_id' => $this->warehouse->id,
-            'organization_id' => $this->organization->id,
+            'agent_id' => $this->agent->id,
 //            'deadline' => now()->addDays(7)->format('Y-m-d'),
             'products' => [
                 [
@@ -59,11 +59,11 @@ class ProdOrderCreateTest extends TestCase
             'id' => $poGroup->id,
             'type' => ProdOrderGroupType::ByOrder->value,
             'warehouse_id' => $this->warehouse->id,
-            'organization_id' => $this->organization->id,
+            'agent_id' => $this->agent->id,
         ]);
 
         $this->assertDatabaseHas('prod_orders', [
-            'number' => 'PO-' . $this->organization->code . $product1->code . now()->format('dmy'),
+            'number' => 'PO-' . $this->agent->partner->code . $product1->code . now()->format('dmy'),
             'group_id' => $poGroup->id,
             'status' => OrderStatus::Pending->value,
             'product_id' => $product1->id,
@@ -71,7 +71,7 @@ class ProdOrderCreateTest extends TestCase
             'offer_price' => 100,
         ]);
         $this->assertDatabaseHas('prod_orders', [
-            'number' => 'PO-' . $this->organization->code . $product2->code . now()->format('dmy'),
+            'number' => 'PO-' . $this->agent->partner->code . $product2->code . now()->format('dmy'),
             'group_id' => $poGroup->id,
             'status' => OrderStatus::Pending->value,
             'product_id' => $product2->id,

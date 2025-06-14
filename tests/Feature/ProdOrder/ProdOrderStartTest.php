@@ -60,7 +60,7 @@ class ProdOrderStartTest extends TestCase
             'offer_price' => 200,
         ]);
 
-        $this->assertEquals('PO-ORGRED-123' . now()->format('dmy'), $prodOrder->number);
+        $this->assertEquals("PO-{$this->agent->partner->code}RED-123" . now()->format('dmy'), $prodOrder->number);
     }
 
     public function test_start_not_confirmed(): void

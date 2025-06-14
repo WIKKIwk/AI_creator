@@ -39,7 +39,7 @@ class SupplyOrderCloseTest extends TestCase
 
     public function test_validate_no_supplier(): void
     {
-        $supplyOrder = $this->createSupplyOrder(['supplier_organization_id' => null]);
+        $supplyOrder = $this->createSupplyOrder(['supplier_id' => null]);
         $this->expectException(Exception::class);
         $this->expectExceptionMessage('Supplier is not set');
         $this->supplyOrderService->closeOrder($supplyOrder);

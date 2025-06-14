@@ -107,7 +107,7 @@ class TgMessageService
         $message .= ($index ? "$index) " : '') . "Material: <b>{$material->product->catName}</b>\n";
         $message .= "Required: <b>$material->required_quantity {$measureUnit->getLabel()}</b>\n";
         $message .= "Available: <b>$material->available_quantity {$measureUnit->getLabel()}</b>\n";
-        $message .= "Used: <b>$material->used_quantity {$measureUnit->getLabel()}</b>\n";
+        $message .= "Used: <b>" . ($material->used_quantity ?? 0) . "{$measureUnit->getLabel()}</b>\n";
 
         return $message;
     }

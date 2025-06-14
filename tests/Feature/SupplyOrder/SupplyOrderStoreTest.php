@@ -2,17 +2,18 @@
 
 namespace Tests\Feature\SupplyOrder;
 
+use App\Enums\PartnerType;
 use App\Enums\SupplyOrderState;
-use App\Models\Inventory\Inventory;
-use App\Models\Organization;
+use App\Models\OrganizationPartner;
 use App\Models\ProdOrder\ProdOrder;
 use App\Models\ProductCategory;
 use App\Models\SupplyOrder\SupplyOrder;
-use App\Services\SupplyOrderService;
 use Tests\TestCase;
 
 class SupplyOrderStoreTest extends TestCase
 {
+    protected OrganizationPartner $supplier;
+
     protected function setUp(): void
     {
         parent::setUp();
@@ -27,16 +28,17 @@ class SupplyOrderStoreTest extends TestCase
             'code' => 'TEST-CAT',
             'organization_id' => $this->organization->id,
         ]);
-        $supplier = Organization::query()->create(['name' => 'test_organization', 'code' => 'SUPP']);
 
         $supplyOrder = SupplyOrder::factory()->create([
             'warehouse_id' => $this->warehouse->id,
-            'supplier_organization_id' => $supplier->id,
+            'supplier_id' => $this->supplier->id,
             'product_category_id' => $cat->id,
             'created_by' => $this->user->id,
         ]);
 
-        $this->assertEquals('SO-SUPPTEST-CAT' . now()->format('dmy'), $supplyOrder->number);
+        $supplierCode = $this->supplier->partner->code;
+
+        $this->assertEquals("SO-{$supplierCode}TEST-CAT" . now()->format('dmy'), $supplyOrder->number);
     }
 
     public function test_store_by_form(): void
@@ -47,7 +49,7 @@ class SupplyOrderStoreTest extends TestCase
         $formData = [
             'warehouse_id' => $this->warehouse->id,
             'product_category_id' => $this->productCategory->id,
-            'supplier_organization_id' => $this->organization2->id,
+            'supplier_id' => $this->supplier->id,
             'products' => [
                 [
                     'product_id' => $product1->id,
@@ -66,10 +68,10 @@ class SupplyOrderStoreTest extends TestCase
 
         $this->assertDatabaseHas('supply_orders', [
             'id' => $supplyOrder->id,
-            'number' => 'SO-' . $this->organization2->code . $this->productCategory->code . now()->format('dmy'),
+            'number' => 'SO-' . $this->supplier->partner->code . $this->productCategory->code . now()->format('dmy'),
             'warehouse_id' => $this->warehouse->id,
             'product_category_id' => $this->productCategory->id,
-            'supplier_organization_id' => $this->organization2->id,
+            'supplier_id' => $this->supplier->id,
         ]);
 
         $this->assertDatabaseHas('supply_order_products', [

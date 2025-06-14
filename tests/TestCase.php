@@ -2,7 +2,9 @@
 
 namespace Tests;
 
+use App\Enums\PartnerType;
 use App\Models\Organization;
+use App\Models\OrganizationPartner;
 use App\Services\ProdOrderService;
 use App\Services\InventoryService;
 use App\Models\ProdOrder\ProdOrder;
@@ -24,6 +26,8 @@ abstract class TestCase extends BaseTestCase
     use CreatesApplication;
 
     protected User $user;
+    protected OrganizationPartner $agent;
+    protected OrganizationPartner $supplier;
     protected Organization $organization;
     protected Organization $organization2;
     protected Organization $organization3;
@@ -49,6 +53,28 @@ abstract class TestCase extends BaseTestCase
         $this->organization = Organization::factory()->create(['name' => 'test_organization', 'code' => 'ORG']);
         $this->organization2 = Organization::factory()->create(['name' => 'test_organization_2']);
         $this->organization3 = Organization::factory()->create(['name' => 'test_organization_3']);
+
+        $this->agent = OrganizationPartner::query()->create([
+            'organization_id' => $this->organization->id,
+            'partner_id' => $this->organization2->id,
+            'type' => PartnerType::Agent
+        ]);
+        $this->supplier = OrganizationPartner::query()->create([
+            'organization_id' => $this->organization->id,
+            'partner_id' => $this->organization3->id,
+            'type' => PartnerType::Supplier
+        ]);
+
+        OrganizationPartner::query()->create([
+            'organization_id' => $this->organization->id,
+            'partner_id' => $this->organization2->id,
+            'type' => PartnerType::Agent
+        ]);
+        OrganizationPartner::query()->create([
+            'organization_id' => $this->organization->id,
+            'partner_id' => $this->organization3->id,
+            'type' => PartnerType::Supplier
+        ]);
 
         $this->productCategory = ProductCategory::factory()->create([
             'name' => 'test_category',

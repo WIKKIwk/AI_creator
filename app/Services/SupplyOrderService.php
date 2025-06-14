@@ -38,7 +38,7 @@ class SupplyOrderService
         $validator = Validator::make($data, [
             'warehouse_id' => 'required|exists:warehouses,id',
             'product_category_id' => 'required|exists:product_categories,id',
-            'supplier_organization_id' => 'required|exists:organizations,id',
+            'supplier_id' => 'required|exists:organization_partners,id',
             'products' => 'required|array',
             'products.*.product_id' => 'required|exists:products,id',
             'products.*.expected_quantity' => 'required|numeric|min:1',

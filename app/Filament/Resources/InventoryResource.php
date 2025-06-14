@@ -71,6 +71,7 @@ class InventoryResource extends Resource
     public static function table(Table $table): Table
     {
         return $table
+            ->searchable()
             ->defaultSort('updated_at', 'desc')
             ->modifyQueryUsing(function (Builder $query) {
                 $query
