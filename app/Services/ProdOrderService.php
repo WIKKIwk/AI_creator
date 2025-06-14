@@ -195,16 +195,16 @@ class ProdOrderService
     /**
      * @throws Exception
      */
-    public function updateMaterialAvailableExact(ProdOrderStep $poStep, $productId, $quantity): float
+    public function updateMaterialExact(ProdOrderStep $poStep, $productId, $quantity): float
     {
-        return $this->updateMaterialAvailable($poStep, $productId, $quantity, false);
+        return $this->updateMaterial($poStep, $productId, $quantity, false);
     }
 
     /**
      * @throws Exception
      * TESTED
      */
-    public function updateMaterialAvailable(ProdOrderStep $poStep, $productId, $quantity, $adding = true): float
+    public function updateMaterial(ProdOrderStep $poStep, $productId, $quantity, $adding = true): float
     {
         $existedMaterial = $this->getExistedMaterial($poStep, $productId);
         if ($adding) {

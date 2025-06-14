@@ -176,7 +176,7 @@ class SelectMaterialScene implements SceneHandlerInterface
             return;
         }
 
-        $this->prodOrderService->updateMaterialAvailableExact(
+        $this->prodOrderService->updateMaterialExact(
             $material->step,
             $material->product_id,
             $availableQuantity
@@ -209,7 +209,7 @@ class SelectMaterialScene implements SceneHandlerInterface
         $form = $this->handler->getCacheArray('materialForm');
         $availableQuantity = $form['available_quantity'];
 
-        $this->prodOrderService->updateMaterialAvailableExact(
+        $this->prodOrderService->updateMaterialExact(
             $material->step,
             $material->product_id,
             $availableQuantity
