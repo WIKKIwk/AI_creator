@@ -68,7 +68,7 @@ class ProdOrderAddActualTest extends TestCase
 
         $insufficientQty = $quantity > $stockQty;
 
-        $lackQuantity = $this->prodOrderService->changeMaterialAvailable($firstStep, $anotherProduct->id, $quantity);
+        $lackQuantity = $this->prodOrderService->updateMaterialAvailable($firstStep, $anotherProduct->id, $quantity);
         $this->assertEquals($insufficientQty ? ($quantity - $stockQty) : 0, $lackQuantity);
 
         $this->assertDatabaseHas('prod_order_step_products', [
@@ -152,7 +152,7 @@ class ProdOrderAddActualTest extends TestCase
             $firstStep->work_station_id,
         );
 
-        $lackQuantity = $this->prodOrderService->changeMaterialAvailableExact(
+        $lackQuantity = $this->prodOrderService->updateMaterialAvailableExact(
             $firstStep,
             $anotherProduct->id,
             $quantity = 110
@@ -225,7 +225,7 @@ class ProdOrderAddActualTest extends TestCase
             $firstStep->work_station_id,
         );
 
-        $lackQuantity = $this->prodOrderService->changeMaterialAvailableExact(
+        $lackQuantity = $this->prodOrderService->updateMaterialAvailableExact(
             $firstStep,
             $anotherProduct->id,
             $quantity = 18
@@ -280,7 +280,7 @@ class ProdOrderAddActualTest extends TestCase
             'unit_cost' => 0
         ]);
 
-        $lackQuantity = $this->prodOrderService->changeMaterialAvailable($firstStep, $this->rawMaterial->id, $quantity);
+        $lackQuantity = $this->prodOrderService->updateMaterialAvailable($firstStep, $this->rawMaterial->id, $quantity);
         $this->assertEquals(
             match ($quantity) {
                 1 => 0,

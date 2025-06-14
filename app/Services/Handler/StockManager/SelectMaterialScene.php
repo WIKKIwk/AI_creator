@@ -65,8 +65,6 @@ class SelectMaterialScene implements SceneHandlerInterface
 
     public function changeAvailable($materialId): void
     {
-        dump("Updated");
-        dump(['id' => $materialId, 'available_quantity' => 0]);
         $this->tgBot->answerCbQuery();
         $this->handler->setCacheArray('materialForm', ['id' => $materialId, 'available_quantity' => 0]);
         $this->handler->setState(self::states['material_changeAvailable']);
@@ -178,7 +176,7 @@ class SelectMaterialScene implements SceneHandlerInterface
             return;
         }
 
-        $this->prodOrderService->changeMaterialAvailableExact(
+        $this->prodOrderService->updateMaterialAvailableExact(
             $material->step,
             $material->product_id,
             $availableQuantity
@@ -211,7 +209,7 @@ class SelectMaterialScene implements SceneHandlerInterface
         $form = $this->handler->getCacheArray('materialForm');
         $availableQuantity = $form['available_quantity'];
 
-        $this->prodOrderService->changeMaterialAvailableExact(
+        $this->prodOrderService->updateMaterialAvailableExact(
             $material->step,
             $material->product_id,
             $availableQuantity
