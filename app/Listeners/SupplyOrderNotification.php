@@ -45,20 +45,12 @@ class SupplyOrderNotification
         $message .= TgMessageService::getSupplyOrderMsg($supplyOrder);
 
         foreach ($supplyManagers as $supplyManager) {
-            try {
-                TelegramService::sendMessage($supplyManager->chat_id, $message, [
-                    'parse_mode' => 'HTML',
-                    'reply_markup' => TelegramService::getInlineKeyboard([
-                        [['text' => 'Confirm order', 'callback_data' => "confirmSupplyOrder:$supplyOrder->id"]]
-                    ]),
-                ]);
-            } catch (\Throwable $e) {
-                // Log the error or handle it as needed
-                Log::error('Failed to send Telegram message', [
-                    'user_id' => $supplyManager->id,
-                    'error' => $e->getMessage(),
-                ]);
-            }
+            TelegramService::sendMessage($supplyManager->chat_id, $message, [
+                'parse_mode' => 'HTML',
+                'reply_markup' => TelegramService::getInlineKeyboard([
+                    [['text' => 'Confirm order', 'callback_data' => "confirmSupplyOrder:$supplyOrder->id"]]
+                ]),
+            ]);
         }
 
         TaskService::createTaskForRoles(

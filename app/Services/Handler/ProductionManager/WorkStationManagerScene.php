@@ -100,8 +100,10 @@ class WorkStationManagerScene implements SceneHandlerInterface
     public function assignProdOrder($orderId): void
     {
         $ws = $this->getCurrenWs();
-        $ws->prod_order_id = $orderId == 0 ? null : $orderId;
-        $ws->save();
+
+        /** @var ProdOrder $prodOrder */
+        $prodOrder = ProdOrder::query()->findOrFail($orderId);
+        $this->prodOrderService->assignProdOrderToWorkStation($ws, $prodOrder);
 
         $this->showWorkStation($ws->id, '<b>✅ Assigned successfully</b>');
     }

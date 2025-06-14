@@ -110,7 +110,7 @@ class User extends Authenticatable implements FilamentUser
 
     public function workStations(): HasMany
     {
-        return $this->hasMany(WorkStation::class, 'prod_manager_id', 'id');
+        return $this->hasMany(WorkStation::class, 'prod_manager_id', 'id')->orderBy('created_at');
     }
 
     public function scopeOwnOrganization(Builder $query): Builder

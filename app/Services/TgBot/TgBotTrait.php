@@ -18,6 +18,7 @@ trait TgBotTrait
     public static function getChatIdByUpdate(array $update)
     {
         return Arr::get($update, 'message.chat.id') ??
+            Arr::get($update, 'callback_query.from.id') ??
             Arr::get($update, 'callback_query.message.chat.id') ??
             Arr::get($update, 'edited_message.chat.id') ??
             Arr::get($update, 'inline_query.from.id') ??

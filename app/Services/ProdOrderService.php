@@ -8,6 +8,7 @@ use App\Enums\ProdOrderGroupType;
 use App\Enums\ProdOrderStepProductStatus;
 use App\Enums\ProdOrderStepStatus;
 use App\Enums\RoleType;
+use App\Enums\TaskAction;
 use App\Events\StepExecutionCreated;
 use App\Models\ProdOrder\ProdOrder;
 use App\Models\ProdOrder\ProdOrderGroup;
@@ -17,7 +18,10 @@ use App\Models\ProdOrder\ProdOrderStepProduct;
 use App\Models\ProdTemplate\ProdTemplate;
 use App\Models\ProdTemplate\ProdTemplateStep;
 use App\Models\Product;
+use App\Models\User;
+use App\Models\WorkStation;
 use Exception;
+use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
 use Throwable;
@@ -287,11 +291,11 @@ class ProdOrderService
             'sequence' => 'required|integer|min:1',
             'work_station_id' => 'required|exists:work_stations,id',
             'output_product_id' => 'nullable|exists:products,id',
-            'expected_quantity' => 'required|numeric|min:1',
+            'expected_quantity' => 'required|numeric',
             'is_last' => 'boolean',
             'materials' => 'required|array',
             'materials.*.product_id' => 'required|exists:products,id',
-            'materials.*.required_quantity' => 'required|numeric|min:1',
+            'materials.*.required_quantity' => 'required|numeric',
         ]);
 
         if ($validator->fails()) {
@@ -325,7 +329,7 @@ class ProdOrderService
         $validator = Validator::make($data, [
             'type' => 'required|in:' . ProdOrderGroupType::ByOrder->value . ',' . ProdOrderGroupType::ByCatalog->value,
             'warehouse_id' => 'required|exists:warehouses,id',
-            'organization_id' => 'nullable|exists:organizations,id',
+            'agent_id' => 'nullable|exists:organization_partners,id',
             'deadline' => 'nullable|date|after_or_equal:today',
             'products' => 'required|array',
             'products.*.product_id' => 'required|exists:products,id',
@@ -346,7 +350,7 @@ class ProdOrderService
             $poGroup = ProdOrderGroup::query()->create([
                 'type' => $data['type'],
                 'warehouse_id' => $warehouseId,
-                'organization_id' => $data['organization_id'] ?? null,
+                'agent_id' => $data['agent_id'] ?? null,
                 'deadline' => $data['deadline'] ?? null,
                 'created_by' => auth()->user()->id,
             ]);
@@ -513,6 +517,59 @@ class ProdOrderService
 
         $currentStep->output_quantity = $totalOutputQty;
         $currentStep->save();
+    }
+
+    public function assignProdOrderToWorkStation(WorkStation $workStation, ?ProdOrder $prodOrder): void
+    {
+        $workStation->prod_order_id = $prodOrder?->id;
+        $workStation->save();
+
+        if ($prodOrder) {
+            /** @var Collection<User> $workers */
+            $workers = User::query()
+                ->ownOrganization()
+                ->exceptMe()
+                ->whereIn('role', [RoleType::WORK_STATION_WORKER])
+                ->where('work_station_id', $workStation->id)
+                ->get();
+
+            $message = "<b>ProdOrder assigned to $workStation->name work station</b>\n\n";
+            $message .= TgMessageService::getProdOrderMsg($prodOrder);
+
+            foreach ($workers as $worker) {
+                TelegramService::sendMessage($worker->chat_id, $message, [
+                    'parse_mode' => 'HTML',
+                    'reply_markup' => TelegramService::getInlineKeyboard([
+                        [['text' => '🛠 Add execution', 'callback_data' => 'createExecution']]
+                    ]),
+                ]);
+            }
+        }
+    }
+
+    public function notifyProdOrderReady(ProdOrder $prodOrder): void
+    {
+        /** @var Collection<User> $prodManagers */
+        $prodManagers = User::query()
+            ->ownOrganization()
+            ->exceptMe()
+            ->whereIn('role', [RoleType::PRODUCTION_MANAGER, RoleType::SENIOR_PRODUCTION_MANAGER])
+            ->get();
+
+        $message = "<b>ProdOrder is ready for production</b>\n\n";
+        $message .= TgMessageService::getProdOrderMsg($prodOrder);
+
+        foreach ($prodManagers as $prodManager) {
+            TelegramService::sendMessage($prodManager->chat_id, $message, ['parse_mode' => 'HTML']);
+        }
+
+        TaskService::createTaskForRoles(
+            toUserRoles: [RoleType::PRODUCTION_MANAGER->value, RoleType::SENIOR_PRODUCTION_MANAGER->value],
+            relatedType: ProdOrder::class,
+            relatedId: $prodOrder->id,
+            action: TaskAction::Check,
+            comment: 'ProdOrder is ready for production. Please check the details and proceed with the next steps.'
+        );
     }
 
     /**

@@ -5,6 +5,7 @@ namespace App\Models\SupplyOrder;
 use App\Enums\SupplyOrderState;
 use App\Enums\SupplyOrderStatus;
 use App\Models\Organization;
+use App\Models\OrganizationPartner;
 use App\Models\ProdOrder\ProdOrder;
 use App\Models\ProductCategory;
 use App\Models\Scopes\OwnWarehouseScope;
@@ -23,7 +24,7 @@ use Illuminate\Support\Carbon;
 /**
  * @property int $id
  * @property string $number
- * @property int $supplier_organization_id
+ * @property int $supplier_id
  * @property int $prod_order_id
  * @property int $product_category_id
  * @property int $total_price
@@ -49,7 +50,7 @@ use Illuminate\Support\Carbon;
  * @property User $closedBy
  *
  * Relationships
- * @property Organization $supplierOrganization
+ * @property OrganizationPartner $supplier
  * @property ProdOrder $prodOrder
  * @property Warehouse $warehouse
  * @property ProductCategory $productCategory
@@ -80,21 +81,21 @@ class SupplyOrder extends Model
     {
         static::creating(function (SupplyOrder $model) {
             $model->created_by = auth()->id();
-            if ($model->supplierOrganization) {
-                $model->number = 'SO-' . $model->supplierOrganization->code . $model->productCategory->code . now()->format('dmy');
+            if ($model->supplier) {
+                $model->number = 'SO-' . $model->supplier->partner->code . $model->productCategory->code . now()->format('dmy');
             }
         });
         static::updating(function (SupplyOrder $model) {
             $model->created_by = auth()->id();
-            if ($model->supplierOrganization) {
-                $model->number = 'SO-' . $model->supplierOrganization->code . $model->productCategory->code . now()->format('dmy');
+            if ($model->supplier) {
+                $model->number = 'SO-' . $model->supplier->partner->code . $model->productCategory->code . $model->created_at->format('dmy');
             }
         });
     }
 
-    public function supplierOrganization(): BelongsTo
+    public function supplier(): BelongsTo
     {
-        return $this->belongsTo(Organization::class, 'supplier_organization_id');
+        return $this->belongsTo(OrganizationPartner::class, 'supplier_id')->supplier()->with('partner');
     }
 
     public function prodOrder(): BelongsTo
@@ -260,17 +261,21 @@ class SupplyOrder extends Model
             'created_at' => now(),
         ]);
 
-        if ($newState == SupplyOrderState::Delivered->value && !$this->delivered_at) {
-            $attributes['delivered_at'] = now();
-            $attributes['delivered_by'] = auth()->user()->id;
-        }
+        // SupplyOrder Delivered
+        if ($newState == SupplyOrderState::Delivered->value) {
 
-        if ($newState == SupplyOrderState::Delivered->value && $newStatus == SupplyOrderStatus::AwaitingWarehouseApproval->value) {
-            /** @var SupplyOrderService $supplyOrderService */
-            $supplyOrderService = app(SupplyOrderService::class);
-            $supplyOrderService->notifyCompareProducts($this);
-        }
+            if (!$this->delivered_at) {
+                $attributes['delivered_at'] = now();
+                $attributes['delivered_by'] = auth()->user()->id;
+            }
 
+            if ($newStatus == SupplyOrderStatus::AwaitingWarehouseApproval->value) {
+                /** @var SupplyOrderService $supplyOrderService */
+                $supplyOrderService = app(SupplyOrderService::class);
+                $supplyOrderService->notifyCompareProducts($this);
+            }
+
+        }
         $attributes['state'] = $newState;
         $attributes['status'] = $newStatus;
 

@@ -6,6 +6,7 @@ use App\Enums\ProdOrderGroupType;
 use App\Enums\ProductType;
 use App\Listeners\ProdOrderNotification;
 use App\Models\Organization;
+use App\Models\OrganizationPartner;
 use App\Models\Product;
 use App\Models\Warehouse;
 use App\Services\Cache\Cache;
@@ -154,11 +155,13 @@ class CreateProdOrderScene implements SceneHandlerInterface
         if ($type == 1) {
             $this->handler->setState(self::states['prodOrder_inputAgent']);
             $prompt = 'Select agent for ProdOrder:';
-            $buttons = Organization::query()->whereNot('id', $this->handler->user->organization_id)->get()->map(
-                fn(Organization $organization) => [
-                    ['text' => $organization->name, 'callback_data' => "selectAgent:$organization->id"]
-                ]
-            )->toArray();
+            $buttons = OrganizationPartner::query()
+                ->with('partner')
+                ->agent()
+                ->get()
+                ->map(fn(OrganizationPartner $partner) => [
+                    ['text' => $partner->partner->name, 'callback_data' => "selectAgent:$partner->id"]
+                ])->toArray();
         } else {
             $this->handler->setState(self::states['prodOrder_inputDeadline']);
             $prompt = 'Input deadline for ProdOrder (YYYY-MM-DD):';
@@ -182,7 +185,7 @@ class CreateProdOrderScene implements SceneHandlerInterface
         $this->tgBot->answerCbQuery();
 
         $form = $this->handler->getCacheArray('prodOrderForm');
-        $form['organization_id'] = $agentId;
+        $form['agent_id'] = $agentId;
         $this->handler->setCacheArray('prodOrderForm', $form);
 
         $this->handler->setState(self::states['prodOrder_products']);
@@ -503,8 +506,8 @@ class CreateProdOrderScene implements SceneHandlerInterface
         $warehouse = isset($form['warehouse_id']) ? Warehouse::query()->find($form['warehouse_id']) : null;
         $warehouseName = $warehouse?->name ?? '-';
 
-        $agent = isset($form['organization_id']) ? Organization::query()->find($form['organization_id']) : null;
-        $agentName = $agent?->name ?? '-';
+        $agent = isset($form['agent_id']) ? OrganizationPartner::query()->find($form['agent_id']) : null;
+        $agentName = $agent?->partner?->name ?? '-';
         $agentName = $type == 1 ? $agentName : null;
 
         $deadline = $form['deadline'] ?? '-';

@@ -3,11 +3,13 @@
 namespace App\Services\Handler\StockManager;
 
 use App\Enums\ProdOrderStepStatus;
+use App\Enums\SupplyOrderStatus;
 use App\Listeners\ProdOrderNotification;
 use App\Listeners\StepExecutionNotification;
 use App\Models\ProdOrder\ProdOrder;
 use App\Models\ProdOrder\ProdOrderStep;
 use App\Models\ProdOrder\ProdOrderStepExecution;
+use App\Models\SupplyOrder\SupplyOrder;
 use App\Models\User;
 use App\Services\Handler\BaseHandler;
 use App\Services\ProdOrderService;
@@ -97,6 +99,12 @@ HTML,
         if (str_starts_with($text, '/select_prod_order')) {
             $orderId = trim(str_replace('/select_prod_order ', '', $text));
             $this->selectProdOrder($orderId);
+            return;
+        }
+
+        if (str_starts_with($text, '/select_supply_order')) {
+            $orderId = trim(str_replace('/select_supply_order ', '', $text));
+            $this->selectSupplyOrder($orderId);
             return;
         }
 
@@ -215,11 +223,6 @@ HTML,
         $buttons = [];
         $message = "<b>Executions of {$step->workStation->name} step:</b>\n";
         foreach ($step->executions as $index => $execution) {
-            $index++;
-
-//            $message .= "\n";
-//            $message .= "$index) <b>{$execution->executedBy->name}</b> at <b>{$execution->created_at->format('d M Y H:i')}</b>\n";
-
             $buttons[] = [
                 [
                     'text' => "{$execution->executedBy->name} at {$execution->created_at->format('d M Y H:i')}",
@@ -241,28 +244,72 @@ HTML,
         ]);
     }
 
+    public function selectSupplyOrder($orderId): void
+    {
+        dump("Selecting SupplyOrder: $orderId");
+        $this->tgBot->answerCbQuery();
+        /** @var SupplyOrder $supplyOrder */
+        $supplyOrder = SupplyOrder::query()->findOrFail($orderId);
+
+        $message = "<b>SupplyOrder details:</b>\n\n";
+        $message .= TgMessageService::getSupplyOrderMsg($supplyOrder);
+
+        $messageId = $this->getCache('edit_msg_id');
+
+        $this->tgBot->sendRequestAsync($messageId ? 'editMessageText' : 'sendMessage', [
+            'chat_id' => $this->tgBot->chatId,
+            'message_id' => $messageId,
+            'text' => $message,
+            'parse_mode' => 'HTML',
+            'reply_markup' => TelegramService::getInlineKeyboard([
+                [['text' => 'Compare products', 'callback_data' => "compareSupplyOrder:$supplyOrder->id"]]
+            ]),
+        ]);
+    }
+
     public function handleInlineQuery($inlineQuery): void
     {
         $search = $inlineQuery['query'] ?? '';
         dump("Search: $search");
 
-        $results = ProdOrder::query()
-            ->ownWarehouse()
-            ->started()
-            ->search($search)
-            ->limit(30)
-            ->get()
-            ->map(function (ProdOrder $order) {
-                return [
-                    'type' => 'article',
-                    'id' => 'order_' . $order->id,
-                    'title' => $order->number,
-                    'description' => "{$order->product->catName}: $order->quantity {$order->product->getMeasureUnit()->getLabel()}",
-                    'input_message_content' => [
-                        'message_text' => "/select_prod_order $order->id"
-                    ]
-                ];
-            });
+        if (str_starts_with($search, 'compareSo')) {
+            $search = str_replace('compareSo', '', $search);
+
+            $results = SupplyOrder::query()
+                ->where('status', SupplyOrderStatus::AwaitingWarehouseApproval)
+                ->search($search)
+                ->limit(30)
+                ->get()
+                ->map(function (SupplyOrder $order) {
+                    return [
+                        'type' => 'article',
+                        'id' => 'order_' . $order->id,
+                        'title' => "{$order->productCategory->name} - {$order->getStatus()}",
+                        'description' => "Category: {$order->productCategory->name}, Date: {$order->created_at->format('d M Y H:i')}",
+                        'input_message_content' => [
+                            'message_text' => "/select_supply_order $order->id"
+                        ]
+                    ];
+                });
+        } else {
+            $results = ProdOrder::query()
+                ->ownWarehouse()
+                ->started()
+                ->search($search)
+                ->limit(30)
+                ->get()
+                ->map(function (ProdOrder $order) {
+                    return [
+                        'type' => 'article',
+                        'id' => 'order_' . $order->id,
+                        'title' => $order->number,
+                        'description' => "{$order->product->catName}: $order->quantity {$order->product->getMeasureUnit()->getLabel()}",
+                        'input_message_content' => [
+                            'message_text' => "/select_prod_order $order->id"
+                        ]
+                    ];
+                });
+        }
 
         dump($results->toArray());
 
@@ -284,6 +331,7 @@ HTML,
     {
         return TelegramService::getInlineKeyboard([
             [['text' => '🔍 Search PO', 'switch_inline_query_current_chat' => '']],
+            [['text' => '🔍 Compare SO', 'switch_inline_query_current_chat' => 'compareSo']],
         ]);
     }
 }

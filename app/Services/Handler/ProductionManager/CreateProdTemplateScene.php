@@ -135,7 +135,8 @@ class CreateProdTemplateScene implements SceneHandlerInterface
                 'text' => $message,
                 'parse_mode' => 'HTML',
                 'reply_markup' => TelegramService::getInlineKeyboard([
-                    [['text' => '➕ Create step', 'callback_data' => "createProdTemplateStep:$prodTmp->id"]]
+                    [['text' => '➕ Create step', 'callback_data' => "createProdTemplateStep:$prodTmp->id"]],
+                    [['text' => '🔙 Back', 'callback_data' => 'backMainMenu']],
                 ]),
             ]);
 

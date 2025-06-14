@@ -8,6 +8,7 @@ use App\Enums\SupplyOrderState;
 use App\Enums\SupplyOrderStatus;
 use App\Filament\Resources\SupplyOrderResource\Pages;
 use App\Filament\Resources\SupplyOrderResource\RelationManagers;
+use App\Models\OrganizationPartner;
 use App\Models\SupplierProduct;
 use App\Models\SupplyOrder\SupplyOrder;
 use Filament\Forms;
@@ -79,25 +80,12 @@ class SupplyOrderResource extends Resource
                             ->reactive()
                             ->preload()
                             ->required(),
-                        Forms\Components\Select::make('supplier_organization_id')
+                        Forms\Components\Select::make('supplier_id')
                             ->native(false)
-                            ->relationship(
-                                'supplierOrganization',
-                                'name',
-                                fn($query) => $query->whereNot('id', auth()->user()->organization_id)
-                            )
-                            ->afterStateUpdated(function ($get, $set) {
-                                $supplierProduct = self::getSupplierProduct(
-                                    $get('supplier_organization_id'),
-                                    $get('product_id')
-                                );
-                                if ($supplierProduct) {
-                                    $set('unit_price', $supplierProduct->unit_price);
-                                    $set('total_price', $supplierProduct->unit_price * $get('quantity'));
-                                } else {
-                                    $set('unit_price', null);
-                                    $set('total_price', null);
-                                }
+                            ->relationship('supplier', 'partner_id')
+                            ->getOptionLabelFromRecordUsing(function ($record) {
+                                /** @var OrganizationPartner $record */
+                                return $record->partner?->name ?? '';
                             })
                             ->required()
                             ->reactive(),
@@ -185,23 +173,28 @@ class SupplyOrderResource extends Resource
             ])->disabled(fn($record) => $record?->closed_at);
     }
 
-    protected static function getSupplierProduct($supplierId, $productId): ?SupplierProduct
-    {
-        /** @var SupplierProduct $supplierProduct */
-        $supplierProduct = SupplierProduct::query()
-            ->where('supplier_id', $supplierId)
-            ->where('product_id', $productId)
-            ->first();
-
-        return $supplierProduct;
-    }
+//    protected static function getSupplierProduct($supplierId, $productId): ?SupplierProduct
+//    {
+//        /** @var SupplierProduct $supplierProduct */
+//        $supplierProduct = SupplierProduct::query()
+//            ->where('supplier_id', $supplierId)
+//            ->where('product_id', $productId)
+//            ->first();
+//
+//        return $supplierProduct;
+//    }
 
     public static function table(Table $table): Table
     {
         return $table
             ->defaultSort('created_at', 'desc')
             ->modifyQueryUsing(function (Builder $query) {
-                $query->with(['warehouse', 'productCategory', 'supplierOrganization', 'createdBy']);
+                $query->with([
+                    'warehouse',
+                    'supplier' => fn($q) => $q->with('partner'),
+                    'productCategory',
+                    'createdBy'
+                ]);
             })
             ->columns([
                 Tables\Columns\TextColumn::make('number')
@@ -217,7 +210,7 @@ class SupplyOrderResource extends Resource
                 Tables\Columns\TextColumn::make('productCategory.name')
                     ->numeric()
                     ->sortable(),
-                Tables\Columns\TextColumn::make('supplierOrganization.name')
+                Tables\Columns\TextColumn::make('supplier.partner.name')
                     ->numeric()
                     ->sortable(),
                 Tables\Columns\TextColumn::make('total_price')

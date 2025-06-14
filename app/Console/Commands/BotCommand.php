@@ -70,6 +70,7 @@ class BotCommand extends Command
                     continue;
                 }
 
+                dump($update);
                 if (Arr::get($update, 'update_id')) {
                     $offset = Arr::get($update, 'update_id') + 1;
                 } else {
@@ -94,6 +95,7 @@ class BotCommand extends Command
         $chatId = $this->tgBot->getChatId();
         $text = $this->tgBot->getText();
         $user = User::findByChatId($chatId);
+        dump($chatId);
 
         $loginKey = "login_$chatId";
         if ($this->cache->has($loginKey)) {

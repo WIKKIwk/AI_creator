@@ -18,7 +18,8 @@ class CompareSupplyOrderScene implements SceneHandlerInterface
     public SupplyOrderService $supplyOrderService;
 
     protected const states = [
-        'inputQuantity' => 'inputQuantity'
+        'compare_selectProduct' => 'compare_selectProduct',
+        'compare_inputQuantity' => 'compare_inputQuantity',
     ];
 
     public function __construct(public StockManagerHandler $handler)
@@ -34,7 +35,7 @@ class CompareSupplyOrderScene implements SceneHandlerInterface
         $activeState = $this->handler->getState();
 
         switch ($activeState) {
-            case self::states['inputQuantity']:
+            case self::states['compare_inputQuantity']:
                 $this->inputQuantity($text);
                 return;
         }
@@ -60,6 +61,7 @@ class CompareSupplyOrderScene implements SceneHandlerInterface
             'currentProduct' => null,
             'products' => []
         ]);
+        $this->handler->setState(self::states['compare_selectProduct']);
 
         $this->tgBot->sendRequestAsync('editMessageText', [
             'chat_id' => $this->tgBot->chatId,
@@ -78,7 +80,7 @@ class CompareSupplyOrderScene implements SceneHandlerInterface
         $form['currentProduct'] = $productId;
         $this->handler->setCacheArray('compareSupplyForm', $form);
 
-        $this->handler->setState(self::states['inputQuantity']);
+        $this->handler->setState(self::states['compare_inputQuantity']);
 
         dump($form, $this->handler->getState());
 
@@ -112,6 +114,7 @@ class CompareSupplyOrderScene implements SceneHandlerInterface
 
         $form['products'][$currentProductId] = (int)$quantity;
         $this->handler->setCacheArray('compareSupplyForm', $form);
+        $this->handler->setState(self::states['compare_selectProduct']);
 
         $this->tgBot->sendRequestAsync('editMessageText', [
             'chat_id' => $this->tgBot->chatId,

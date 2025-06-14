@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources\SupplyOrderResource\Pages;
 
+use App\Models\OrganizationPartner;
 use Filament\Forms;
 use App\Enums\OrderStatus;
 use App\Enums\SupplyOrderState;
@@ -49,9 +50,14 @@ class CreateSupplyOrder extends CreateRecord
                         ->reactive()
                         ->preload()
                         ->required(),
-                    Forms\Components\Select::make('supplier_organization_id')
+                    Forms\Components\Select::make('supplier_id')
                         ->native(false)
-                        ->relationship('supplierOrganization', 'name')
+                        ->relationship('supplier', 'partner_id')
+                        ->getOptionLabelFromRecordUsing(function($record) {
+                            /** @var OrganizationPartner $record */
+                            return $record->partner?->name ?? '';
+                        })
+                        ->required()
                         ->reactive(),
                 ]),
             ]);

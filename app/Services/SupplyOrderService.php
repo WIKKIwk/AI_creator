@@ -6,6 +6,7 @@ use App\Enums\RoleType;
 use App\Enums\SupplyOrderState;
 use App\Enums\SupplyOrderStatus;
 use App\Enums\TaskAction;
+use App\Events\SupplyOrderChanged;
 use App\Events\SupplyOrderClosed;
 use App\Listeners\ProdOrderNotification;
 use App\Listeners\SupplyOrderNotification;
@@ -100,6 +101,7 @@ class SupplyOrderService
                     ]);
                 }
 
+                SupplyOrderChanged::dispatch($supplyOrder);
                 $result->push($supplyOrder);
             }
 
@@ -167,27 +169,19 @@ class SupplyOrderService
             ->ownOrganization()
             ->exceptMe()
             ->where('warehouse_id', $supplyOrder->warehouse_id)
-            ->whereIn('role', [RoleType::PRODUCTION_MANAGER])
+            ->whereIn('role', [RoleType::STOCK_MANAGER, RoleType::SENIOR_STOCK_MANAGER])
             ->get();
 
         $message = "<b>SupplyOrder waiting for StockManager approval</b>\n\n";
         $message .= TgMessageService::getSupplyOrderMsg($supplyOrder, false);
 
         foreach ($stockManagers as $stockManager) {
-            try {
-                TelegramService::sendMessage($stockManager->chat_id, $message, [
-                    'parse_mode' => 'HTML',
-                    'reply_markup' => TelegramService::getInlineKeyboard([
-                        [['text' => 'Compare products', 'callback_data' => "compareSupplyOrder:$supplyOrder->id"]]
-                    ]),
-                ]);
-            } catch (Throwable $e) {
-                // Log the error or handle it as needed
-                Log::error('Failed to send Telegram message', [
-                    'user_id' => $stockManager->id,
-                    'error' => $e->getMessage(),
-                ]);
-            }
+            TelegramService::sendMessage($stockManager->chat_id, $message, [
+                'parse_mode' => 'HTML',
+                'reply_markup' => TelegramService::getInlineKeyboard([
+                    [['text' => 'Compare products', 'callback_data' => "compareSupplyOrder:$supplyOrder->id"]]
+                ]),
+            ]);
         }
 
         TaskService::createTaskForRoles(
@@ -213,20 +207,12 @@ class SupplyOrderService
         $message .= "\nThere are some differences in quantities.";
 
         foreach ($supplyManagers as $supplyManager) {
-            try {
-                TelegramService::sendMessage($supplyManager->chat_id, $message, [
-                    'parse_mode' => 'HTML',
-                    'reply_markup' => TelegramService::getInlineKeyboard([
-                        [['text' => 'Close order', 'callback_data' => "closeSupplyOrder:$supplyOrder->id"]]
-                    ]),
-                ]);
-            } catch (Throwable $e) {
-                // Log the error or handle it as needed
-                Log::error('Failed to send Telegram message', [
-                    'user_id' => $supplyManager->id,
-                    'error' => $e->getMessage(),
-                ]);
-            }
+            TelegramService::sendMessage($supplyManager->chat_id, $message, [
+                'parse_mode' => 'HTML',
+                'reply_markup' => TelegramService::getInlineKeyboard([
+                    [['text' => 'Close order', 'callback_data' => "closeSupplyOrder:$supplyOrder->id"]]
+                ]),
+            ]);
         }
 
         TaskService::createTaskForRoles(
@@ -235,6 +221,31 @@ class SupplyOrderService
             relatedId: $supplyOrder->id,
             action: TaskAction::Check,
             comment: 'Supply order compared. There are some differences in quantities.'
+        );
+    }
+
+    public function notifyClosedAfterCompare(SupplyOrder $supplyOrder): void
+    {
+        /** @var Collection<User> $supplyManagers */
+        $supplyManagers = User::query()
+            ->ownOrganization()
+            ->exceptMe()
+            ->whereIn('role', [RoleType::SENIOR_SUPPLY_MANAGER, RoleType::SUPPLY_MANAGER])
+            ->get();
+
+        $message = "<b>SupplyOrder closed by Stock Manager</b>\n\n";
+        $message .= TgMessageService::getSupplyOrderMsg($supplyOrder);
+
+        foreach ($supplyManagers as $supplyManager) {
+            TelegramService::sendMessage($supplyManager->chat_id, $message, ['parse_mode' => 'HTML']);
+        }
+
+        TaskService::createTaskForRoles(
+            toUserRoles: [RoleType::SENIOR_SUPPLY_MANAGER->value, RoleType::SUPPLY_MANAGER->value],
+            relatedType: SupplyOrder::class,
+            relatedId: $supplyOrder->id,
+            action: TaskAction::Check,
+            comment: 'Supply order closed after products comparison. All quantities are correct.'
         );
     }
 
@@ -257,6 +268,7 @@ class SupplyOrderService
 
             if ($isProper) {
                 $this->closeOrder($supplyOrder);
+                $this->notifyClosedAfterCompare($supplyOrder);
             } else {
                 $supplyOrder->updateStatus(
                     SupplyOrderState::Delivered,
@@ -281,7 +293,7 @@ class SupplyOrderService
             throw new Exception('Supply order is already closed');
         }
 
-        if (!$supplyOrder->supplier_organization_id) {
+        if (!$supplyOrder->supplier_id) {
             throw new Exception('Supplier is not set');
         }
 

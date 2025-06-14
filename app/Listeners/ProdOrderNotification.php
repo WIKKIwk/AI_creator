@@ -52,20 +52,12 @@ class ProdOrderNotification
         $message .= TgMessageService::getProdOrderGroupMsg($poGroup);
 
         foreach ($PMs as $PM) {
-            try {
-                TelegramService::sendMessage($PM->chat_id, $message, [
-                    'parse_mode' => 'HTML',
-                    'reply_markup' => TelegramService::getInlineKeyboard([
-                        [['text' => 'Confirm order', 'callback_data' => "confirmProdOrder:$poGroup->id"]]
-                    ]),
-                ]);
-            } catch (\Throwable $e) {
-                // Log the error or handle it as needed
-                Log::error('Failed to send Telegram message', [
-                    'user_id' => $PM->id,
-                    'error' => $e->getMessage(),
-                ]);
-            }
+            TelegramService::sendMessage($PM->chat_id, $message, [
+                'parse_mode' => 'HTML',
+                'reply_markup' => TelegramService::getInlineKeyboard([
+                    [['text' => 'Confirm order', 'callback_data' => "confirmProdOrder:$poGroup->id"]]
+                ]),
+            ]);
         }
 
         TaskService::createTaskForRoles(

@@ -156,7 +156,8 @@ HTML,
             'text' => $message,
             'parse_mode' => 'HTML',
             'reply_markup' => TelegramService::getInlineKeyboard([
-                [['text' => '➕ Create step', 'callback_data' => "createProdTemplateStep:$templateId"]]
+                [['text' => '➕ Create step', 'callback_data' => "createProdTemplateStep:$templateId"]],
+                [['text' => '🔙 Back', 'callback_data' => 'backMainMenu']],
             ]),
         ]);
     }

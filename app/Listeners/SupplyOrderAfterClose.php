@@ -34,6 +34,8 @@ class SupplyOrderAfterClose
                     $material->required_quantity,
                 );
             }
+
+            $this->prodOrderService->notifyProdOrderReady($prodOrder);
         }
     }
 }

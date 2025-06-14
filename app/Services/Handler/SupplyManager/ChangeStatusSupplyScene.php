@@ -39,6 +39,14 @@ class ChangeStatusSupplyScene implements SceneHandlerInterface
             return;
         }
 
+        /** @var SupplyOrder $supplyOrder */
+        $supplyOrder = SupplyOrder::query()->findOrFail($supplyOrderId);
+        if ($supplyOrder->status == SupplyOrderStatus::AwaitingWarehouseApproval->value) {
+            $this->handler->resetCache();
+            $this->tgBot->answerCbQuery(['text' => '❌ Waiting for Warehouse approval.'], true);
+            return;
+        }
+
         $form = $this->handler->getCacheArray('changeStatusSupplyForm') ?? [];
         $form['supply_order_id'] = $supplyOrderId;
         $this->handler->setCacheArray('changeStatusSupplyForm', $form);
@@ -46,9 +54,12 @@ class ChangeStatusSupplyScene implements SceneHandlerInterface
         $this->handler->setCache('edit_msg_id', $this->tgBot->getMessageId());
 
         $this->editForm('Select new <b>State</b> for this Supply Order:', [
-            ...collect(SupplyOrderState::cases())->map(fn($case) => [
-                ['text' => $case->name, 'callback_data' => "setState:$case->value"]
-            ])->toArray(),
+            ...collect([
+                SupplyOrderState::InProgress,
+                SupplyOrderState::Delivered,
+            ])
+                ->map(fn($case) => [['text' => $case->name, 'callback_data' => "setState:$case->value"]])
+                ->toArray(),
             [['text' => '🚫 Cancel', 'callback_data' => 'cancelMoveStatus']]
         ]);
     }
@@ -80,9 +91,14 @@ class ChangeStatusSupplyScene implements SceneHandlerInterface
         $form['selected_state_value'] = $state?->value;
         $this->handler->setCacheArray('changeStatusSupplyForm', $form);
 
+        $statuses = [SupplyOrderStatus::SupplyDep];
+        if ($state === SupplyOrderState::Delivered) {
+            $statuses[] = SupplyOrderStatus::AwaitingWarehouseApproval;
+        }
+
         $this->handler->setState(self::states['select_status']);
         $this->editForm('Select <b>Status</b> for state <b>' . $state?->getLabel() . '</b>:', [
-            ...collect(SupplyOrderStatus::cases())->map(fn($case) => [
+            ...collect($statuses)->map(fn($case) => [
                 ['text' => $case->getLabel(), 'callback_data' => "setStatus:$case->value"]
             ])->toArray(),
             [['text' => '✏️ Custom status', 'callback_data' => 'customStatus']],
@@ -97,12 +113,15 @@ class ChangeStatusSupplyScene implements SceneHandlerInterface
         $this->handler->setCacheArray('changeStatusSupplyForm', $form);
 
         $state = $form['selected_state'];
+        $status = SupplyOrderStatus::tryFrom($status)?->getLabel() ?? $status;
 
         $msg = "✅ Status selected.\n\n<b>State:</b> {$state}\n<b>Status:</b> {$status}";
 
         $this->editForm($msg, [
-            [['text' => '🚫 Cancel', 'callback_data' => 'cancelMoveStatus']],
-            [['text' => '✅ Save', 'callback_data' => 'saveFinalStatus']],
+            [
+                ['text' => '🚫 Cancel', 'callback_data' => 'cancelMoveStatus'],
+                ['text' => '✅ Save', 'callback_data' => 'saveFinalStatus']
+            ],
         ]);
     }
 

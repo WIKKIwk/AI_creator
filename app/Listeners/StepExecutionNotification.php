@@ -55,20 +55,12 @@ class StepExecutionNotification
         $message .= TgMessageService::getExecutionMsg($poStepExecution);
 
         foreach ($users as $user) {
-            try {
-                TelegramService::sendMessage($user->chat_id, $message, [
-                    'parse_mode' => 'HTML',
-                    'reply_markup' => TelegramService::getInlineKeyboard([
-                        [['text' => 'Approve', 'callback_data' => "approveExecution:$poStepExecution->id"]]
-                    ]),
-                ]);
-            } catch (Throwable $e) {
-                // Log the error or handle it as needed
-                Log::error('Failed to send Telegram message', [
-                    'user_id' => $user->id,
-                    'error' => $e->getMessage(),
-                ]);
-            }
+            TelegramService::sendMessage($user->chat_id, $message, [
+                'parse_mode' => 'HTML',
+                'reply_markup' => TelegramService::getInlineKeyboard([
+                    [['text' => 'Approve', 'callback_data' => "approveExecution:$poStepExecution->id"]]
+                ]),
+            ]);
         }
 
         TaskService::createTaskForRoles(

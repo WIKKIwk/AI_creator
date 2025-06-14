@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources;
 
+use App\Models\OrganizationPartner;
 use Throwable;
 use Filament\Forms;
 use Filament\Tables;
@@ -50,9 +51,13 @@ class ProdOrderGroupResource extends Resource
                         ->relationship('warehouse', 'name')
                         ->required(),
 
-                    Forms\Components\Select::make('organization_id')
+                    Forms\Components\Select::make('agent_id')
                         ->label('Agent')
-                        ->relationship('organization', 'name')
+                        ->relationship('agent', 'partner_id')
+                        ->getOptionLabelFromRecordUsing(function($record) {
+                            /** @var OrganizationPartner $record */
+                            return $record->partner?->name ?? '';
+                        })
                         ->visible(fn($get) => $get('type') == ProdOrderGroupType::ByOrder->value)
                         ->required(),
 

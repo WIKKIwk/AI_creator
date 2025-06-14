@@ -7,6 +7,7 @@ use GuzzleHttp\Client;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\Http;
 use GuzzleHttp\Exception\GuzzleException;
+use Illuminate\Support\Facades\Log;
 
 class TelegramService
 {
@@ -58,22 +59,34 @@ class TelegramService
     /**
      * @throws Exception
      */
-    public static function sendMessage(string $username, string $message, $params = []): ?array
+    public static function sendMessage(?string $username, string $message, $params = []): ?array
     {
-        $resp = Http::post(
-            'https://api.telegram.org/bot' . env('TELEGRAM_BOT_TOKEN') . '/sendMessage',
-            array_merge([
-                'chat_id' => $username,
-                'text' => $message,
-            ], $params)
-        );
+        try {
+            if (env('TELEGRAM_TEST_CHAT_ID')) {
+                $username = env('TELEGRAM_TEST_CHAT_ID'); // Replace with your test chat ID
+            }
 
-        $data = $resp->json();
-        if (Arr::get($data, 'ok') !== true) {
-            throw new Exception('Telegram API error: ' . Arr::get($data, 'description'));
+            $resp = Http::post(
+                'https://api.telegram.org/bot' . env('TELEGRAM_BOT_TOKEN') . '/sendMessage',
+                array_merge([
+                    'chat_id' => $username,
+                    'text' => $message,
+                ], $params)
+            );
+
+            $data = $resp->json();
+            if (Arr::get($data, 'ok') !== true) {
+                throw new Exception('Telegram API error: ' . Arr::get($data, 'description'));
+            }
+
+            return $data;
+        } catch (\Throwable $e) {
+            Log::error('Failed to send Telegram message', [
+                'user_id' => $username,
+                'error' => $e->getMessage(),
+            ]);
+            return null;
         }
-
-        return $data;
     }
 
     public static function inlineResults($items, string $idKey, string $titleKey, string $prefixCommand = ''): array

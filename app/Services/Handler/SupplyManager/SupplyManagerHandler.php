@@ -16,12 +16,14 @@ class SupplyManagerHandler extends BaseHandler
     protected array $sceneHandlers = [
         'createSupplyOrder' => CreateSupplyOrderScene::class,
         'changeSupplyOrderStatus' => ChangeStatusSupplyScene::class,
+        'selectSupplier' => SelectSupplierScene::class,
     ];
 
     protected array $callbackHandlers = [
         'confirmSupplyOrder' => [CreateSupplyOrderScene::class, 'confirmSupplyOrder'],
         'closeSupplyOrder' => [CreateSupplyOrderScene::class, 'closeSupplyOrder'],
         'cancelMoveStatus' => [ChangeStatusSupplyScene::class, 'cancelMoveStatus'],
+        'cancelSupplier' => [SelectSupplierScene::class, 'cancelSupplier'],
 
         'confirmListOrder' => [SupplyOrderListCb::class, 'confirmOrder'],
         'supplyOrdersList' => [SupplyOrderListCb::class, 'sendList'],
@@ -94,6 +96,12 @@ HTML,
 
     public function getSupplyOrderButtons(SupplyOrder $supplyOrder): array
     {
+        if (!$supplyOrder->supplier_id) {
+            return [
+                [['text' => 'Select Supplier', 'callback_data' => "selectSupplier:$supplyOrder->id"]],
+            ];
+        }
+
         $buttons = [];
         if (!$supplyOrder->isConfirmed()) {
             $buttons[] = [['text' => '✅ Confirm', 'callback_data' => "confirmSupplyOrder:$supplyOrder->id"]];
@@ -138,7 +146,6 @@ HTML,
     public function getMainKb(): array
     {
         return TelegramService::getInlineKeyboard([
-//            [['text' => '🔍 Search order', 'callback_data' => 'searchSupplyOrder']],
             [['text' => '➕ Create SupplyOrder', 'callback_data' => 'createSupplyOrder']],
             [['text' => '🔍 SupplyOrders', 'switch_inline_query_current_chat' => '']],
         ]);

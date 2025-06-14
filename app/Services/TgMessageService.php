@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Enums\ProdOrderGroupType;
+use App\Enums\RoleType;
 use App\Models\ProdOrder\ProdOrder;
 use App\Models\ProdOrder\ProdOrderGroup;
 use App\Models\ProdOrder\ProdOrderStep;
@@ -21,7 +22,7 @@ class TgMessageService
         $message .= "Warehouse: <b>{$poGroup->warehouse->name}</b>\n";
 
         if ($poGroup->type == ProdOrderGroupType::ByOrder) {
-            $message .= "Agent: <b>{$poGroup->organization->name}</b>\n";
+            $message .= "Agent: <b>{$poGroup->agent->partner->name}</b>\n";
         } else {
             $message .= "Deadline: <b>{$poGroup->deadline->format('d M Y')}</b>\n";
         }
@@ -134,11 +135,13 @@ class TgMessageService
 
     public static function getSupplyOrderMsg(SupplyOrder $supplyOrder, $withProducts = true): string
     {
+        $isSupplyManager = in_array(auth()->user()->role, [RoleType::SENIOR_SUPPLY_MANAGER, RoleType::SUPPLY_MANAGER]);
+
         $isConfirmed = $supplyOrder->isConfirmed() ? '✅' : '❌';
         $message = "Code: <b>{$supplyOrder->number}</b>\n";
         $message .= "Warehouse: <b>{$supplyOrder->warehouse->name}</b>\n";
         $message .= "Category: <b>{$supplyOrder->productCategory->name}</b>\n";
-        $message .= "Supplier: <b>{$supplyOrder->supplierOrganization?->name}</b>\n";
+        $message .= "Supplier: <b>{$supplyOrder->supplier?->partner?->name}</b>\n";
         $message .= "Status: <b>{$supplyOrder->getStatus()}</b>\n";
         $message .= "Created by: <b>{$supplyOrder->createdBy->name}</b>\n";
         $message .= "Created at: <b>{$supplyOrder->created_at->format('d M Y H:i')}</b>\n";
@@ -151,10 +154,21 @@ class TgMessageService
         $message .= "\nProducts:";
         foreach ($supplyOrder->products as $index => $product) {
             $index++;
+
+            $warning = '';
+            if ($isSupplyManager) {
+                $warning = $product->expected_quantity != $product->actual_quantity ? '⚠️' : '';
+            }
+
             $message .= "\n";
-            $message .= "$index) Product: <b>{$product->product->catName}</b>\n";
-            $message .= "Quantity: <b>$product->actual_quantity {$product->product->category->measure_unit->getLabel()}</b>\n";
-            $message .= "Price: <b>$product->price</b>\n";
+            $message .= "$index) $warning Product: <b>{$product->product->catName}</b>\n";
+            if ($isSupplyManager) {
+                $message .= "Expected quantity: <b>$product->expected_quantity {$product->product->category->measure_unit->getLabel()}</b>\n";
+                $message .= "Actual quantity: <b>$product->actual_quantity {$product->product->category->measure_unit->getLabel()}</b>\n";
+                $message .= "Price: <b>$product->price</b>\n";
+            } else {
+                $message .= "Actual quantity: <b>$product->actual_quantity {$product->product->category->measure_unit->getLabel()}</b>\n";
+            }
         }
 
         return $message;
@@ -162,7 +176,7 @@ class TgMessageService
 
     public static function getWorkStationMsg(WorkStation $station): string
     {
-        $message = "🏭 <b>{$station->name}</b>\n";
+        $message = "<b>{$station->name}</b>\n\n";
         $message .= "Category: <b>{$station->category?->name}</b>\n";
         $message .= "Organization: <b>{$station->organization->name}</b>\n";
         $message .= "Type: <b>{$station->type}</b>\n";

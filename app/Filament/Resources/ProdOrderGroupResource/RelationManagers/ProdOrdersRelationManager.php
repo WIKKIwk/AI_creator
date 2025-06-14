@@ -29,9 +29,6 @@ class ProdOrdersRelationManager extends RelationManager
 
     public function form(Form $form): Form
     {
-        /** @var ProdOrderGroup $poGroup */
-        $poGroup = $this->getOwnerRecord();
-
         return $form
             ->schema([
                 Forms\Components\Grid::make(3)->schema([
@@ -142,7 +139,7 @@ class ProdOrdersRelationManager extends RelationManager
                     }),
             ])
             ->recordUrl(function($record) {
-                if ($record->status->value < OrderStatus::Processing->value) {
+                if (!$record->isStarted()) {
                     return null;
                 }
                 return ProdOrderGroupResource::getUrl('details', [

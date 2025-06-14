@@ -2,8 +2,10 @@
 
 namespace App\Models\ProdOrder;
 
+use App\Enums\PartnerType;
 use App\Enums\ProdOrderGroupType;
 use App\Models\Organization;
+use App\Models\OrganizationPartner;
 use App\Models\User;
 use App\Models\Warehouse;
 use Illuminate\Database\Eloquent\Collection;
@@ -17,14 +19,14 @@ use Illuminate\Support\Carbon;
  * @property int $id
  * @property ProdOrderGroupType $type
  * @property int $warehouse_id
- * @property int $organization_id
+ * @property int $agent_id
  * @property Carbon $deadline
  * @property int $created_by
  * @property Carbon $created_at
  * @property Carbon $updated_at
  *
  * @property Warehouse $warehouse
- * @property Organization $organization
+ * @property OrganizationPartner $agent
  * @property User $createdBy
  * @property Collection<ProdOrder> $prodOrders
  */
@@ -46,9 +48,9 @@ class ProdOrderGroup extends Model
         return $this->belongsTo(Warehouse::class);
     }
 
-    public function organization(): BelongsTo
+    public function agent(): BelongsTo
     {
-        return $this->belongsTo(Organization::class);
+        return $this->belongsTo(OrganizationPartner::class, 'agent_id')->agent()->with('partner');
     }
 
     public function createdBy(): BelongsTo
@@ -73,6 +75,10 @@ class ProdOrderGroup extends Model
 
     public function isConfirmed(): bool
     {
+        if ($this->prodOrders->isEmpty()) {
+            return false;
+        }
+
         return $this->prodOrders->every(fn(ProdOrder $order) => $order->isConfirmed());
     }
 

@@ -119,11 +119,14 @@ class StartProdOrderScene implements SceneHandlerInterface
             'parse_mode' => 'HTML',
             'reply_markup' => TelegramService::getInlineKeyboard($this->handler->getProdOrderButtons($prodOrder)),
         ]);
+
+        $this->handler->resetCache();
     }
 
     public function cancelStartOrder($prodOrderId): void
     {
         $this->handler->resetCache();
+        $this->handler->setCache('edit_msg_id', $this->tgBot->getMessageId());
         $this->handler->selectProdOrder($prodOrderId);
     }
 

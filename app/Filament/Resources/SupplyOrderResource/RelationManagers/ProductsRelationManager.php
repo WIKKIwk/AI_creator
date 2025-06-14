@@ -107,7 +107,6 @@ class ProductsRelationManager extends RelationManager
                 if ($record->expected_quantity != $record->actual_quantity) {
                     return 'row-warning';
                 }
-
                 return null;
             })
             ->recordTitleAttribute('product_id')

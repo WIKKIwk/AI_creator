@@ -3,29 +3,37 @@
 namespace App\Enums;
 
 use Filament\Support\Contracts\HasColor;
+use Filament\Support\Contracts\HasIcon;
 use Filament\Support\Contracts\HasLabel;
 
-enum PartnerType: int implements HasColor, HasLabel
+enum PartnerType: int implements HasLabel, HasColor, HasIcon
 {
-    case OnlyOrder = 1;
-    case Catalog = 2;
-    case Both = 3;
+    use BaseEnum;
+
+    case Agent = 1;
+    case Supplier = 2;
 
     public function getLabel(): string
     {
         return match ($this) {
-            self::OnlyOrder => 'Only Order',
-            self::Catalog => 'Catalog',
-            self::Both => 'Both',
+            self::Agent => 'Agent',
+            self::Supplier => 'Supplier',
         };
     }
 
     public function getColor(): string|array|null
     {
         return match ($this) {
-            self::OnlyOrder => 'success',
-            self::Catalog => 'info',
-            self::Both => 'warning',
+            self::Agent => 'primary',
+            self::Supplier => 'warning',
+        };
+    }
+
+    public function getIcon(): ?string
+    {
+        return match ($this) {
+            self::Agent => 'heroicon-o-user-group',
+            self::Supplier => 'heroicon-o-truck',
         };
     }
 }

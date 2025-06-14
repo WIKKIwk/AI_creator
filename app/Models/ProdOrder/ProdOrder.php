@@ -67,11 +67,8 @@ class ProdOrder extends Model
     protected static function booted(): void
     {
         self::creating(function (ProdOrder $model) {
-            $model->number = 'PO-' . $model->group?->organization?->code . $model->product->code . now()->format('dmy');
+            $model->number = 'PO-' . $model->group?->agent?->partner?->code . $model->product->code . now()->format('dmy');
         });
-//        static::updating(function (ProdOrder $model) {
-//            $model->number = 'PO-' . $model->group?->organization?->code . $model->product->code . now()->format('dmy');
-//        });
     }
 
     public function group(): BelongsTo

@@ -3,6 +3,7 @@
 namespace App\Filament\Resources\ProdOrderGroupResource\Pages;
 
 use App\Events\ProdOrderChanged;
+use App\Models\OrganizationPartner;
 use Filament\Forms;
 use App\Models\Product;
 use Filament\Forms\Form;
@@ -45,13 +46,13 @@ class CreateProdOrderGroup extends CreateRecord
                         ->relationship('warehouse', 'name')
                         ->required(),
 
-                    Forms\Components\Select::make('organization_id')
+                    Forms\Components\Select::make('agent_id')
                         ->label('Agent')
-                        ->relationship(
-                            'organization',
-                            'name',
-                            fn($query) => $query->whereNot('id', auth()->user()->organization_id)
-                        )
+                        ->relationship('agent', 'partner_id')
+                        ->getOptionLabelFromRecordUsing(function($record) {
+                            /** @var OrganizationPartner $record */
+                            return $record->partner?->name ?? '';
+                        })
                         ->visible(fn($get) => $get('type') == ProdOrderGroupType::ByOrder->value)
                         ->required(),
 
