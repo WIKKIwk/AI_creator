@@ -434,13 +434,62 @@ class ProdOrderService
         }
     }
 
+    public function approveExecutionProdManager(ProdOrderStepExecution $execution): void
+    {
+        if (!$execution->{$execution->getApprovedAtField()}) {
+            $execution->update([
+                $execution->getApprovedAtField() => now(),
+                $execution->getApprovedByField() => auth()->user()->id
+            ]);
+        }
+    }
+
+    public function approveExecutionSeniorProdManager(ProdOrderStepExecution $execution): void
+    {
+        if (!$execution->approved_at_prod_senior_manager) {
+            $execution->update([
+                'approved_at_prod_senior_manager' => now(),
+                'approved_by_prod_senior_manager' => auth()->user()->id
+            ]);
+        }
+    }
+
+    public function declineExecutionProdManager(ProdOrderStepExecution $execution, string $comment): void
+    {
+        if ($execution->approved_at) {
+            throw new Exception('Execution is already approved');
+        }
+
+        /** @var User $user */
+        $user = auth()->user();
+
+        $execution->update([
+            'declined_at' => now(),
+            'declined_by' => auth()->user()->id,
+            'decline_comment' => $comment,
+        ]);
+
+        $declineTo = $execution->approvedByProdSeniorManager ?? $execution->approvedByProdManager ?? $execution->executedBy;
+        if ($declineTo) {
+            $message = "<b>Execution declined</b>\n\n";
+            $message .= TgMessageService::getExecutionMsg($execution);
+            $message .= "\n\n<b>Declined by:</b> $user->name\n";
+            $message .= "<b>Decline comment:</b> $comment";
+            TelegramService::sendMessage($declineTo->chat_id, $message, [
+                'parse_mode' => 'HTML',
+                'reply_markup' => TelegramService::getInlineKeyboard([
+                    [['text' => '✅ Approve', 'callback_data' => "approveExecution:$execution->id"]],
+                ]),
+            ]);
+        }
+    }
+
     /**
      * @throws Exception
      */
-    public function approveExecution(ProdOrderStepExecution $execution): void
+    public function approveExecutionStockManager(ProdOrderStepExecution $execution): void
     {
-        $approvedField = $execution->getApprovedField();
-        if ($execution->$approvedField) {
+        if ($execution->approved_at) {
             throw new Exception('Execution is already approved');
         }
 
@@ -450,8 +499,8 @@ class ProdOrderService
             $this->outputMaterial($execution->prodOrderStep, $execution->output_quantity);
 
             $execution->update([
-                $approvedField => now(),
-                $execution->getApprovedByField() => auth()->user()->id
+                'approved_at' => now(),
+                'approved_by' => auth()->user()->id
             ]);
 
             DB::commit();

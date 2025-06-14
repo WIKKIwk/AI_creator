@@ -77,7 +77,6 @@ class CreateProdTemplateStepScene implements SceneHandlerInterface
         }
 
         if (str_starts_with($text, '/select_material ')) {
-            dump('dwqdwqdwq');
             $materialId = trim(str_replace('/select_material ', '', $text));
             $this->selectMaterial($materialId);
             return;

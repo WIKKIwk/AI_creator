@@ -22,6 +22,7 @@ class ProductionManagerHandler extends BaseHandler
         'createProdOrder' => CreateProdOrderScene::class,
         'startProdOrder' => StartProdOrderScene::class,
         'workStationsList' => WorkStationManagerScene::class,
+        'declineExecution' => DeclineExecutionScene::class,
     ];
 
     protected array $callbackHandlers = [
@@ -30,6 +31,7 @@ class ProductionManagerHandler extends BaseHandler
         'cancelProdOrder' => [CreateProdOrderScene::class, 'cancelProdOrder'],
         'cancelProdTemplate' => [CreateProdTemplateScene::class, 'cancelProdTemplate'],
         'cancelStep' => [CreateProdTemplateStepScene::class, 'cancelStep'],
+        'cancelDecline' => [DeclineExecutionScene::class, 'cancelDecline'],
 
         'workStationsList' => [WorkStationManagerScene::class, 'handleScene'],
         'showWorkStation' => [WorkStationManagerScene::class, 'showWorkStation'],
@@ -87,6 +89,12 @@ HTML,
             return;
         }
 
+        if (str_starts_with($text, '/select_execution')) {
+            $executionId = trim(str_replace('/select_execution ', '', $text));
+            $this->selectExecution($executionId);
+            return;
+        }
+
         if ($activeState || $this->getScene()) {
             $this->tgBot->rmLastMsg();
             return;
@@ -97,16 +105,16 @@ HTML,
 
     public function approveExecution($executionId): void
     {
-        /** @var ProdOrderStepExecution $poExecution */
-        $poExecution = ProdOrderStepExecution::query()->find($executionId);
+        /** @var ProdOrderStepExecution $execution */
+        $execution = ProdOrderStepExecution::query()->find($executionId);
 
         try {
             /** @var ProdOrderService $poService */
             $poService = app(ProdOrderService::class);
-            $poService->approveExecution($poExecution);
+            $poService->approveExecutionProdManager($execution);
 
             $message = "<b>✅ Execution approved!</b>\n\n";
-            $message .= TgMessageService::getExecutionMsg($poExecution);
+            $message .= TgMessageService::getExecutionMsg($execution);
 
             $this->tgBot->answerCbQuery(['text' => '✅ Execution approved!'], true);
             $this->tgBot->sendRequestAsync('editMessageText', [
@@ -117,7 +125,7 @@ HTML,
             ]);
         } catch (Throwable $e) {
             $message = "<i>❌ {$e->getMessage()}!</i>\n\n";
-            $message .= TgMessageService::getExecutionMsg($poExecution);
+            $message .= TgMessageService::getExecutionMsg($execution);
 
             $this->tgBot->answerCbQuery(['text' => '❌ Error occurred!'], true);
             $this->tgBot->sendRequestAsync('editMessageText', [
@@ -192,6 +200,49 @@ HTML,
         ]);
     }
 
+    public function selectExecution($executionId, $edit = false): void
+    {
+        $this->tgBot->answerCbQuery();
+        /** @var ProdOrderStepExecution $execution */
+        $execution = ProdOrderStepExecution::query()->findOrFail($executionId);
+
+        $message = "<b>Execution details:</b>\n\n";
+        $message .= TgMessageService::getExecutionMsg($execution);
+
+        dump($edit ? "Editing execution message" : "Sending execution message");
+        $messageId = $this->tgBot->getMessageId();
+
+        $buttons = [];
+        if ($this->user->role == RoleType::SENIOR_PRODUCTION_MANAGER) {
+            if (!$execution->approved_at_prod_senior_manager) {
+                if (!$execution->declined_at) {
+                    $buttons[] = ['text' => '❌ Decline', 'callback_data' => "declineExecution:$execution->id"];
+                }
+                $buttons[] = ['text' => '✅ Approve', 'callback_data' => "approveExecution:$execution->id"];
+            }
+        } elseif ($this->user->role == RoleType::PRODUCTION_MANAGER) {
+            if (!$execution->approved_at_prod_manager) {
+                if (!$execution->declined_at) {
+                    $buttons[] = ['text' => '❌ Decline', 'callback_data' => "declineExecution:$execution->id"];
+                }
+                $buttons[] = ['text' => '✅ Approve', 'callback_data' => "approveExecution:$execution->id"];
+            }
+        }
+
+        dump($buttons);
+
+        $this->tgBot->sendRequestAsync($edit ? 'editMessageText' : 'sendMessage', [
+            'chat_id' => $this->tgBot->chatId,
+            'message_id' => $messageId,
+            'text' => $message,
+            'parse_mode' => 'HTML',
+            'reply_markup' => TelegramService::getInlineKeyboard([
+                $buttons,
+                [['text' => '⬅️ Back', 'callback_data' => 'backMainMenu']]
+            ]),
+        ]);
+    }
+
     public function inventoryList(): void
     {
         $inventoryMsg = "<b>Inventory List</b>\n\n";
@@ -223,12 +274,47 @@ HTML,
 
         if (str_starts_with($search, 'prodTmp')) {
             $search = str_replace('prodTmp', '', $search);
-            dump($search);
             $prodTemplates = ProdTemplate::query()->get();
 
             $this->tgBot->sendRequest('answerInlineQuery', [
                 'inline_query_id' => $inlineQuery['id'],
                 'results' => TelegramService::inlineResults($prodTemplates, 'id', 'name', '/select_prod_template '),
+                'cache_time' => 0,
+            ]);
+            return;
+        }
+
+        if (str_starts_with($search, 'exec')) {
+            $search = str_replace('exec', '', $search);
+
+            /** @var Collection<ProdOrderStepExecution> $executions */
+            $executions = ProdOrderStepExecution::query()
+                ->whereNull('approved_at_prod_manager')
+                ->whereHas('prodOrderStep', function ($query) {
+                    $query->whereHas('workStation', fn($q) => $q->where('prod_manager_id', $this->user->id));
+                })
+                ->get();
+
+            $results = [];
+            foreach ($executions as $execution) {
+                $description = '';
+                foreach ($execution->materials as $material) {
+                    $description .= "{$material->product->catName}: {$material->used_quantity} {$material->product->getMeasureUnit()->getLabel()}\n";
+                }
+                $results[] = [
+                    'type' => 'article',
+                    'id' => (string)$execution->id,
+                    'title' => "{$execution->executedBy->name} at {$execution->created_at->format('d M Y H:i')}",
+                    'input_message_content' => [
+                        'message_text' => '/select_execution ' . $execution->id,
+                    ],
+                    'description' => $description,
+                ];
+            }
+
+            $this->tgBot->sendRequest('answerInlineQuery', [
+                'inline_query_id' => $inlineQuery['id'],
+                'results' => $results,
                 'cache_time' => 0,
             ]);
             return;
@@ -287,8 +373,9 @@ HTML,
                 ['text' => '🔍 ProdOrder', 'switch_inline_query_current_chat' => ''],
                 ['text' => '➕ Create ProdOrder', 'callback_data' => 'createProdOrder']
             ],
-            ...$wsButton,
+            [['text' => '🔍 Approve executions', 'switch_inline_query_current_chat' => 'exec']],
             [['text' => '📋 Inventory', 'callback_data' => 'inventoryList']],
+            ...$wsButton
         ]);
     }
 }

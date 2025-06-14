@@ -4,8 +4,6 @@ namespace App\Services\Handler\StockManager;
 
 use App\Enums\ProdOrderStepStatus;
 use App\Enums\SupplyOrderStatus;
-use App\Listeners\ProdOrderNotification;
-use App\Listeners\StepExecutionNotification;
 use App\Models\ProdOrder\ProdOrder;
 use App\Models\ProdOrder\ProdOrderStep;
 use App\Models\ProdOrder\ProdOrderStepExecution;
@@ -222,7 +220,7 @@ HTML,
 
         $buttons = [];
         $message = "<b>Executions of {$step->workStation->name} step:</b>\n";
-        foreach ($step->executions as $index => $execution) {
+        foreach ($step->executions as $execution) {
             $buttons[] = [
                 [
                     'text' => "{$execution->executedBy->name} at {$execution->created_at->format('d M Y H:i')}",

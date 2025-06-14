@@ -18,14 +18,18 @@ use Illuminate\Support\Carbon;
  * @property string $notes
  * @property int $executed_by
  *
- * @property Carbon $approved_at_prod_manager_id
- * @property int $approved_by_prod_manager_id
+ * @property Carbon $approved_at_prod_manager
+ * @property int $approved_by_prod_manager
+ * @property string $decline_comment
  *
- * @property Carbon $approved_at_prod_senior_manager_id
- * @property int $approved_by_prod_senior_manager_id
+ * @property Carbon $approved_at_prod_senior_manager
+ * @property int $approved_by_prod_senior_manager
  *
  * @property Carbon $approved_at
  * @property int $approved_by
+ *
+ * @property Carbon $declined_at
+ * @property int $declined_by
  *
  * @property Carbon $created_at
  * @property Carbon $updated_at
@@ -35,6 +39,7 @@ use Illuminate\Support\Carbon;
  * @property User $approvedByProdManager
  * @property User $approvedByProdSeniorManager
  * @property User $approvedBy
+ * @property User $declinedBy
  * @property Collection<ProdOrderStepExecutionProduct> $materials
  */
 class ProdOrderStepExecution extends Model
@@ -58,11 +63,11 @@ class ProdOrderStepExecution extends Model
         });
     }
 
-    public function getApprovedField(): string
+    public function getApprovedAtField(): string
     {
         return match (auth()->user()->role) {
-            RoleType::SENIOR_PRODUCTION_MANAGER => 'approved_at_prod_senior_manager_id',
-            RoleType::PRODUCTION_MANAGER => 'approved_at_prod_manager_id',
+            RoleType::SENIOR_PRODUCTION_MANAGER => 'approved_at_prod_senior_manager',
+            RoleType::PRODUCTION_MANAGER => 'approved_at_prod_manager',
             default => 'approved_at',
         };
     }
@@ -70,8 +75,8 @@ class ProdOrderStepExecution extends Model
     public function getApprovedByField(): string
     {
         return match (auth()->user()->role) {
-            RoleType::SENIOR_PRODUCTION_MANAGER => 'approved_by_prod_senior_manager_id',
-            RoleType::PRODUCTION_MANAGER => 'approved_by_prod_manager_id',
+            RoleType::SENIOR_PRODUCTION_MANAGER => 'approved_by_prod_senior_manager',
+            RoleType::PRODUCTION_MANAGER => 'approved_by_prod_manager',
             default => 'approved_by',
         };
     }
@@ -99,6 +104,11 @@ class ProdOrderStepExecution extends Model
     public function approvedBy(): BelongsTo
     {
         return $this->belongsTo(User::class, 'approved_by');
+    }
+
+    public function declinedBy(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'declined_by');
     }
 
     public function materials(): HasMany

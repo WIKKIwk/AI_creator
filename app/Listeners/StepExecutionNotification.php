@@ -53,7 +53,6 @@ class StepExecutionNotification
 
         $message = "<b>Execution created</b>\n\n";
         $message .= TgMessageService::getExecutionMsg($poStepExecution);
-        $message .= "\n\nto " .  implode(',', $roles) . "\n";
 
         foreach ($users as $user) {
             TelegramService::sendMessage($user->chat_id, $message, [
