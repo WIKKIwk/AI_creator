@@ -114,7 +114,8 @@ class TgMessageService
 
     public static function getExecutionMsg(ProdOrderStepExecution $execution): string
     {
-        $message = "Prod order: <b>{$execution->prodOrderStep->prodOrder->number}</b>\n";
+        $message = '';
+        $message .= "Prod order: <b>{$execution->prodOrderStep->prodOrder->number}</b>\n";
         $message .= "Step: <b>{$execution->prodOrderStep->workStation->name}</b>\n";
         $message .= "Executed by: <b>{$execution->executedBy->name}</b>\n";
         $message .= "Executed at: <b>{$execution->created_at->format('d M Y H:i')}</b>\n";
@@ -128,6 +129,15 @@ class TgMessageService
                 $index++;
                 $message .= "$index) <b>{$material->product->catName}</b>: $material->used_quantity {$material->product->getMeasureUnit()->getLabel()}\n";
             }
+        }
+
+        if ($execution->declined_at) {
+            if ($execution->declined_at) {
+                $message .= "<b>\n❌ Execution was declined</b>\n";
+            }
+            $message .= "Decline comment: <i>$execution->decline_comment</i>\n";
+            $message .= "Declined by: <i>{$execution->declinedBy->name}</i>\n";
+            $message .= "Declined at: <i>{$execution->declined_at?->format('d M Y H:i')}</i>\n";
         }
 
         return $message;

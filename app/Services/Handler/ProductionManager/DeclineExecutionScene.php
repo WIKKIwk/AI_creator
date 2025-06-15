@@ -76,9 +76,7 @@ class DeclineExecutionScene implements SceneHandlerInterface
         try {
             $this->prodOrderService->declineExecutionProdManager($execution, $text);
 
-            $message = "<b>Execution declined</b>\n\n";
-            $message .= TgMessageService::getExecutionMsg($execution);
-            $message .= "\n<b>Decline comment:</b> " . $execution->decline_comment . "\n\n";
+            $message = TgMessageService::getExecutionMsg($execution);
 
             $this->tgBot->sendRequestAsync('editMessageText', [
                 'chat_id' => $this->tgBot->chatId,

@@ -436,10 +436,59 @@ class ProdOrderService
 
     public function approveExecutionProdManager(ProdOrderStepExecution $execution): void
     {
-        if (!$execution->{$execution->getApprovedAtField()}) {
-            $execution->update([
-                $execution->getApprovedAtField() => now(),
-                $execution->getApprovedByField() => auth()->user()->id
+        $currentStep = $execution->prodOrderStep;
+        /** @var ProdOrderStep $nextStep */
+        $nextStep = $currentStep->prodOrder->steps()
+            ->where('sequence', '>', $currentStep->sequence)
+            ->first();
+
+        // If last step
+        if (!$nextStep) {
+            $execution->approveProdManager();
+            $this->notifyExecutionSeniorPM($execution);
+            return;
+        }
+
+        if ($execution->approved_at_prod_manager) {
+            throw new Exception('Execution is already approved by Production Manager');
+        }
+
+        $execution->approveProdManager();
+        // Add to next step's mini stock
+        $this->transactionService->addMiniStock(
+            $currentStep->output_product_id,
+            $execution->output_quantity,
+            $nextStep->work_station_id
+        );
+
+        $totalOutputQty = $currentStep->output_quantity + $execution->output_quantity;
+        if ($totalOutputQty >= $currentStep->expected_quantity) {
+            $currentStep->status = ProdOrderStepStatus::Completed;
+        } else {
+            $currentStep->status = ProdOrderStepStatus::InProgress;
+        }
+        $currentStep->output_quantity = $totalOutputQty;
+        $currentStep->save();
+    }
+
+    public function notifyExecutionSeniorPM(ProdOrderStepExecution $execution): void
+    {
+        /** @var Collection<User> $seniorPMs */
+        $seniorPMs = User::query()
+            ->ownOrganization()
+            ->exceptMe()
+            ->whereIn('role', [RoleType::SENIOR_PRODUCTION_MANAGER])
+            ->get();
+
+        foreach ($seniorPMs as $seniorPM) {
+            $message = "<b>Execution approval</b>\n\n";
+            $message .= TgMessageService::getExecutionMsg($execution);
+
+            TelegramService::sendMessage($seniorPM->chat_id, $message, [
+                'parse_mode' => 'HTML',
+                'reply_markup' => TelegramService::getInlineKeyboard([
+                    [['text' => '✅ Approve', 'callback_data' => "approveExecution:$execution->id"]],
+                ]),
             ]);
         }
     }
@@ -462,23 +511,30 @@ class ProdOrderService
 
         /** @var User $user */
         $user = auth()->user();
-
         $execution->update([
             'declined_at' => now(),
-            'declined_by' => auth()->user()->id,
+            'declined_by' => $user->id,
             'decline_comment' => $comment,
         ]);
 
         $declineTo = $execution->approvedByProdSeniorManager ?? $execution->approvedByProdManager ?? $execution->executedBy;
         if ($declineTo) {
-            $message = "<b>Execution declined</b>\n\n";
-            $message .= TgMessageService::getExecutionMsg($execution);
-            $message .= "\n\n<b>Declined by:</b> $user->name\n";
-            $message .= "<b>Decline comment:</b> $comment";
+            $message = TgMessageService::getExecutionMsg($execution);
+
+            if (env('TELEGRAM_TEST_CHAT_ID')) {
+                $message .= "\n\nto <b>$declineTo->name</b>:\n";
+            }
+
+            $buttons = [];
+            if ($declineTo->id != $execution->executed_by) {
+                $buttons[] = ['text' => '❌ Decline', 'callback_data' => "declineExecution:$execution->id"];
+            }
+            $buttons[] = ['text' => '✅ Approve', 'callback_data' => "approveExecution:$execution->id"];
+
             TelegramService::sendMessage($declineTo->chat_id, $message, [
                 'parse_mode' => 'HTML',
                 'reply_markup' => TelegramService::getInlineKeyboard([
-                    [['text' => '✅ Approve', 'callback_data' => "approveExecution:$execution->id"]],
+                    $buttons,
                 ]),
             ]);
         }

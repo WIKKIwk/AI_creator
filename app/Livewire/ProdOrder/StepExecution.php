@@ -138,10 +138,11 @@ class StepExecution extends Component implements HasForms, HasTable
                     ->label('Executed by')
                     ->sortable()
                     ->searchable(),
-                TextColumn::make('approved_at')
-                    ->disabled(fn(ProdOrderStepExecution $record) => $record->approved_at)
+                TextColumn::make('approved_at_prod_manager')
+                    ->label('Approved')
+                    ->disabled(fn(ProdOrderStepExecution $record) => $record->approved_at_prod_manager)
                     ->getStateUsing(function ($record) {
-                        if ($record->approved_at) {
+                        if ($record->approved_at_prod_manager) {
                             return '<span class="text-green-500">✔️</span>';
                         }
                         return '<span class="text-red-500">❌</span>';

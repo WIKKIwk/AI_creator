@@ -111,7 +111,12 @@ HTML,
         try {
             /** @var ProdOrderService $poService */
             $poService = app(ProdOrderService::class);
-            $poService->approveExecutionProdManager($execution);
+
+            if ($this->user->role == RoleType::SENIOR_PRODUCTION_MANAGER) {
+                $poService->approveExecutionSeniorProdManager($execution);
+            } else {
+                $poService->approveExecutionProdManager($execution);
+            }
 
             $message = "<b>✅ Execution approved!</b>\n\n";
             $message .= TgMessageService::getExecutionMsg($execution);
@@ -213,23 +218,12 @@ HTML,
         $messageId = $this->tgBot->getMessageId();
 
         $buttons = [];
-        if ($this->user->role == RoleType::SENIOR_PRODUCTION_MANAGER) {
-            if (!$execution->approved_at_prod_senior_manager) {
-                if (!$execution->declined_at) {
-                    $buttons[] = ['text' => '❌ Decline', 'callback_data' => "declineExecution:$execution->id"];
-                }
-                $buttons[] = ['text' => '✅ Approve', 'callback_data' => "approveExecution:$execution->id"];
-            }
-        } elseif ($this->user->role == RoleType::PRODUCTION_MANAGER) {
-            if (!$execution->approved_at_prod_manager) {
-                if (!$execution->declined_at) {
-                    $buttons[] = ['text' => '❌ Decline', 'callback_data' => "declineExecution:$execution->id"];
-                }
-                $buttons[] = ['text' => '✅ Approve', 'callback_data' => "approveExecution:$execution->id"];
-            }
+        if (!$execution->isDeclined()) {
+            $buttons[] = ['text' => '❌ Decline', 'callback_data' => "declineExecution:$execution->id"];
         }
-
-        dump($buttons);
+        if (!$execution->isApproved()) {
+            $buttons[] = ['text' => '✅ Approve', 'callback_data' => "approveExecution:$execution->id"];
+        }
 
         $this->tgBot->sendRequestAsync($edit ? 'editMessageText' : 'sendMessage', [
             'chat_id' => $this->tgBot->chatId,
@@ -373,7 +367,7 @@ HTML,
                 ['text' => '🔍 ProdOrder', 'switch_inline_query_current_chat' => ''],
                 ['text' => '➕ Create ProdOrder', 'callback_data' => 'createProdOrder']
             ],
-            [['text' => '🔍 Approve executions', 'switch_inline_query_current_chat' => 'exec']],
+//            [['text' => '🔍 Approve executions', 'switch_inline_query_current_chat' => 'exec']],
             [['text' => '📋 Inventory', 'callback_data' => 'inventoryList']],
             ...$wsButton
         ]);

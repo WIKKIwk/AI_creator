@@ -49,9 +49,10 @@ class ProdOrderStepExecution extends Model
     protected $guarded = ['id'];
 
     protected $casts = [
-        'approved_at_prod_manager_id' => 'datetime',
-        'approved_at_prod_senior_manager_id' => 'datetime',
+        'approved_at_prod_manager' => 'datetime',
+        'approved_at_prod_senior_manager' => 'datetime',
         'approved_at' => 'datetime',
+        'declined_at' => 'datetime',
         'created_at' => 'datetime',
         'updated_at' => 'datetime',
     ];
@@ -114,5 +115,34 @@ class ProdOrderStepExecution extends Model
     public function materials(): HasMany
     {
         return $this->hasMany(ProdOrderStepExecutionProduct::class);
+    }
+
+    public function isApproved(): bool
+    {
+        /** @var User $user */
+        $user = auth()->user();
+        if ($user->role == RoleType::SENIOR_PRODUCTION_MANAGER) {
+            return $this->approved_at_prod_senior_manager !== null && !$this->declined_at;
+        }
+        if ($user->role == RoleType::PRODUCTION_MANAGER) {
+            return $this->approved_at_prod_manager !== null && !$this->declined_at;
+        }
+        return $this->approved_at !== null;
+    }
+
+    public function approveProdManager(): void
+    {
+        $this->update([
+            'approved_at_prod_manager' => now(),
+            'approved_by_prod_manager' => auth()->user()->id,
+            'declined_at' => null,
+            'declined_by' => null,
+            'decline_comment' => null
+        ]);
+    }
+
+    public function isDeclined(): bool
+    {
+        return $this->declined_at !== null;
     }
 }
