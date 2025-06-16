@@ -521,10 +521,6 @@ class ProdOrderService
         if ($declineTo) {
             $message = TgMessageService::getExecutionMsg($execution);
 
-            if (env('TELEGRAM_TEST_CHAT_ID')) {
-                $message .= "\n\nto <b>$declineTo->name</b>:\n";
-            }
-
             $buttons = [];
             if ($declineTo->id != $execution->executed_by) {
                 $buttons[] = ['text' => '❌ Decline', 'callback_data' => "declineExecution:$execution->id"];

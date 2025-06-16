@@ -46,10 +46,6 @@ HTML,
             $message = "<b>Execution approved by {$this->user->name}</b>\n\n";
             $message .= TgMessageService::getExecutionMsg($execution);
 
-            if (env('TELEGRAM_TEST_CHAT_ID')) {
-                $message .= "\n\nto <b>{$execution->declinedBy->name}</b>:\n";
-            }
-
             TelegramService::sendMessage($execution->declinedBy->chat_id, $message, [
                 'parse_mode' => 'HTML',
                 'reply_markup' => TelegramService::getInlineKeyboard([

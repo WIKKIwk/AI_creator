@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Models\User;
 use Exception;
 use GuzzleHttp\Client;
 use Illuminate\Support\Arr;
@@ -59,17 +60,22 @@ class TelegramService
     /**
      * @throws Exception
      */
-    public static function sendMessage(?string $username, string $message, $params = []): ?array
+    public static function sendMessage(User $user, string $message, $params = []): ?array
     {
+        /** @var User $fromUser */
+        $fromUser = auth()->user();
+        $chatId = $user->chat_id;
+
         try {
             if (env('TELEGRAM_TEST_CHAT_ID')) {
-                $username = env('TELEGRAM_TEST_CHAT_ID'); // Replace with your test chat ID
+                $chatId = env('TELEGRAM_TEST_CHAT_ID'); // Replace with your test chat ID
+                $message .= "\n\n<code>Test mode: message sent from " . $fromUser->name . " to " . $user->name . "</code>";
             }
 
             $resp = Http::post(
                 'https://api.telegram.org/bot' . env('TELEGRAM_BOT_TOKEN') . '/sendMessage',
                 array_merge([
-                    'chat_id' => $username,
+                    'chat_id' => $chatId,
                     'text' => $message,
                 ], $params)
             );
