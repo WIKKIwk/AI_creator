@@ -52,7 +52,7 @@ class ProdOrderNotification
         $message .= TgMessageService::getProdOrderGroupMsg($poGroup);
 
         foreach ($PMs as $PM) {
-            TelegramService::sendMessage($PM->chat_id, $message, [
+            TelegramService::sendMessage($PM, $message, [
                 'parse_mode' => 'HTML',
                 'reply_markup' => TelegramService::getInlineKeyboard([
                     [['text' => 'Confirm order', 'callback_data' => "confirmProdOrder:$poGroup->id"]]

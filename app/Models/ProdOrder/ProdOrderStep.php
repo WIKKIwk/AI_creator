@@ -65,4 +65,14 @@ class ProdOrderStep extends Model
     {
         return $this->hasMany(ProdOrderStepExecution::class);
     }
+
+    public function getStatusByTotalQty($totalOutputQty): ProdOrderStepStatus
+    {
+        if ($totalOutputQty >= $this->expected_quantity) {
+            $status = ProdOrderStepStatus::Completed;
+        } else {
+            $status = ProdOrderStepStatus::InProgress;
+        }
+        return $status;
+    }
 }

@@ -48,7 +48,7 @@ class SelectSupplierScene implements SceneHandlerInterface
 
         $this->handler->setCache('edit_msg_id', $this->tgBot->getMessageId());
 
-        $message = "<b>Supply Order details:</b>\n\n";
+        $message = "<b>" . __('telegram.supplyorder_details') . "</b>\n\n";
         $message .= TgMessageService::getSupplyOrderMsg($supplyOrder);
 
         /** @var Collection<OrganizationPartner> $suppliers */
@@ -69,7 +69,7 @@ class SelectSupplierScene implements SceneHandlerInterface
             'parse_mode' => 'HTML',
             'reply_markup' => TelegramService::getInlineKeyboard([
                 ...$buttons,
-                [['text' => '🚫 Cancel', 'callback_data' => 'cancelSupplier']],
+                [['text' => __('telegram.cancel'), 'callback_data' => 'cancelSupplier']],
             ]),
         ]);
     }
@@ -82,7 +82,9 @@ class SelectSupplierScene implements SceneHandlerInterface
             $supplyOrder->supplier_id = $supplierId;
             $supplyOrder->saveOrFail();
 
-            $message = "<b>✅ Supplier selected.</b>\n\n";
+            $this->tgBot->answerCbQuery(['text' => __('telegram.supplier_selected')], true);
+
+            $message = "<b>" . __('telegram.supplier_selected') . "</b>\n\n";
             $message .= TgMessageService::getSupplyOrderMsg($supplyOrder);
 
             $this->tgBot->sendRequestAsync('editMessageText', [
@@ -93,10 +95,10 @@ class SelectSupplierScene implements SceneHandlerInterface
                 'reply_markup' => TelegramService::getInlineKeyboard($this->handler->getSupplyOrderButtons($supplyOrder)),
             ]);
         } catch (Throwable $e) {
-            $this->tgBot->answerCbQuery(['text' => '❌ Error. Please try again.'], true);
+            $this->tgBot->answerCbQuery(['text' => __('telegram.error_occurred')], true);
             $this->handler->resetCache();
 
-            $message = "<b>❌ Error:</b> {$e->getMessage()}\n\n";
+            $message = "<b>" . __('telegram.error_occurred') . ":</b> {$e->getMessage()}\n\n";
             $message .= TgMessageService::getSupplyOrderMsg($supplyOrder);
 
             $this->tgBot->sendRequestAsync('editMessageText', [
@@ -112,11 +114,11 @@ class SelectSupplierScene implements SceneHandlerInterface
     public function cancelSupplier(): void
     {
         $this->handler->resetCache();
-        $this->tgBot->answerCbQuery(['text' => '❌ Cancelled.'], true);
+        $this->tgBot->answerCbQuery(['text' => __('telegram.operation_cancelled')], true);
 
         $supplyOrder = $this->getSupplyOrder();
 
-        $message = "<b>Supply Order details:</b>\n\n";
+        $message = "<b>" . __('telegram.supplyorder_details') . "</b>\n\n";
         $message .= TgMessageService::getSupplyOrderMsg($supplyOrder);
 
         $this->tgBot->sendRequestAsync('editMessageText', [

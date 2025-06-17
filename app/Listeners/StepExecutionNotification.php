@@ -16,12 +16,6 @@ use Throwable;
 
 class StepExecutionNotification
 {
-    public const actions = [
-        'approved_prod_senior_manager' => 'approved_prod_senior_manager',
-        'approved_prod_manager' => 'approved_prod_manager',
-        'approved_stock_manager' => 'approved_stock_manager',
-    ];
-
     /**
      * Create the event listener.
      */
@@ -35,38 +29,37 @@ class StepExecutionNotification
      */
     public function handle(StepExecutionCreated $event): void
     {
-        $action = $event->action;
-        $poStepExecution = $event->poStepExecution;
-
-        $roles = match ($action) {
-            'approved_prod_senior_manager' => [RoleType::STOCK_MANAGER->value, RoleType::SENIOR_STOCK_MANAGER->value],
-            'approved_prod_manager' => [RoleType::SENIOR_PRODUCTION_MANAGER->value],
-            default => [RoleType::PRODUCTION_MANAGER->value],
-        };
+        $execution = $event->poStepExecution;
 
         /** @var Collection<User> $users */
         $users = User::query()
             ->ownOrganization()
             ->exceptMe()
-            ->whereIn('role', $roles)
+            ->whereHas('workStations', function ($query) use ($execution) {
+                $query->where('id', $execution->prodOrderStep->work_station_id);
+            })
+            ->whereIn('role', [RoleType::PRODUCTION_MANAGER->value])
             ->get();
 
         $message = "<b>Execution created</b>\n\n";
-        $message .= TgMessageService::getExecutionMsg($poStepExecution);
+        $message .= TgMessageService::getExecutionMsg($execution);
 
         foreach ($users as $user) {
-            TelegramService::sendMessage($user->chat_id, $message, [
+            TelegramService::sendMessage($user, $message, [
                 'parse_mode' => 'HTML',
                 'reply_markup' => TelegramService::getInlineKeyboard([
-                    [['text' => 'Approve', 'callback_data' => "approveExecution:$poStepExecution->id"]]
+                    [
+                        ['text' => '❌ Decline', 'callback_data' => "declineExecution:$execution->id"],
+                        ['text' => '✅ Approve', 'callback_data' => "approveExecution:$execution->id"]
+                    ]
                 ]),
             ]);
         }
 
         TaskService::createTaskForRoles(
-            toUserRoles: $roles,
+            toUserRoles: [RoleType::PRODUCTION_MANAGER->value],
             relatedType: ProdOrderStepExecution::class,
-            relatedId: $poStepExecution->id,
+            relatedId: $execution->id,
             action: TaskAction::Approve,
             comment: 'Execution process. Need to approve',
         );

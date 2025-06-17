@@ -63,13 +63,15 @@ class CreateExecutionScene implements SceneHandlerInterface
     public function handleScene($params = []): void
     {
         if (!$this->handler->user->workStation->prodOrder) {
-            $this->tgBot->answerCbQuery(['text' => 'No production order assigned to your work station.']);
+            $this->handler->resetCache();
+            $this->tgBot->answerCbQuery(['text' => __('telegram.no_prodorder_assigned')]);
             return;
         }
 
         $step = $this->getStep();
         if ($step->status == ProdOrderStepStatus::Completed) {
-            $this->tgBot->answerCbQuery(['text' => 'Work is already completed.']);
+            $this->handler->resetCache();
+            $this->tgBot->answerCbQuery(['text' => __('telegram.work_already_completed')]);
             return;
         }
 
@@ -79,11 +81,11 @@ class CreateExecutionScene implements SceneHandlerInterface
         $this->tgBot->sendRequestAsync('editMessageText', [
             'chat_id' => $this->tgBot->chatId,
             'message_id' => $this->tgBot->getMessageId(),
-            'text' => $this->getExecutionPrompt('Choose the material to execute:'),
+            'text' => $this->getExecutionPrompt(__('telegram.choose_material_to_execute')),
             'parse_mode' => 'HTML',
             'reply_markup' => TelegramService::getInlineKeyboard(
                 array_merge($this->getMaterialsKb(), [
-                    [['text' => '🚫 Cancel', 'callback_data' => 'cancelExecution']]
+                    [['text' => __('telegram.cancel'), 'callback_data' => 'cancelExecution']]
                 ])
             )
         ]);
@@ -108,13 +110,13 @@ class CreateExecutionScene implements SceneHandlerInterface
                     'chat_id' => $this->tgBot->chatId,
                     'message_id' => $this->tgBot->getMessageId(),
                     'text' => $this->getExecutionPrompt(
-                        'Choose the material to execute:',
-                        '<i>❌ This material is already added.</i>'
+                        __('telegram.choose_material_to_execute'),
+                        '<i>❌ ' . __('telegram.material_already_added') . '</i>'
                     ),
                     'parse_mode' => 'HTML',
                     'reply_markup' => TelegramService::getInlineKeyboard(
                         array_merge($this->getMaterialsKb(), [
-                            [['text' => '🚫 Cancel', 'callback_data' => 'cancelExecution']]
+                            [['text' => __('telegram.cancel'), 'callback_data' => 'cancelExecution']]
                         ])
                     )
                 ]);
@@ -132,10 +134,10 @@ class CreateExecutionScene implements SceneHandlerInterface
         $this->tgBot->sendRequestAsync('editMessageText', [
             'chat_id' => $this->tgBot->chatId,
             'message_id' => $this->tgBot->getMessageId(),
-            'text' => $this->getExecutionPrompt("🔢 Enter quantity:"),
+            'text' => $this->getExecutionPrompt(__('telegram.enter_quantity')),
             'parse_mode' => 'HTML',
             'reply_markup' => TelegramService::getInlineKeyboard([
-                [['text' => '🚫 Cancel', 'callback_data' => 'cancelExecution']]
+                [['text' => __('telegram.cancel'), 'callback_data' => 'cancelExecution']]
             ])
         ]);
     }
@@ -147,10 +149,13 @@ class CreateExecutionScene implements SceneHandlerInterface
             $this->tgBot->sendRequestAsync('editMessageText', [
                 'chat_id' => $this->tgBot->chatId,
                 'message_id' => $this->handler->getCache('edit_msg_id'),
-                'text' => $this->getExecutionPrompt("🔢 Enter quantity:", '<i>❌ Invalid quantity.</i>'),
+                'text' => $this->getExecutionPrompt(
+                    __('telegram.enter_quantity'),
+                    "<i>" . __('telegram.invalid_quantity') . "</i>"
+                ),
                 'parse_mode' => 'HTML',
                 'reply_markup' => TelegramService::getInlineKeyboard([
-                    [['text' => '🚫 Cancel', 'callback_data' => 'cancelExecution']],
+                    [['text' => __('telegram.cancel'), 'callback_data' => 'cancelExecution']],
                 ]),
             ]);
             return;
@@ -172,13 +177,13 @@ class CreateExecutionScene implements SceneHandlerInterface
         $this->tgBot->sendRequestAsync('editMessageText', [
             'chat_id' => $this->tgBot->chatId,
             'message_id' => $this->handler->getCache('edit_msg_id'),
-            'text' => $this->getExecutionPrompt('✅ Material added! Choose next one or finish:'),
+            'text' => $this->getExecutionPrompt(__('telegram.material_added_next_or_finish')),
             'parse_mode' => 'HTML',
             'reply_markup' => TelegramService::getInlineKeyboard(
                 array_merge($this->getMaterialsKb(), [
                     [
-                        ['text' => '🚫 Cancel', 'callback_data' => 'cancelExecution'],
-                        ['text' => '✅ Finish Materials', 'callback_data' => 'finishMaterials']
+                        ['text' => __('telegram.cancel'), 'callback_data' => 'cancelExecution'],
+                        ['text' => __('telegram.finish_materials'), 'callback_data' => 'finishMaterials']
                     ]
                 ])
             )
@@ -192,10 +197,10 @@ class CreateExecutionScene implements SceneHandlerInterface
         $this->tgBot->sendRequestAsync('editMessageText', [
             'chat_id' => $this->tgBot->chatId,
             'message_id' => $this->tgBot->getMessageId(),
-            'text' => $this->getExecutionPrompt('Enter output quantity:'),
+            'text' => $this->getExecutionPrompt(__('telegram.enter_output_quantity')),
             'parse_mode' => 'HTML',
             'reply_markup' => TelegramService::getInlineKeyboard([
-                [['text' => '🚫 Cancel', 'callback_data' => 'cancelExecution']]
+                [['text' => __('telegram.cancel'), 'callback_data' => 'cancelExecution']]
             ])
         ]);
     }
@@ -206,10 +211,13 @@ class CreateExecutionScene implements SceneHandlerInterface
             $this->tgBot->sendRequestAsync('editMessageText', [
                 'chat_id' => $this->tgBot->chatId,
                 'message_id' => $this->handler->getCache('edit_msg_id'),
-                'text' => $this->getExecutionPrompt('Enter output quantity:', '<i>❌ Invalid quantity.</i>'),
+                'text' => $this->getExecutionPrompt(
+                    __('telegram.enter_output_quantity'),
+                    "<i>" . __('telegram.invalid_quantity') . "</i>"
+                ),
                 'parse_mode' => 'HTML',
                 'reply_markup' => TelegramService::getInlineKeyboard([
-                    [['text' => '🚫 Cancel', 'callback_data' => 'cancelExecution']],
+                    [['text' => __('telegram.cancel'), 'callback_data' => 'cancelExecution']],
                 ]),
             ]);
             return;
@@ -224,10 +232,10 @@ class CreateExecutionScene implements SceneHandlerInterface
         $this->tgBot->sendRequestAsync('editMessageText', [
             'chat_id' => $this->tgBot->chatId,
             'message_id' => $this->handler->getCache('edit_msg_id'),
-            'text' => $this->getExecutionPrompt('📄 Please enter any additional notes:'),
+            'text' => $this->getExecutionPrompt(__('telegram.input_additional_notes')),
             'parse_mode' => 'HTML',
             'reply_markup' => TelegramService::getInlineKeyboard([
-                [['text' => '🚫 Cancel', 'callback_data' => 'cancelExecution']],
+                [['text' => __('telegram.cancel'), 'callback_data' => 'cancelExecution']],
             ]),
         ]);
     }
@@ -244,12 +252,12 @@ class CreateExecutionScene implements SceneHandlerInterface
         $this->tgBot->sendRequestAsync('editMessageText', [
             'chat_id' => $this->tgBot->chatId,
             'message_id' => $this->handler->getCache('edit_msg_id'),
-            'text' => $this->getExecutionPrompt('✅ Execution form complete.'),
+            'text' => $this->getExecutionPrompt(__('telegram.execution_form_completed')),
             'parse_mode' => 'HTML',
             'reply_markup' => TelegramService::getInlineKeyboard([
                 [
-                    ['text' => '🚫 Cancel', 'callback_data' => 'cancelExecution'],
-                    ['text' => '✅ Save', 'callback_data' => 'saveExecution'],
+                    ['text' => __('telegram.cancel'), 'callback_data' => 'cancelExecution'],
+                    ['text' => __('telegram.save'), 'callback_data' => 'saveExecution'],
                 ]
             ]),
         ]);
@@ -263,7 +271,9 @@ class CreateExecutionScene implements SceneHandlerInterface
             dump($form);
             $execution = $this->prodOrderService->createExecutionByForm($this->getStep(), $form);
 
-            $message = "<b>✅ Execution saved successfully!</b>\n\n";
+            $this->tgBot->answerCbQuery(['text' => __('telegram.execution_saved_success')]);
+
+            $message = "<b>" . __('telegram.execution_saved_success') . "</b>\n\n";
             $message .= TgMessageService::getExecutionMsg($execution);
 
             $this->tgBot->sendRequestAsync('editMessageText', [
@@ -275,8 +285,6 @@ class CreateExecutionScene implements SceneHandlerInterface
 
             $this->cancelExecution(false);
 
-            $this->tgBot->answerCbQuery(['text' => '✅ Execution saved successfully!']);
-
             $this->handler->sendMainMenu();
         } catch (Throwable $e) {
             dump($e->getMessage(), $e->getLine(), $e->getFile());
@@ -287,8 +295,8 @@ class CreateExecutionScene implements SceneHandlerInterface
                 'parse_mode' => 'HTML',
                 'reply_markup' => TelegramService::getInlineKeyboard([
                     [
-                        ['text' => '🚫 Cancel', 'callback_data' => 'cancelExecution'],
-                        ['text' => '✅ Save again', 'callback_data' => 'saveExecution'],
+                        ['text' => __('telegram.cancel'), 'callback_data' => 'cancelExecution'],
+                        ['text' => __('telegram.save_again'), 'callback_data' => 'saveExecution'],
                     ]
                 ]),
             ]);
@@ -302,7 +310,7 @@ class CreateExecutionScene implements SceneHandlerInterface
         $this->handler->forgetCache('edit_msg_id');
 
         if ($withResponse) {
-            $this->tgBot->answerCbQuery(['text' => 'Operation cancelled.']);
+            $this->tgBot->answerCbQuery(['text' => __('telegram.operation_cancelled')]);
             $this->handler->sendMainMenu(true);
         }
     }
@@ -325,10 +333,10 @@ class CreateExecutionScene implements SceneHandlerInterface
         $outputQty = $form['output_quantity'] ?? 0;
         $notes = $form['notes'] ?? '-';
 
-        $result = "<b>Execution details</b>\n\n";
+        $result = "<b>" . __('telegram.execution_details') . "</b>\n\n";
 
         if (!empty($materials)) {
-            $result .= "<b>Used materials:</b>\n";
+            $result .= "<b>" . __('telegram.used_materials') . "</b>\n";
             foreach ($materials as $index => $materialItem) {
                 $index++;
                 /** @var Product $product */
@@ -337,9 +345,10 @@ class CreateExecutionScene implements SceneHandlerInterface
             }
             $result .= "\n";
         }
-        $result .= "Output product: <b>{$step->outputProduct->catName}</b>\n";
-        $result .= "Output quantity: <b>$outputQty {$step->outputProduct->getMeasureUnit()->getLabel()}</b>\n";
-        $result .= "Notes: <i>$notes</i>\n";
+
+        $result .= __('telegram.output_product') . ": <b>{$step->outputProduct->catName}</b>\n";
+        $result .= __('telegram.output_quantity') . ": <b>$outputQty {$step->outputProduct->getMeasureUnit()->getLabel()}</b>\n";
+        $result .= __('telegram.notes') . ": <i>$notes</i>\n";
 
         return $result;
     }

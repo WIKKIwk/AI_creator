@@ -45,7 +45,7 @@ class SupplyOrderNotification
         $message .= TgMessageService::getSupplyOrderMsg($supplyOrder);
 
         foreach ($supplyManagers as $supplyManager) {
-            TelegramService::sendMessage($supplyManager->chat_id, $message, [
+            TelegramService::sendMessage($supplyManager, $message, [
                 'parse_mode' => 'HTML',
                 'reply_markup' => TelegramService::getInlineKeyboard([
                     [['text' => 'Confirm order', 'callback_data' => "confirmSupplyOrder:$supplyOrder->id"]]

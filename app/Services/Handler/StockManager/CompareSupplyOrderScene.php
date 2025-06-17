@@ -87,7 +87,7 @@ class CompareSupplyOrderScene implements SceneHandlerInterface
         $this->tgBot->sendRequestAsync('editMessageText', [
             'chat_id' => $this->tgBot->chatId,
             'message_id' => $this->tgBot->getMessageId(),
-            'text' => $this->getCompareMsg(prompt: 'Input quantity for product:'),
+            'text' => $this->getCompareMsg(prompt: __('telegram.input_product_quantity')),
             'parse_mode' => 'HTML',
             'reply_markup' => $this->getInlineButtons(),
         ]);
@@ -99,8 +99,8 @@ class CompareSupplyOrderScene implements SceneHandlerInterface
         $currentProductId = $form['currentProduct'] ?? null;
 
         if (!is_numeric($quantity) || (int)$quantity <= 0) {
-            $message = "<i>❌ Invalid quantity input</i>\n\n";
-            $message .= $this->getCompareMsg(prompt: 'Input quantity for product:');
+            $message = "<i>" . __('invalid_quantity_format') ."</i>\n\n";
+            $message .= $this->getCompareMsg(prompt: __('telegram.input_product_quantity'));
 
             $this->tgBot->sendRequestAsync('editMessageText', [
                 'chat_id' => $this->tgBot->chatId,
@@ -119,7 +119,7 @@ class CompareSupplyOrderScene implements SceneHandlerInterface
         $this->tgBot->sendRequestAsync('editMessageText', [
             'chat_id' => $this->tgBot->chatId,
             'message_id' => $this->handler->getCache('edit_msg_id'),
-            'text' => $this->getCompareMsg(prompt: 'Select product for compare:'),
+            'text' => $this->getCompareMsg(prompt: __('telegram.select_product_for_compare')),
             'parse_mode' => 'HTML',
             'reply_markup' => $this->getInlineButtons(withSaveBtn: true),
         ]);
@@ -141,9 +141,9 @@ class CompareSupplyOrderScene implements SceneHandlerInterface
         }
         $this->supplyOrderService->compareProducts($supplyOrder, $formUpdated);
 
-        $this->tgBot->answerCbQuery(['text' => '✅ SupplyOrder compared successfully.']);
+        $this->tgBot->answerCbQuery(['text' => __('telegram.supplyorder_compared_success')]);
 
-        $message = "<b>✅ SupplyOrder compared</b>\n\n";
+        $message = "<b>" . __('telegram.supplyorder_compared_success') . "</b>\n\n";
         $message .= TgMessageService::getSupplyOrderMsg($supplyOrder);
 
         $this->tgBot->sendRequestAsync('editMessageText', [
@@ -156,12 +156,12 @@ class CompareSupplyOrderScene implements SceneHandlerInterface
 
     public function cancelCompare($supplyOrderId): void
     {
-        $this->tgBot->answerCbQuery(['text' => 'Operation cancelled.']);
+        $this->tgBot->answerCbQuery(['text' => __('telegram.operation_cancelled')]);
         $this->handler->resetCache();
         $this->handler->setCacheArray('compareSupplyForm', []);
 
         $supplyOrder = $this->getSupplyOrder($supplyOrderId);
-        $message = "<b>SupplyOrder waiting for StockManager approval</b>\n\n";
+        $message = "<b>" . __('telegram.supplyorder_waiting_approval') . "</b>\n\n";
         $message .= TgMessageService::getSupplyOrderMsg($supplyOrder);
 
         $this->tgBot->sendRequestAsync('editMessageText', [
@@ -170,7 +170,7 @@ class CompareSupplyOrderScene implements SceneHandlerInterface
             'text' => $message,
             'parse_mode' => 'HTML',
             'reply_markup' => TelegramService::getInlineKeyboard([
-                [['text' => 'Compare products', 'callback_data' => "compareSupplyOrder:$supplyOrder->id"]]
+                [['text' => __('telegram.compare_products'), 'callback_data' => "compareSupplyOrder:$supplyOrder->id"]]
             ]),
         ]);
     }
@@ -186,7 +186,7 @@ class CompareSupplyOrderScene implements SceneHandlerInterface
 
         $message = TgMessageService::getSupplyOrderMsg($supplyOrder, false);
 
-        $message .= "\nProducts:\n";
+        $message .= "\n" . __('telegram.products') . ":\n";
         foreach ($supplyOrder->products as $index => $productItem) {
             $actualQty = $formProducts[$productItem->product_id] ?? 0;
             if ($actualQty <= 0) {
@@ -230,13 +230,13 @@ class CompareSupplyOrderScene implements SceneHandlerInterface
         if ($withSaveBtn) {
             $submitButtons = [
                 [
-                    ['text' => '🚫 Cancel', 'callback_data' => "cancelCompare:$supplyOrder->id"],
-                    ['text' => '✅ Save', 'callback_data' => "saveCompare:$supplyOrder->id"]
+                    ['text' => __('telegram.cancel'), 'callback_data' => "cancelCompare:$supplyOrder->id"],
+                    ['text' => __('telegram.save'), 'callback_data' => "saveCompare:$supplyOrder->id"]
                 ]
             ];
         } else {
             $submitButtons = [
-                [['text' => '🚫 Cancel', 'callback_data' => "cancelCompare:$supplyOrder->id"]]
+                [['text' => __('telegram.cancel'), 'callback_data' => "cancelCompare:$supplyOrder->id"]]
             ];
         }
 

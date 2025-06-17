@@ -434,7 +434,10 @@ class ProdOrderService
         }
     }
 
-    public function approveExecutionProdManager(ProdOrderStepExecution $execution): void
+    /**
+     * @throws Exception
+     */
+    public function approveExecution(ProdOrderStepExecution $execution): void
     {
         $currentStep = $execution->prodOrderStep;
         /** @var ProdOrderStep $nextStep */
@@ -444,8 +447,7 @@ class ProdOrderService
 
         // If last step
         if (!$nextStep) {
-            $execution->approveProdManager();
-            $this->notifyExecutionSeniorPM($execution);
+            $this->approveExecutionLastStep($execution);
             return;
         }
 
@@ -453,7 +455,13 @@ class ProdOrderService
             throw new Exception('Execution is already approved by Production Manager');
         }
 
-        $execution->approveProdManager();
+        $execution->approve();
+        // Remove from current step's mini stock
+        $this->transactionService->removeMiniStock(
+            $currentStep->output_product_id,
+            $execution->output_quantity,
+            $currentStep->work_station_id
+        );
         // Add to next step's mini stock
         $this->transactionService->addMiniStock(
             $currentStep->output_product_id,
@@ -462,48 +470,15 @@ class ProdOrderService
         );
 
         $totalOutputQty = $currentStep->output_quantity + $execution->output_quantity;
-        if ($totalOutputQty >= $currentStep->expected_quantity) {
-            $currentStep->status = ProdOrderStepStatus::Completed;
-        } else {
-            $currentStep->status = ProdOrderStepStatus::InProgress;
-        }
+        $currentStep->status = $currentStep->getStatusByTotalQty($totalOutputQty);
         $currentStep->output_quantity = $totalOutputQty;
         $currentStep->save();
     }
 
-    public function notifyExecutionSeniorPM(ProdOrderStepExecution $execution): void
-    {
-        /** @var Collection<User> $seniorPMs */
-        $seniorPMs = User::query()
-            ->ownOrganization()
-            ->exceptMe()
-            ->whereIn('role', [RoleType::SENIOR_PRODUCTION_MANAGER])
-            ->get();
-
-        foreach ($seniorPMs as $seniorPM) {
-            $message = "<b>Execution approval</b>\n\n";
-            $message .= TgMessageService::getExecutionMsg($execution);
-
-            TelegramService::sendMessage($seniorPM->chat_id, $message, [
-                'parse_mode' => 'HTML',
-                'reply_markup' => TelegramService::getInlineKeyboard([
-                    [['text' => '✅ Approve', 'callback_data' => "approveExecution:$execution->id"]],
-                ]),
-            ]);
-        }
-    }
-
-    public function approveExecutionSeniorProdManager(ProdOrderStepExecution $execution): void
-    {
-        if (!$execution->approved_at_prod_senior_manager) {
-            $execution->update([
-                'approved_at_prod_senior_manager' => now(),
-                'approved_by_prod_senior_manager' => auth()->user()->id
-            ]);
-        }
-    }
-
-    public function declineExecutionProdManager(ProdOrderStepExecution $execution, string $comment): void
+    /**
+     * @throws Exception
+     */
+    public function approveExecutionLastStep(ProdOrderStepExecution $execution): void
     {
         if ($execution->approved_at) {
             throw new Exception('Execution is already approved');
@@ -511,13 +486,77 @@ class ProdOrderService
 
         /** @var User $user */
         $user = auth()->user();
-        $execution->update([
-            'declined_at' => now(),
-            'declined_by' => $user->id,
-            'decline_comment' => $comment,
-        ]);
+        $currentStep = $execution->prodOrderStep;
 
-        $declineTo = $execution->approvedByProdSeniorManager ?? $execution->approvedByProdManager ?? $execution->executedBy;
+        $execution->approve();
+
+        // Notify about approve next roles
+        $nextRole = $execution->getNextRole($user->role);
+        if ($nextRole) {
+            $usersToNotify = User::query()
+                ->ownOrganization()
+                ->exceptMe()
+                ->where('role', $nextRole)
+                ->get();
+
+            foreach ($usersToNotify as $userToNotify) {
+                $message = "<b>Execution approval</b>\n\n";
+                $message .= TgMessageService::getExecutionMsg($execution);
+
+                TelegramService::sendMessage($userToNotify, $message, [
+                    'parse_mode' => 'HTML',
+                    'reply_markup' => TelegramService::getInlineKeyboard([
+                        [
+                            ['text' => '❌ Decline', 'callback_data' => "declineExecution:$execution->id"],
+                            ['text' => '✅ Approve', 'callback_data' => "approveExecution:$execution->id"]
+                        ]
+                    ]),
+                ]);
+            }
+        }
+
+        if (!$execution->approved_at) {
+            return;
+        }
+
+        // Remove from current step's mini stock
+        $this->transactionService->removeMiniStock(
+            $currentStep->output_product_id,
+            $execution->output_quantity,
+            $currentStep->work_station_id
+        );
+        // Add final product to main stock
+        $this->transactionService->addStock(
+            $currentStep->output_product_id,
+            $execution->output_quantity,
+            $currentStep->prodOrder->getWarehouseId(),
+            workStationId: $currentStep->work_station_id
+        );
+
+        $totalOutputQty = $currentStep->output_quantity + $execution->output_quantity;
+        $currentStep->status = $currentStep->getStatusByTotalQty($totalOutputQty);
+        $currentStep->output_quantity = $totalOutputQty;
+        $currentStep->save();
+
+        // Update prod order status
+        $prodOrder = $execution->prodOrderStep->prodOrder;
+        if ($prodOrder->steps()->where('status', ProdOrderStepStatus::InProgress)->doesntExist()) {
+            $prodOrder->status = OrderStatus::Completed;
+            $prodOrder->save();
+        }
+    }
+
+    public function declineExecution(ProdOrderStepExecution $execution, string $comment): void
+    {
+        if ($execution->approved_at) {
+            throw new Exception('Execution is already approved');
+        }
+
+        /** @var User $user */
+        $user = auth()->user();
+        $execution->decline($comment);
+
+        $declineTo = $execution->getPrevApprovedUser($user->role);
         if ($declineTo) {
             $message = TgMessageService::getExecutionMsg($execution);
 
@@ -527,40 +566,13 @@ class ProdOrderService
             }
             $buttons[] = ['text' => '✅ Approve', 'callback_data' => "approveExecution:$execution->id"];
 
-            TelegramService::sendMessage($declineTo->chat_id, $message, [
+            TelegramService::sendMessage($declineTo, $message, [
                 'parse_mode' => 'HTML',
-                'reply_markup' => TelegramService::getInlineKeyboard([
-                    $buttons,
-                ]),
+                'reply_markup' => TelegramService::getInlineKeyboard([$buttons]),
             ]);
         }
     }
 
-    /**
-     * @throws Exception
-     */
-    public function approveExecutionStockManager(ProdOrderStepExecution $execution): void
-    {
-        if ($execution->approved_at) {
-            throw new Exception('Execution is already approved');
-        }
-
-        try {
-            DB::beginTransaction();
-
-            $this->outputMaterial($execution->prodOrderStep, $execution->output_quantity);
-
-            $execution->update([
-                'approved_at' => now(),
-                'approved_by' => auth()->user()->id
-            ]);
-
-            DB::commit();
-        } catch (Throwable $e) {
-            DB::rollBack();
-            throw new Exception($e->getMessage());
-        }
-    }
 
     /**
      * @throws Exception
@@ -578,46 +590,6 @@ class ProdOrderService
         ]);
 
         $this->transactionService->removeMiniStock($poMaterial->product_id, $usedQty, $poStep->work_station_id);
-    }
-
-    protected function outputMaterial(ProdOrderStep $currentStep, $outputQty): void
-    {
-        /** @var ProdOrderStep $nextStep */
-        $nextStep = $currentStep->prodOrder->steps()->where('sequence', '>', $currentStep->sequence)->first();
-
-        // Take from current step's mini stock
-        $this->transactionService->removeMiniStock(
-            $currentStep->output_product_id,
-            $outputQty,
-            $currentStep->work_station_id
-        );
-
-        if ($nextStep) {
-            // Add to next step's mini stock
-            $this->transactionService->addMiniStock(
-                $currentStep->output_product_id,
-                $outputQty,
-                $nextStep->work_station_id
-            );
-        } else {
-            // Add final product to main stock
-            $this->transactionService->addStock(
-                $currentStep->output_product_id,
-                $outputQty,
-                $currentStep->prodOrder->getWarehouseId(),
-                workStationId: $currentStep->work_station_id
-            );
-        }
-
-        $totalOutputQty = $currentStep->output_quantity + $outputQty;
-        if ($totalOutputQty >= $currentStep->expected_quantity) {
-            $currentStep->status = ProdOrderStepStatus::Completed;
-        } else {
-            $currentStep->status = ProdOrderStepStatus::InProgress;
-        }
-
-        $currentStep->output_quantity = $totalOutputQty;
-        $currentStep->save();
     }
 
     public function assignProdOrderToWorkStation(WorkStation $workStation, ?ProdOrder $prodOrder): void
@@ -638,10 +610,10 @@ class ProdOrderService
             $message .= TgMessageService::getProdOrderMsg($prodOrder);
 
             foreach ($workers as $worker) {
-                TelegramService::sendMessage($worker->chat_id, $message, [
+                TelegramService::sendMessage($worker, $message, [
                     'parse_mode' => 'HTML',
                     'reply_markup' => TelegramService::getInlineKeyboard([
-                        [['text' => '🛠 Add execution', 'callback_data' => 'createExecution']]
+                        [['text' => __('telegram.add_execution'), 'callback_data' => 'createExecution']]
                     ]),
                 ]);
             }
@@ -661,7 +633,7 @@ class ProdOrderService
         $message .= TgMessageService::getProdOrderMsg($prodOrder);
 
         foreach ($prodManagers as $prodManager) {
-            TelegramService::sendMessage($prodManager->chat_id, $message, ['parse_mode' => 'HTML']);
+            TelegramService::sendMessage($prodManager, $message, ['parse_mode' => 'HTML']);
         }
 
         TaskService::createTaskForRoles(

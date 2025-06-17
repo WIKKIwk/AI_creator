@@ -14,6 +14,7 @@ use App\Services\ProductService;
 use App\Services\TelegramService;
 use App\Services\TgBot\TgBot;
 use App\Services\TgMessageService;
+use Throwable;
 
 class CreateProdTemplateStepScene implements SceneHandlerInterface
 {
@@ -94,7 +95,7 @@ class CreateProdTemplateStepScene implements SceneHandlerInterface
     {
         $state = $this->handler->getState();
         $q = $query['query'] ?? '';
-        dump("Inline state: $state, query: $q");
+
         match ($state) {
             self::states['step_selectWorkstation'] => $this->answerInlineWorkstation($query['id'], $q),
             self::states['step_selectOutput'] => $this->answerInlineProduct($query['id'], $q, '/select_output '),
@@ -110,8 +111,8 @@ class CreateProdTemplateStepScene implements SceneHandlerInterface
 
     public function askWorkstation(): void
     {
-        $this->editForm('Select workstation:', [
-            [['text' => '🔍 Search station', 'switch_inline_query_current_chat' => '']],
+        $this->editForm(__('telegram.select_workstation'), [
+            [['text' => __('telegram.search_workstation'), 'switch_inline_query_current_chat' => '']],
         ]);
     }
 
@@ -132,9 +133,9 @@ class CreateProdTemplateStepScene implements SceneHandlerInterface
     public function askOutputProduct(): void
     {
         $this->handler->setState(self::states['step_selectOutput']);
-        $this->editForm('Select output product:', [
-            [['text' => '🔍 Search product', 'switch_inline_query_current_chat' => '']],
-            [['text' => 'Skip output', 'callback_data' => 'skipOutput']],
+        $this->editForm(__('telegram.select_output_product'), [
+            [['text' => __('telegram.search_product'), 'switch_inline_query_current_chat' => '']],
+            [['text' => __('telegram.skip_output'), 'callback_data' => 'skipOutput']],
         ]);
     }
 
@@ -162,7 +163,7 @@ class CreateProdTemplateStepScene implements SceneHandlerInterface
             $buttons[] = [['text' => $unit->getLabel(), 'callback_data' => "setUnit:$unit->value"]];
         }
 
-        $this->editForm('Input measure unit (e.g., kg, pcs):', $buttons);
+        $this->editForm(__('telegram.input_unit'), $buttons);
     }
 
     public function setUnit($unit): void
@@ -177,7 +178,7 @@ class CreateProdTemplateStepScene implements SceneHandlerInterface
     public function askExpectedQuantity(): void
     {
         $this->handler->setState(self::states['step_inputQuantity']);
-        $this->editForm('Expected output quantity:');
+        $this->editForm(__('telegram.expected_output_quantity'));
     }
 
     public function setExpectedQuantity($qty): void
@@ -192,8 +193,8 @@ class CreateProdTemplateStepScene implements SceneHandlerInterface
     public function askMaterial(): void
     {
         $this->handler->setState(self::states['step_addMaterial']);
-        $this->editForm('Select material to add:', [
-            [['text' => '🔍 Search material', 'switch_inline_query_current_chat' => '']],
+        $this->editForm(__('telegram.select_material'), [
+            [['text' => __('telegram.search_material'), 'switch_inline_query_current_chat' => '']],
         ]);
     }
 
@@ -209,7 +210,7 @@ class CreateProdTemplateStepScene implements SceneHandlerInterface
     public function askMaterialQuantity(): void
     {
         $this->handler->setState(self::states['step_inputMaterialQty']);
-        $this->editForm('Input quantity for selected material:');
+        $this->editForm(__('telegram.input_material_quantity'));
     }
 
     public function setMaterialQuantity($qty): void
@@ -232,12 +233,12 @@ class CreateProdTemplateStepScene implements SceneHandlerInterface
 
         $form = $this->handler->getCacheArray('prodTemplateStep');
 
-        $this->editForm('Confirm step options:', [
-            [['text' => ($form['is_last'] ?? false) ? '✅ Is Last' : '☐ Is Last', 'callback_data' => 'toggleIsLast']],
-            [['text' => '➕ Add material', 'callback_data' => 'addAnotherMaterial']],
+        $this->editForm(__('telegram.confirm_step_options'), [
+            [['text' => ($form['is_last'] ?? false) ? '✅ ' . __('telegram.is_last') : '☐ ' . __('telegram.is_last'), 'callback_data' => 'toggleIsLast']],
+            [['text' => __('telegram.add_material'), 'callback_data' => 'addAnotherMaterial']],
             [
-                ['text' => '🚫 Cancel', 'callback_data' => 'cancelStep'],
-                ['text' => '✅ Save', 'callback_data' => 'saveStep']
+                ['text' => __('telegram.cancel'), 'callback_data' => 'cancelStep'],
+                ['text' => __('telegram.save'), 'callback_data' => 'saveStep']
             ],
         ], true);
     }
@@ -262,9 +263,9 @@ class CreateProdTemplateStepScene implements SceneHandlerInterface
             $this->handler->forgetCache('prodTemplateStep');
             $this->handler->resetCache();
 
-            $this->tgBot->answerCbQuery(['text' => '✅ Step saved successfully.'], true);
+            $this->tgBot->answerCbQuery(['text' => __('telegram.step_saved')], true);
 
-            $message = "<b>✅ Step saved successfully.</b>\n\n";
+            $message = "<b>" . __('telegram.step_saved') . "</b>";
             $message .= TgMessageService::getProdTemplateMsg($prodTemplate);
 
             $this->tgBot->sendRequestAsync('editMessageText', [
@@ -273,23 +274,23 @@ class CreateProdTemplateStepScene implements SceneHandlerInterface
                 'text' => $message,
                 'parse_mode' => 'HTML',
                 'reply_markup' => TelegramService::getInlineKeyboard([
-                    [['text' => '➕ Create step', 'callback_data' => "createProdTemplateStep:$prodTemplate->id"]],
-                    [['text' => '🔙 Back', 'callback_data' => 'backMainMenu']],
+                    [['text' => __('telegram.create_step'), 'callback_data' => "createProdTemplateStep:$prodTemplate->id"]],
+                    [['text' => __('telegram.back'), 'callback_data' => 'backMainMenu']],
                 ]),
             ]);
 
-        } catch (\Throwable $th) {
+        } catch (Throwable $th) {
             $this->tgBot->sendRequestAsync('editMessageText', [
                 'chat_id' => $this->tgBot->chatId,
                 'message_id' => $this->tgBot->getMessageId(),
-                'text' => $this->getStepPrompt(error: "❌ Error saving step. {$th->getMessage()}"),
+                'text' => $this->getStepPrompt(error: __('telegram.error_occurred') . ": {$th->getMessage()}"),
                 'parse_mode' => 'HTML',
                 'reply_markup' => TelegramService::getInlineKeyboard([
-                    [['text' => ($form['is_last'] ?? false) ? '✅ Is Last' : '☐ Is Last', 'callback_data' => 'toggleIsLast']],
-                    [['text' => '➕ Add material', 'callback_data' => 'addAnotherMaterial']],
+                    [['text' => ($form['is_last'] ?? false) ? '✅ ' . __('telegram.is_last') : '☐ ' . __('telegram.is_last'), 'callback_data' => 'toggleIsLast']],
+                    [['text' => __('telegram.add_material'), 'callback_data' => 'addAnotherMaterial']],
                     [
-                        ['text' => '🚫 Cancel', 'callback_data' => 'cancelStep'],
-                        ['text' => '✅ Save again', 'callback_data' => 'saveStep']
+                        ['text' => __('telegram.cancel'), 'callback_data' => 'cancelStep'],
+                        ['text' => __('telegram.save_again'), 'callback_data' => 'saveStep']
                     ]
                 ]),
             ]);
@@ -299,11 +300,11 @@ class CreateProdTemplateStepScene implements SceneHandlerInterface
 
     public function cancelStep(): void
     {
-        $this->tgBot->answerCbQuery(['text' => '❌ Step cancelled.'], true);
+        $this->tgBot->answerCbQuery(['text' => __('telegram.step_cancelled')], true);
         $this->tgBot->sendRequestAsync('editMessageText', [
             'chat_id' => $this->tgBot->chatId,
             'message_id' => $this->tgBot->getMessageId(),
-            'text' => $this->getStepPrompt(error: "<i>❌ Step cancelled.</i>"),
+            'text' => $this->getStepPrompt(error: "<i>" . __('telegram.step_cancelled') . "</i>"),
             'parse_mode' => 'HTML',
         ]);
 
@@ -346,7 +347,7 @@ class CreateProdTemplateStepScene implements SceneHandlerInterface
             $buttons = $markup;
         } else {
             $buttons = array_merge($markup, [
-                [['text' => '🚫 Cancel', 'callback_data' => 'cancelStep']]
+                [['text' => __('telegram.cancel'), 'callback_data' => 'cancelStep']]
             ]);
         }
 
@@ -384,22 +385,23 @@ class CreateProdTemplateStepScene implements SceneHandlerInterface
 
         $expectedQuantity = $form['expected_quantity'] ?? '-';
 
-        $result = "<b>Step:</b>\n";
-        $result .= "Workstation: <b>$workStationName</b>\n";
-        $result .= "Output: <b>$outputProductName</b>\n";
-        $result .= "Unit: <b>$unitName</b>\n";
-        $result .= "Expected quantity: <b>$expectedQuantity</b>\n";
-        $result .= "Last step: " . (!empty($form['is_last']) ? '✅' : '❌') . "\n";
+        $result = "<b>" . __('telegram.step') . ":</b>\n";
+        $result .= __('telegram.workstation') . ": <b>$workStationName</b>\n";
+        $result .= __('telegram.output') . ": <b>$outputProductName</b>\n";
+        $result .= __('telegram.unit') . ": <b>$unitName</b>\n";
+        $result .= __('telegram.expected_quantity') . ": <b>$expectedQuantity</b>\n";
+        $result .= __('telegram.last_step') . ": " . (!empty($form['is_last']) ? '✅' : '❌') . "\n";
 
-        $result .= "\nMaterials:\n";
+        $result .= "\n" . __('telegram.materials') . ":\n";
         foreach ($form['materials'] ?? [] as $index => $material) {
             $index++;
 
             /** @var Product $product */
             $product = Product::query()->find($material['product_id'] ?? null);
             $productName = $product?->catName ?? '-';
+            $unitLabel = $product?->getMeasureUnit()?->getLabel() ?? '';
 
-            $result .= "$index) <b>$productName</b>: <b>{$material['required_quantity']} {$product->getMeasureUnit()->getLabel()}</b>\n";
+            $result .= "$index) <b>$productName</b>: <b>{$material['required_quantity']} $unitLabel</b>\n";
         }
 
         return $result;

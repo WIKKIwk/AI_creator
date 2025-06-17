@@ -36,7 +36,7 @@ class SelectExecutionScene implements SceneHandlerInterface
         $buttons = [];
         dump($execution->prodOrderStep->status, ProdOrderStepStatus::Completed);
         if ($execution->prodOrderStep->status != ProdOrderStepStatus::Completed) {
-            $buttons[] = [['text' => 'Approve', 'callback_data' => "approveExecution:$execution->id"]];
+            $buttons[] = [['text' => __('telegram.approve'), 'callback_data' => "approveExecution:$execution->id"]];
         }
 
         $this->tgBot->sendRequestAsync('editMessageText', [
@@ -46,7 +46,7 @@ class SelectExecutionScene implements SceneHandlerInterface
             'parse_mode' => 'HTML',
             'reply_markup' => TelegramService::getInlineKeyboard([
                 ...$buttons,
-                [['text' => '⬅️ Back', 'callback_data' => "cancelExecution:$execution->prod_order_step_id"]],
+                [['text' => __('telegram.back'), 'callback_data' => "cancelExecution:$execution->prod_order_step_id"]],
             ]),
         ]);
 

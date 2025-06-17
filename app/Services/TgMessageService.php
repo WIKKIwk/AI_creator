@@ -131,13 +131,21 @@ class TgMessageService
             }
         }
 
-        if ($execution->declined_at) {
-            if ($execution->declined_at) {
-                $message .= "<b>\n❌ Execution was declined</b>\n";
-            }
-            $message .= "Decline comment: <i>$execution->decline_comment</i>\n";
-            $message .= "Declined by: <i>{$execution->declinedBy->name}</i>\n";
-            $message .= "Declined at: <i>{$execution->declined_at?->format('d M Y H:i')}</i>\n";
+        $comments = $execution->getDeclineDetails();
+
+        $commentsAbove = $comments['above'] ?? null;
+        if ($commentsAbove) {
+            $message .= "\n<b>Decline details:</b>\n";
+            $message .= "Decline comment: <i>{$commentsAbove['comment']}</i>\n";
+            $message .= "Declined by: <i>{$commentsAbove['by']}</i>\n";
+            $message .= "Declined at: <i>{$commentsAbove['at']}</i>\n";
+        }
+
+        $commentsOwn = $comments['own'] ?? null;
+        if ($commentsOwn) {
+            $message .= "\nMy decline details:\n";
+            $message .= "Decline comment: <i>{$commentsOwn['comment']}</i>\n";
+            $message .= "Declined at: <i>{$commentsOwn['at']}</i>\n";
         }
 
         return $message;

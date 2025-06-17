@@ -156,9 +156,7 @@ class StepExecution extends Component implements HasForms, HasTable
             ->actions([
                 Action::make('approve')
                     ->hidden(function (ProdOrderStepExecution $record) {
-                        $approvedField = $record->getApprovedAtField();
-
-                        return $record->$approvedField || $this->step->status == ProdOrderStepStatus::Completed;
+                        return $record->approved_at_prod_manager || $this->step->status == ProdOrderStepStatus::Completed;
                     })
                     ->icon('heroicon-o-check')
                     ->requiresConfirmation()

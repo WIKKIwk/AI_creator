@@ -95,7 +95,7 @@ class BotCommand extends Command
         $chatId = $this->tgBot->getChatId();
         $text = $this->tgBot->getText();
         $user = User::findByChatId($chatId);
-        dump($chatId);
+        dump($chatId, $user?->id);
 
         $loginKey = "login_$chatId";
         if ($this->cache->has($loginKey)) {
@@ -110,16 +110,13 @@ class BotCommand extends Command
 
             $user?->update(['chat_id' => null]);
             $userByAuthCode->update(['chat_id' => $chatId]);
+//            $userByAuthCode->loadMissing(['organization', 'warehouse', 'workStation']);
 
-            Auth::login($userByAuthCode);
-            $userByAuthCode->loadMissing(['organization', 'warehouse', 'workStation']);
+            $user = $userByAuthCode;
 
-            $message = "<b>You logged in.</b>\n\n";
-            $message .= BaseHandler::getUserDetailsMsg($userByAuthCode);
-
-            $this->tgBot->answerMsg(['text' => $message, 'parse_mode' => 'HTML']);
             $this->cache->forget($loginKey);
-            return null;
+//            $this->cache->forget("$user->chat_id:scene");
+//            $this->cache->forget("$user->chat_id:state");
         }
 
         if ($text == '/login') {

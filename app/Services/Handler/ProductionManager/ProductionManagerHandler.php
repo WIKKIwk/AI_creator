@@ -111,12 +111,7 @@ HTML,
         try {
             /** @var ProdOrderService $poService */
             $poService = app(ProdOrderService::class);
-
-            if ($this->user->role == RoleType::SENIOR_PRODUCTION_MANAGER) {
-                $poService->approveExecutionSeniorProdManager($execution);
-            } else {
-                $poService->approveExecutionProdManager($execution);
-            }
+            $poService->approveExecution($execution);
 
             $message = "<b>✅ Execution approved!</b>\n\n";
             $message .= TgMessageService::getExecutionMsg($execution);
@@ -157,7 +152,7 @@ HTML,
             return;
         }
 
-        $message = "<b>ProdTemplate details:</b>\n\n";
+        $message = "<b>" . __('telegram.prodtemplate_details') . "</b>\n\n";
         $message .= TgMessageService::getProdTemplateMsg($prodTemplate);
 
         $messageId = $this->getCache('edit_msg_id');
@@ -169,8 +164,9 @@ HTML,
             'text' => $message,
             'parse_mode' => 'HTML',
             'reply_markup' => TelegramService::getInlineKeyboard([
-                [['text' => '➕ Create step', 'callback_data' => "createProdTemplateStep:$templateId"]],
-                [['text' => '🔙 Back', 'callback_data' => 'backMainMenu']],
+                [['text' => __('telegram.create_step'), 'callback_data' => "createProdTemplateStep:$templateId"]],
+                [['text' => __('telegram.back'), 'callback_data' => 'backMainMenu']],
+
             ]),
         ]);
     }
@@ -185,12 +181,12 @@ HTML,
         if (!$prodOrder) {
             $this->tgBot->sendRequestAsync('sendMessage', [
                 'chat_id' => $this->tgBot->chatId,
-                'text' => "❌ Order not found!",
+                'text' => __('telegram.order_not_found'),
             ]);
             return;
         }
 
-        $message = "<b>ProdOrder details:</b>\n\n";
+        $message = "<b>" . __('telegram.prodorder_details') . "</b>\n\n";
         $message .= TgMessageService::getProdOrderMsg($prodOrder);
 
         $messageId = $this->getCache('edit_msg_id');
@@ -211,28 +207,20 @@ HTML,
         /** @var ProdOrderStepExecution $execution */
         $execution = ProdOrderStepExecution::query()->findOrFail($executionId);
 
-        $message = "<b>Execution details:</b>\n\n";
+        $message = "<b>" . __('telegram.execution_details') . "</b>\n\n";
         $message .= TgMessageService::getExecutionMsg($execution);
-
-        dump($edit ? "Editing execution message" : "Sending execution message");
-        $messageId = $this->tgBot->getMessageId();
-
-        $buttons = [];
-        if (!$execution->isDeclined()) {
-            $buttons[] = ['text' => '❌ Decline', 'callback_data' => "declineExecution:$execution->id"];
-        }
-        if (!$execution->isApproved()) {
-            $buttons[] = ['text' => '✅ Approve', 'callback_data' => "approveExecution:$execution->id"];
-        }
 
         $this->tgBot->sendRequestAsync($edit ? 'editMessageText' : 'sendMessage', [
             'chat_id' => $this->tgBot->chatId,
-            'message_id' => $messageId,
+            'message_id' => $this->tgBot->getMessageId(),
             'text' => $message,
             'parse_mode' => 'HTML',
             'reply_markup' => TelegramService::getInlineKeyboard([
-                $buttons,
-                [['text' => '⬅️ Back', 'callback_data' => 'backMainMenu']]
+                [
+                    ['text' => __('telegram.decline'), 'callback_data' => "declineExecution:$execution->id"],
+                    ['text' => __('telegram.approve'), 'callback_data' => "approveExecution:$execution->id"]
+                ],
+                [['text' => __('telegram.back'), 'callback_data' => 'backMainMenu']]
             ]),
         ]);
     }
@@ -256,7 +244,7 @@ HTML,
             'text' => $inventoryMsg,
             'parse_mode' => 'HTML',
             'reply_markup' => TelegramService::getInlineKeyboard([
-                [['text' => '🔙 Back', 'callback_data' => 'backMainMenu']]
+                [['text' => __('telegram.back'), 'callback_data' => 'backMainMenu']]
             ]),
         ]);
     }
@@ -342,10 +330,10 @@ HTML,
     {
         $buttons = [];
         if (!$prodOrder->isConfirmed()) {
-            $buttons[] = [['text' => '✅ Confirm', 'callback_data' => "confirmProdOrder:$prodOrder->id"]];
+            $buttons[] = [['text' => __('telegram.confirm'), 'callback_data' => "confirmProdOrder:$prodOrder->id"]];
         }
         if (!$prodOrder->isStarted()) {
-            $buttons[] = [['text' => '📦 Start', 'callback_data' => "startProdOrder:$prodOrder->id"]];
+            $buttons[] = [['text' => __('telegram.start'), 'callback_data' => "startProdOrder:$prodOrder->id"]];
         }
 
         return $buttons;
@@ -355,20 +343,20 @@ HTML,
     {
         $wsButton = [];
         if ($this->user->role != RoleType::SENIOR_PRODUCTION_MANAGER) {
-            $wsButton[] = [['text' => '🛠 WorkStations', 'callback_data' => 'workStationsList']];
+            $wsButton[] = [['text' => __('telegram.workstations'), 'callback_data' => 'workStationsList']];
         }
 
         return TelegramService::getInlineKeyboard([
             [
-                ['text' => '🔍 ProdTemplates', 'switch_inline_query_current_chat' => 'prodTmp'],
-                ['text' => '➕ Create ProdTemplate', 'callback_data' => 'createProdTemplate'],
+                ['text' => __('telegram.prodtemplates'), 'switch_inline_query_current_chat' => 'prodTmp'],
+                ['text' => __('telegram.create_prodtemplate'), 'callback_data' => 'createProdTemplate'],
             ],
             [
-                ['text' => '🔍 ProdOrder', 'switch_inline_query_current_chat' => ''],
-                ['text' => '➕ Create ProdOrder', 'callback_data' => 'createProdOrder']
+                ['text' => __('telegram.prodorders'), 'switch_inline_query_current_chat' => ''],
+                ['text' => __('telegram.create_prodorder'), 'callback_data' => 'createProdOrder'],
             ],
-//            [['text' => '🔍 Approve executions', 'switch_inline_query_current_chat' => 'exec']],
-            [['text' => '📋 Inventory', 'callback_data' => 'inventoryList']],
+            // [['text' => '🔍 Approve executions', 'switch_inline_query_current_chat' => 'exec']],
+            [['text' => __('telegram.inventory'), 'callback_data' => 'inventoryList']],
             ...$wsButton
         ]);
     }

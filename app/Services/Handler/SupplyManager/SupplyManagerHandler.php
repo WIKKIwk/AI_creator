@@ -65,7 +65,7 @@ HTML,
         /** @var SupplyOrder $supplyOrder */
         $supplyOrder = SupplyOrder::query()->findOrFail($orderId);
 
-        $message = "<b>SupplyOrder details:</b>\n\n";
+        $message = "<b>" . __('supplyorder_details') . "</b>\n\n";
         $message .= TgMessageService::getSupplyOrderMsg($supplyOrder);
 
         $messageId = $this->getCache('edit_msg_id');
@@ -85,7 +85,7 @@ HTML,
         $this->tgBot->sendRequest('editMessageText', [
             'chat_id' => $this->tgBot->chatId,
             'message_id' => $this->getCache('edit_msg_id'),
-            'text' => "Change status for SupplyOrder #{$supplyOrder->number}",
+            'text' => __('telegram.change_status_for_so', ['number' => $supplyOrder->number]),
             'parse_mode' => 'HTML',
             'reply_markup' => TelegramService::getInlineKeyboard([
                 [['text' => 'Confirm', 'callback_data' => "confirmSupplyOrder:$supplyOrder->id"]],
@@ -98,19 +98,19 @@ HTML,
     {
         if (!$supplyOrder->supplier_id) {
             return [
-                [['text' => 'Select Supplier', 'callback_data' => "selectSupplier:$supplyOrder->id"]],
+                [['text' => __('telegram.select_supplier'), 'callback_data' => "selectSupplier:$supplyOrder->id"]],
             ];
         }
 
         $buttons = [];
         if (!$supplyOrder->isConfirmed()) {
-            $buttons[] = [['text' => '✅ Confirm', 'callback_data' => "confirmSupplyOrder:$supplyOrder->id"]];
+            $buttons[] = [['text' => __('telegram.confirm'), 'callback_data' => "confirmSupplyOrder:$supplyOrder->id"]];
         }
         if ($supplyOrder->isConfirmed() && !$supplyOrder->isClosed()) {
-            $buttons[] = [['text' => 'Change status', 'callback_data' => "changeSupplyOrderStatus:$supplyOrder->id"]];
+            $buttons[] = [['text' => __('telegram.change_status'), 'callback_data' => "changeSupplyOrderStatus:$supplyOrder->id"]];
         }
         if ($supplyOrder->isReadyForClose()) {
-            $buttons[] = [['text' => 'Close order', 'callback_data' => "closeSupplyOrder:$supplyOrder->id"]];
+            $buttons[] = [['text' => __('telegram.close_order'), 'callback_data' => "closeSupplyOrder:$supplyOrder->id"]];
         }
         return $buttons;
     }
@@ -146,8 +146,8 @@ HTML,
     public function getMainKb(): array
     {
         return TelegramService::getInlineKeyboard([
-            [['text' => '➕ Create SupplyOrder', 'callback_data' => 'createSupplyOrder']],
-            [['text' => '🔍 SupplyOrders', 'switch_inline_query_current_chat' => '']],
+            [['text' => __('telegram.create_supply_order'), 'callback_data' => 'createSupplyOrder']],
+            [['text' => __('telegram.search_supply_orders'), 'switch_inline_query_current_chat' => '']],
         ]);
     }
 }

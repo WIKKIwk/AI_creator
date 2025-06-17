@@ -2,16 +2,9 @@
 
 namespace App\Console\Commands;
 
-use App\Models\Inventory\InventoryItem;
-use App\Models\Inventory\InventoryTransaction;
-use App\Models\Inventory\MiniInventory;
-use App\Models\ProdOrder\ProdOrder;
-use App\Models\ProdOrder\ProdOrderGroup;
+use App\Events\StepExecutionCreated;
 use App\Models\ProdOrder\ProdOrderStepExecution;
-use App\Models\SupplyOrder\SupplyOrder;
-use App\Models\Task;
 use App\Models\User;
-use App\Models\WorkStation;
 use App\Services\ProdOrderService;
 use App\Services\TelegramService;
 use App\Services\TgMessageService;
@@ -25,7 +18,45 @@ class TestCommand extends Command
 
     public function handle(): void
     {
-        $this->executionByWorker();
+        /** @var User $me */
+        $me = User::query()->find(8);
+        Auth::login($me);
+
+        /** @var User $stockManager */
+        $stockManager = User::query()->find(14);
+
+        /** @var ProdOrderStepExecution $execution */
+        $execution = ProdOrderStepExecution::query()->find(44);
+
+        $message = TgMessageService::getExecutionMsg($execution);
+
+        TelegramService::sendMessage($stockManager, $message, [
+            'parse_mode' => 'HTML',
+            'reply_markup' => TelegramService::getInlineKeyboard([
+                [
+                    ['text' => '❌ Decline', 'callback_data' => "declineExecution:$execution->id"],
+                    ['text' => '✅ Approve', 'callback_data' => "approveExecution:$execution->id"]
+                ]
+            ]),
+        ]);
+
+//        $this->executionCreated();
+//        $this->executionByWorker();
+//        $this->executionByWorker();
+    }
+
+    protected function executionCreated(): void
+    {
+        /** @var User $me */
+        $me = User::query()->find(5);
+        Auth::login($me);
+
+        /** @var ProdOrderStepExecution $execution */
+        $execution = ProdOrderStepExecution::query()->find(41);
+
+        StepExecutionCreated::dispatch($execution);
+
+        $this->info('Success');
     }
 
     protected function executionByPM(): void
@@ -54,7 +85,7 @@ class TestCommand extends Command
         $message = "<b>Execution approved by Worker</b>\n\n";
         $message .= TgMessageService::getExecutionMsg($execution);
 
-        TelegramService::sendMessage($execution->declinedBy->chat_id, $message, [
+        TelegramService::sendMessage($execution->declinedBy, $message, [
             'parse_mode' => 'HTML',
             'reply_markup' => TelegramService::getInlineKeyboard([
                 [

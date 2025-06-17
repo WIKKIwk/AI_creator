@@ -65,11 +65,11 @@ class CreateProdTemplateScene implements SceneHandlerInterface
         $this->tgBot->sendRequestAsync('editMessageText', [
             'chat_id' => $this->tgBot->chatId,
             'message_id' => $this->tgBot->getMessageId(),
-            'text' => $this->getProdTemplatePrompt('Select product:'),
+            'text' => $this->getProdTemplatePrompt(__('telegram.select_product')),
             'parse_mode' => 'HTML',
             'reply_markup' => TelegramService::getInlineKeyboard([
-                [['text' => '🔍 Select product', 'switch_inline_query_current_chat' => '']],
-                [['text' => '🚫 Cancel', 'callback_data' => 'cancelProdTemplate']]
+                [['text' => __('telegram.select_product'), 'switch_inline_query_current_chat' => '']],
+                [['text' => __('telegram.cancel'), 'callback_data' => 'cancelProdTemplate']]
             ]),
         ]);
 
@@ -90,10 +90,10 @@ class CreateProdTemplateScene implements SceneHandlerInterface
         $this->tgBot->sendRequestAsync('editMessageText', [
             'chat_id' => $this->tgBot->chatId,
             'message_id' => $this->handler->getCache('edit_msg_id'),
-            'text' => $this->getProdTemplatePrompt('Input comment:'),
+            'text' => $this->getProdTemplatePrompt(__('telegram.input_comment')),
             'parse_mode' => 'HTML',
             'reply_markup' => TelegramService::getInlineKeyboard([
-                [['text' => '🚫 Cancel', 'callback_data' => 'cancelProdTemplate']]
+                [['text' => __('telegram.cancel'), 'callback_data' => 'cancelProdTemplate']]
             ]),
         ]);
     }
@@ -107,12 +107,12 @@ class CreateProdTemplateScene implements SceneHandlerInterface
         $this->tgBot->sendRequestAsync('editMessageText', [
             'chat_id' => $this->tgBot->chatId,
             'message_id' => $this->handler->getCache('edit_msg_id'),
-            'text' => $this->getProdTemplatePrompt('Input offer price for product:'),
+            'text' => $this->getProdTemplatePrompt(__('telegram.input_offer_price')),
             'parse_mode' => 'HTML',
             'reply_markup' => TelegramService::getInlineKeyboard([
                 [
-                    ['text' => '🚫 Cancel', 'callback_data' => 'cancelProdTemplate'],
-                    ['text' => '✅ Save', 'callback_data' => 'saveProdTemplate']
+                    ['text' => __('telegram.cancel'), 'callback_data' => 'cancelProdTemplate'],
+                    ['text' => __('telegram.save'), 'callback_data' => 'saveProdTemplate']
                 ]
             ]),
         ]);
@@ -126,7 +126,7 @@ class CreateProdTemplateScene implements SceneHandlerInterface
         try {
             $prodTmp = $this->prodOrderService->createTemplateByForm($form);
 
-            $message = "<b>✅ ProdTemplate saved</b>\n\n";
+            $message = "<b>" . __('telegram.prodtemplate_saved') . "</b>";
             $message .= TgMessageService::getProdTemplateMsg($prodTmp);
 
             $this->tgBot->sendRequestAsync('editMessageText', [
@@ -135,8 +135,8 @@ class CreateProdTemplateScene implements SceneHandlerInterface
                 'text' => $message,
                 'parse_mode' => 'HTML',
                 'reply_markup' => TelegramService::getInlineKeyboard([
-                    [['text' => '➕ Create step', 'callback_data' => "createProdTemplateStep:$prodTmp->id"]],
-                    [['text' => '🔙 Back', 'callback_data' => 'backMainMenu']],
+                    [['text' => __('telegram.create_step'), 'callback_data' => "createProdTemplateStep:$prodTmp->id"]],
+                    [['text' => __('telegram.back'), 'callback_data' => 'backMainMenu']],
                 ]),
             ]);
 
@@ -144,19 +144,19 @@ class CreateProdTemplateScene implements SceneHandlerInterface
             $this->handler->forgetCache('state');
             $this->handler->forgetCache('scene');
 
-            $this->tgBot->answerCbQuery(['text' => '✅ ProdTemplate saved successfully!'], true);
+            $this->tgBot->answerCbQuery(['text' => __('telegram.prodtemplate_saved')], true);
         } catch (Throwable $e) {
-            $this->tgBot->answerCbQuery(['text' => '❌ Error saving ProdTemplate!'], true);
+            $this->tgBot->answerCbQuery(['text' => __('telegram.error_occurred')], true);
 
             $this->tgBot->sendRequestAsync('editMessageText', [
                 'chat_id' => $this->tgBot->chatId,
                 'message_id' => $this->tgBot->getMessageId(),
-                'text' => $this->getProdTemplatePrompt('', "<i>❌ Error saving ProdTemplate: {$e->getMessage()}</i>"),
+                'text' => $this->getProdTemplatePrompt('', "<i>" . __('telegram.error_occurred') . ": {$e->getMessage()}</i>"),
                 'parse_mode' => 'HTML',
                 'reply_markup' => TelegramService::getInlineKeyboard([
                     [
-                        ['text' => '🚫 Cancel', 'callback_data' => 'cancelProdTemplate'],
-                        ['text' => '✅ Save again', 'callback_data' => 'saveProdTemplate']
+                        ['text' => __('telegram.cancel'), 'callback_data' => 'cancelProdTemplate'],
+                        ['text' => __('telegram.save_again'), 'callback_data' => 'saveProdTemplate']
                     ]
                 ]),
             ]);
@@ -169,7 +169,7 @@ class CreateProdTemplateScene implements SceneHandlerInterface
         $this->handler->resetCache();
 
         if ($withResponse) {
-            $this->tgBot->answerCbQuery(['text' => 'Operation cancelled.']);
+            $this->tgBot->answerCbQuery(['text' => __('telegram.operation_cancelled')]);
             $this->handler->sendMainMenu(true);
         }
     }
@@ -212,13 +212,13 @@ class CreateProdTemplateScene implements SceneHandlerInterface
         return strtr($this->handler::templates['prodTemplate'], [
             '{errorMsg}' => $errorMsg ?? '',
             '{details}' => $this->getProdTemplateDetails(),
-            '{prompt}' => $prompt,
+            '{prompt}' => $prompt
         ]);
     }
 
     protected function getProdTemplateDetails(): string
     {
-        $result = "<b>ProdTemplate details:</b>\n\n";
+        $result = "<b>" . __('telegram.prodtemplate_details') . "</b>\n\n";
 
         $form = $this->handler->getCacheArray('prodTemplateForm');
         dump($form);
@@ -228,8 +228,8 @@ class CreateProdTemplateScene implements SceneHandlerInterface
         $productName = $product?->catName ?? '-';
         $comment = $form['comment'] ?? '-';
 
-        $result .= "Product: <b>$productName</b>\n";
-        $result .= "Comment: <i>$comment</i>\n";
+        $result .= __('telegram.product') . ": <b>$productName</b>\n";
+        $result .= __('telegram.comment') . ": <i>$comment</i>\n";
 
         return $result;
     }

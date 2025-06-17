@@ -43,7 +43,7 @@ class ChangeStatusSupplyScene implements SceneHandlerInterface
         $supplyOrder = SupplyOrder::query()->findOrFail($supplyOrderId);
         if ($supplyOrder->status == SupplyOrderStatus::AwaitingWarehouseApproval->value) {
             $this->handler->resetCache();
-            $this->tgBot->answerCbQuery(['text' => '❌ Waiting for Warehouse approval.'], true);
+            $this->tgBot->answerCbQuery(['text' => __('telegram.waiting_for_warehouse_approval')], true);
             return;
         }
 
@@ -53,14 +53,14 @@ class ChangeStatusSupplyScene implements SceneHandlerInterface
 
         $this->handler->setCache('edit_msg_id', $this->tgBot->getMessageId());
 
-        $this->editForm('Select new <b>State</b> for this Supply Order:', [
+        $this->editForm(__('telegram.select_new_state_for_supply_order'), [
             ...collect([
                 SupplyOrderState::InProgress,
                 SupplyOrderState::Delivered,
             ])
                 ->map(fn($case) => [['text' => $case->name, 'callback_data' => "setState:$case->value"]])
                 ->toArray(),
-            [['text' => '🚫 Cancel', 'callback_data' => 'cancelMoveStatus']]
+            [['text' => __('telegram.cancel'), 'callback_data' => 'cancelMoveStatus']]
         ]);
     }
 
@@ -75,8 +75,8 @@ class ChangeStatusSupplyScene implements SceneHandlerInterface
     public function customStatus(): void
     {
         $this->handler->setState(self::states['await_custom_status']);
-        $this->editForm('✍️ Enter custom status text:', [
-            [['text' => '🚫 Cancel', 'callback_data' => 'cancelMoveStatus']]
+        $this->editForm(__('telegram.enter_custom_status_text'), [
+            [['text' => __('telegram.cancel'), 'callback_data' => 'cancelMoveStatus']]
         ]);
     }
 
@@ -97,12 +97,12 @@ class ChangeStatusSupplyScene implements SceneHandlerInterface
         }
 
         $this->handler->setState(self::states['select_status']);
-        $this->editForm('Select <b>Status</b> for state <b>' . $state?->getLabel() . '</b>:', [
+        $this->editForm(__('telegram.select_status_for_state', ['state' => $state?->getLabel()]), [
             ...collect($statuses)->map(fn($case) => [
                 ['text' => $case->getLabel(), 'callback_data' => "setStatus:$case->value"]
             ])->toArray(),
-            [['text' => '✏️ Custom status', 'callback_data' => 'customStatus']],
-            [['text' => '🚫 Cancel', 'callback_data' => 'cancelMoveStatus']]
+            [['text' => __('telegram.custom_status'), 'callback_data' => 'customStatus']],
+            [['text' => __('telegram.cancel'), 'callback_data' => 'cancelMoveStatus']]
         ]);
     }
 
@@ -115,12 +115,12 @@ class ChangeStatusSupplyScene implements SceneHandlerInterface
         $state = $form['selected_state'];
         $status = SupplyOrderStatus::tryFrom($status)?->getLabel() ?? $status;
 
-        $msg = "✅ Status selected.\n\n<b>State:</b> {$state}\n<b>Status:</b> {$status}";
+        $msg = __("telegram.status_selected", ['state' => $state, 'status' => $status]);
 
         $this->editForm($msg, [
             [
-                ['text' => '🚫 Cancel', 'callback_data' => 'cancelMoveStatus'],
-                ['text' => '✅ Save', 'callback_data' => 'saveFinalStatus']
+                ['text' => __('telegram.cancel'), 'callback_data' => 'cancelMoveStatus'],
+                ['text' => __('telegram.save'), 'callback_data' => 'saveFinalStatus']
             ],
         ]);
     }
@@ -137,9 +137,9 @@ class ChangeStatusSupplyScene implements SceneHandlerInterface
 
         $this->handler->resetCache();
 
-        $this->tgBot->answerCbQuery(['text' => '✅ Status updated successfully.'], true);
+        $this->tgBot->answerCbQuery(['text' => __('telegram.status_updated_success')], true);
 
-        $message = "<b>✅ Status updated successfully.</b>\n\n";
+        $message = "<b>" . __('telegram.status_updated_success') . "</b>\n\n";
         $message .= TgMessageService::getSupplyOrderMsg($supplyOrder);
 
         $this->tgBot->sendRequestAsync('editMessageText', [
@@ -154,11 +154,11 @@ class ChangeStatusSupplyScene implements SceneHandlerInterface
     public function cancelMoveStatus(): void
     {
         $this->handler->resetCache();
-        $this->tgBot->answerCbQuery(['text' => '❌ Status change canceled.'], true);
+        $this->tgBot->answerCbQuery(['text' => __('telegram.status_change_canceled')], true);
 
         $supplyOrder = $this->getSupplyOrder();
 
-        $message = "<b>✅ Status updated successfully.</b>\n\n";
+        $message = "<b>" . __('telegram.supplyorder_details') . "</b>\n\n";
         $message .= TgMessageService::getSupplyOrderMsg($supplyOrder);
 
         $this->tgBot->sendRequestAsync('editMessageText', [

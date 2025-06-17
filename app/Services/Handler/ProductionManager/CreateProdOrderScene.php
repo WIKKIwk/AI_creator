@@ -50,10 +50,10 @@ class CreateProdOrderScene implements SceneHandlerInterface
         $poGroup = $this->prodOrderService->getOrderGroupById($id);
         $poGroup->confirm();
 
-        $message = "<b>✅ Order confirmed!</b>\n\n";
+        $message = "<b>" . __('telegram.order_confirmed') . "</b>";
         $message .= TgMessageService::getProdOrderGroupMsg($poGroup);
 
-        $this->tgBot->answerCbQuery(['text' => '✅ Order confirmed!'], true);
+        $this->tgBot->answerCbQuery(['text' => __('telegram.order_confirmed')], true);
         $this->tgBot->sendRequestAsync('editMessageText', [
             'chat_id' => $this->tgBot->chatId,
             'message_id' => $this->tgBot->getMessageId(),
@@ -99,14 +99,14 @@ class CreateProdOrderScene implements SceneHandlerInterface
         $this->tgBot->sendRequestAsync('editMessageText', [
             'chat_id' => $this->tgBot->chatId,
             'message_id' => $this->tgBot->getMessageId(),
-            'text' => $this->getProdOrderPrompt('Select type of ProdOrder:'),
+            'text' => $this->getProdOrderPrompt(__('telegram.select_type')),
             'parse_mode' => 'HTML',
             'reply_markup' => TelegramService::getInlineKeyboard([
                 [
                     ['text' => 'By order', 'callback_data' => 'selectType:1'],
                     ['text' => 'By catalog', 'callback_data' => 'selectType:2']
                 ],
-                [['text' => '🚫 Cancel', 'callback_data' => 'cancelProdOrder']]
+                [['text' => __('telegram.cancel'), 'callback_data' => 'cancelProdOrder']]
             ]),
         ]);
 
@@ -131,11 +131,11 @@ class CreateProdOrderScene implements SceneHandlerInterface
         $this->tgBot->sendRequestAsync('editMessageText', [
             'chat_id' => $this->tgBot->chatId,
             'message_id' => $this->tgBot->getMessageId(),
-            'text' => $this->getProdOrderPrompt('Select warehouse for ProdOrder:'),
+            'text' => $this->getProdOrderPrompt(__('telegram.select_warehouse')),
             'parse_mode' => 'HTML',
             'reply_markup' => TelegramService::getInlineKeyboard([
                 ...$buttons,
-                [['text' => '🚫 Cancel', 'callback_data' => 'cancelProdOrder']],
+                [['text' => __('telegram.cancel'), 'callback_data' => 'cancelProdOrder']],
             ]),
         ]);
     }
@@ -154,7 +154,7 @@ class CreateProdOrderScene implements SceneHandlerInterface
         $type = $form['type'] ?? null;
         if ($type == 1) {
             $this->handler->setState(self::states['prodOrder_inputAgent']);
-            $prompt = 'Select agent for ProdOrder:';
+            $prompt = __('telegram.select_agent');
             $buttons = OrganizationPartner::query()
                 ->with('partner')
                 ->agent()
@@ -164,7 +164,7 @@ class CreateProdOrderScene implements SceneHandlerInterface
                 ])->toArray();
         } else {
             $this->handler->setState(self::states['prodOrder_inputDeadline']);
-            $prompt = 'Input deadline for ProdOrder (YYYY-MM-DD):';
+            $prompt = __('telegram.input_deadline');
         }
 
         $this->tgBot->sendRequestAsync('editMessageText', [
@@ -174,7 +174,7 @@ class CreateProdOrderScene implements SceneHandlerInterface
             'parse_mode' => 'HTML',
             'reply_markup' => TelegramService::getInlineKeyboard([
                 ...$buttons,
-                [['text' => '🚫 Cancel', 'callback_data' => 'cancelProdOrder']]
+                [['text' => __('telegram.cancel'), 'callback_data' => 'cancelProdOrder']]
             ]),
         ]);
     }
@@ -193,11 +193,11 @@ class CreateProdOrderScene implements SceneHandlerInterface
         $this->tgBot->sendRequestAsync('editMessageText', [
             'chat_id' => $this->tgBot->chatId,
             'message_id' => $this->tgBot->getMessageId(),
-            'text' => $this->getProdOrderPrompt('Select product:'),
+            'text' => $this->getProdOrderPrompt(__('telegram.select_product')),
             'parse_mode' => 'HTML',
             'reply_markup' => TelegramService::getInlineKeyboard([
-                [['text' => '🔍 Select Product', 'switch_inline_query_current_chat' => '']],
-                [['text' => '🚫 Cancel', 'callback_data' => 'cancelProdOrder']]
+                [['text' => __('telegram.select_product'), 'switch_inline_query_current_chat' => '']],
+                [['text' => __('telegram.cancel'), 'callback_data' => 'cancelProdOrder']]
             ]),
         ]);
     }
@@ -209,12 +209,12 @@ class CreateProdOrderScene implements SceneHandlerInterface
                 'chat_id' => $this->tgBot->chatId,
                 'message_id' => $this->handler->getCache('edit_msg_id'),
                 'text' => $this->getProdOrderPrompt(
-                    'Input deadline for ProdOrder (YYYY-MM-DD):',
-                    '<i>❌ Invalid date format.</i>'
+                    __('telegram.input_deadline'),
+                    "<i>" . __('telegram.invalid_date') . "</i>"
                 ),
                 'parse_mode' => 'HTML',
                 'reply_markup' => TelegramService::getInlineKeyboard([
-                    [['text' => '🚫 Cancel', 'callback_data' => 'cancelProdOrder']]
+                    [['text' => __('telegram.cancel'), 'callback_data' => 'cancelProdOrder']]
                 ]),
             ]);
             return;
@@ -231,11 +231,11 @@ class CreateProdOrderScene implements SceneHandlerInterface
         $this->tgBot->sendRequestAsync('editMessageText', [
             'chat_id' => $this->tgBot->chatId,
             'message_id' => $this->handler->getCache('edit_msg_id'),
-            'text' => $this->getProdOrderPrompt('Select product:'),
+            'text' => $this->getProdOrderPrompt(__('telegram.select_product')),
             'parse_mode' => 'HTML',
             'reply_markup' => TelegramService::getInlineKeyboard([
-                [['text' => '🔍 Search Product', 'switch_inline_query_current_chat' => '']],
-                [['text' => '🚫 Cancel', 'callback_data' => 'cancelProdOrder']]
+                [['text' => __('telegram.select_product'), 'switch_inline_query_current_chat' => '']],
+                [['text' => __('telegram.cancel'), 'callback_data' => 'cancelProdOrder']]
             ]),
         ]);
     }
@@ -257,11 +257,14 @@ class CreateProdOrderScene implements SceneHandlerInterface
                 $this->tgBot->sendRequestAsync('editMessageText', [
                     'chat_id' => $this->tgBot->chatId,
                     'message_id' => $this->tgBot->getMessageId(),
-                    'text' => $this->getProdOrderPrompt('Select product:', '<i>❌ Product already added.</i>'),
+                    'text' => $this->getProdOrderPrompt(
+                        __('telegram.select_product'),
+                        "<i>" . __('telegram.product_already_added') . "</i>"
+                    ),
                     'parse_mode' => 'HTML',
                     'reply_markup' => TelegramService::getInlineKeyboard([
-                        [['text' => '🔍 Search Product', 'switch_inline_query_current_chat' => '']],
-                        [['text' => '🚫 Cancel', 'callback_data' => 'cancelProdOrder']]
+                        [['text' => __('telegram.select_product'), 'switch_inline_query_current_chat' => '']],
+                        [['text' => __('telegram.cancel'), 'callback_data' => 'cancelProdOrder']]
                     ]),
                 ]);
                 return;
@@ -279,10 +282,10 @@ class CreateProdOrderScene implements SceneHandlerInterface
         $this->tgBot->sendRequestAsync('editMessageText', [
             'chat_id' => $this->tgBot->chatId,
             'message_id' => $this->handler->getCache('edit_msg_id'),
-            'text' => $this->getProdOrderPrompt('Input quantity for product:'),
+            'text' => $this->getProdOrderPrompt(__('telegram.input_product_quantity')),
             'parse_mode' => 'HTML',
             'reply_markup' => TelegramService::getInlineKeyboard([
-                [['text' => '🚫 Cancel', 'callback_data' => 'cancelProdOrder']]
+                [['text' => __('telegram.cancel'), 'callback_data' => 'cancelProdOrder']]
             ]),
         ]);
     }
@@ -295,10 +298,13 @@ class CreateProdOrderScene implements SceneHandlerInterface
             $this->tgBot->sendRequestAsync('editMessageText', [
                 'chat_id' => $this->tgBot->chatId,
                 'message_id' => $this->handler->getCache('edit_msg_id'),
-                'text' => $this->getProdOrderPrompt('Input quantity for product:', '<i>❌ Invalid quantity.</i>'),
+                'text' => $this->getProdOrderPrompt(
+                    __('telegram.input_product_quantity'),
+                    "<i>" . __('telegram.invalid_quantity') . "</i>"
+                ),
                 'parse_mode' => 'HTML',
                 'reply_markup' => TelegramService::getInlineKeyboard([
-                    [['text' => '🚫 Cancel', 'callback_data' => 'cancelProdOrder']]
+                    [['text' => __('telegram.cancel'), 'callback_data' => 'cancelProdOrder']]
                 ]),
             ]);
             return;
@@ -321,10 +327,10 @@ class CreateProdOrderScene implements SceneHandlerInterface
         $this->tgBot->sendRequestAsync('editMessageText', [
             'chat_id' => $this->tgBot->chatId,
             'message_id' => $this->handler->getCache('edit_msg_id'),
-            'text' => $this->getProdOrderPrompt('Input offer price for product:'),
+            'text' => $this->getProdOrderPrompt(__('telegram.input_offer_price')),
             'parse_mode' => 'HTML',
             'reply_markup' => TelegramService::getInlineKeyboard([
-                [['text' => '🚫 Cancel', 'callback_data' => 'cancelProdOrder']]
+                [['text' => __('telegram.cancel'), 'callback_data' => 'cancelProdOrder']]
             ]),
         ]);
     }
@@ -337,10 +343,13 @@ class CreateProdOrderScene implements SceneHandlerInterface
             $this->tgBot->sendRequestAsync('editMessageText', [
                 'chat_id' => $this->tgBot->chatId,
                 'message_id' => $this->handler->getCache('edit_msg_id'),
-                'text' => $this->getProdOrderPrompt('Input offer price for product:', '<i>❌ Invalid price.</i>'),
+                'text' => $this->getProdOrderPrompt(
+                    __('telegram.input_offer_price'),
+                    "<i>" . __('telegram.invalid_price') . "</i>"
+                ),
                 'parse_mode' => 'HTML',
                 'reply_markup' => TelegramService::getInlineKeyboard([
-                    [['text' => '🚫 Cancel', 'callback_data' => 'cancelProdOrder']]
+                    [['text' => __('telegram.cancel'), 'callback_data' => 'cancelProdOrder']]
                 ]),
             ]);
             return;
@@ -363,14 +372,14 @@ class CreateProdOrderScene implements SceneHandlerInterface
             'chat_id' => $this->tgBot->chatId,
             'message_id' => $this->handler->getCache('edit_msg_id'),
             'text' => $this->getProdOrderPrompt(
-                'Product added successfully! You can add more products or save ProdOrder.'
+                __('telegram.product_added')
             ),
             'parse_mode' => 'HTML',
             'reply_markup' => TelegramService::getInlineKeyboard([
-                [['text' => '🔍 Select Product', 'switch_inline_query_current_chat' => '']],
+                [['text' => __('telegram.select_product'), 'switch_inline_query_current_chat' => '']],
                 [
-                    ['text' => '🚫 Cancel', 'callback_data' => 'cancelProdOrder'],
-                    ['text' => '✅ Save', 'callback_data' => 'saveProdOrder']
+                    ['text' => __('telegram.cancel'), 'callback_data' => 'cancelProdOrder'],
+                    ['text' => __('telegram.save'), 'callback_data' => 'saveProdOrder']
                 ]
             ]),
         ]);
@@ -382,16 +391,16 @@ class CreateProdOrderScene implements SceneHandlerInterface
         dump($form);
 
         if (empty($form['products'])) {
-            $this->tgBot->answerCbQuery(['text' => '❌ No products added!'], true);
+            $this->tgBot->answerCbQuery(['text' => __('telegram.no_products_added_short')], true);
 
             $this->tgBot->sendRequestAsync('editMessageText', [
                 'chat_id' => $this->tgBot->chatId,
                 'message_id' => $this->tgBot->getMessageId(),
-                'text' => $this->getProdOrderPrompt('', '<i>❌ No products added to the ProdOrder.</i>'),
+                'text' => $this->getProdOrderPrompt('', "<i>" . __('telegram.no_products_added') . "</i>"),
                 'parse_mode' => 'HTML',
                 'reply_markup' => TelegramService::getInlineKeyboard([
-                    [['text' => '🔍 Select Product', 'switch_inline_query_current_chat' => '']],
-                    [['text' => '🚫 Cancel', 'callback_data' => 'cancelProdOrder']]
+                    [['text' => __('telegram.select_product'), 'switch_inline_query_current_chat' => '']],
+                    [['text' => __('telegram.cancel'), 'callback_data' => 'cancelProdOrder']]
                 ]),
             ]);
             return;
@@ -400,7 +409,7 @@ class CreateProdOrderScene implements SceneHandlerInterface
         try {
             $poGroup = $this->prodOrderService->createOrderByForm($form);
 
-            $message = "<b>✅ ProdOrder saved</b>\n\n";
+            $message = "<b>" . __('telegram.prodorder_saved') . "</b>\n\n";
             $message .= TgMessageService::getProdOrderGroupMsg($poGroup);
 
             $this->tgBot->sendRequestAsync('editMessageText', [
@@ -409,28 +418,28 @@ class CreateProdOrderScene implements SceneHandlerInterface
                 'text' => $message,
                 'parse_mode' => 'HTML',
                 'reply_markup' => TelegramService::getInlineKeyboard([
-                    [['text' => 'Confirm order', 'callback_data' => "confirmProdOrder:$poGroup->id"]]
+                    [['text' => __('telegram.confirm_order'), 'callback_data' => "confirmProdOrder:$poGroup->id"]]
                 ])
             ]);
 
             $this->cancelProdOrder(false);
 
-            $this->tgBot->answerCbQuery(['text' => '✅ ProdOrder saved successfully!'], true);
+            $this->tgBot->answerCbQuery(['text' => __('telegram.prodorder_saved_success')], true);
 
             $this->handler->sendMainMenu();
         } catch (Throwable $e) {
-            $this->tgBot->answerCbQuery(['text' => '❌ Error saving ProdOrder!'], true);
+            $this->tgBot->answerCbQuery(['text' => __('telegram.error_occurred')], true);
 
             $this->tgBot->sendRequestAsync('editMessageText', [
                 'chat_id' => $this->tgBot->chatId,
                 'message_id' => $this->tgBot->getMessageId(),
-                'text' => $this->getProdOrderPrompt('', "<i>❌ Error saving ProdOrder: {$e->getMessage()}</i>"),
+                'text' => $this->getProdOrderPrompt('', "<i>" . __('telegram.error_occurred') . ": {$e->getMessage()}</i>"),
                 'parse_mode' => 'HTML',
                 'reply_markup' => TelegramService::getInlineKeyboard([
-                    [['text' => '🔍 Select Product', 'switch_inline_query_current_chat' => '']],
+                    [['text' => __('telegram.select_product'), 'switch_inline_query_current_chat' => '']],
                     [
-                        ['text' => '🚫 Cancel', 'callback_data' => 'cancelProdOrder'],
-                        ['text' => '✅ Save again', 'callback_data' => 'saveProdOrder']
+                        ['text' => __('telegram.cancel'), 'callback_data' => 'cancelProdOrder'],
+                        ['text' => __('telegram.save_again'), 'callback_data' => 'saveProdOrder']
                     ]
                 ]),
             ]);
@@ -443,7 +452,7 @@ class CreateProdOrderScene implements SceneHandlerInterface
         $this->handler->resetCache();
 
         if ($withResponse) {
-            $this->tgBot->answerCbQuery(['text' => 'Operation cancelled.']);
+            $this->tgBot->answerCbQuery(['text' => __('telegram.operation_cancelled')]);
             $this->handler->sendMainMenu(true);
         }
     }
@@ -492,7 +501,7 @@ class CreateProdOrderScene implements SceneHandlerInterface
 
     protected function getProdOrderDetails(): string
     {
-        $result = "<b>ProdOrder details:</b>\n\n";
+        $result = "<b>" . __('telegram.prodorder_details') . "</b>\n\n";
 
         $form = $this->handler->getCacheArray('prodOrderForm');
 
@@ -511,20 +520,20 @@ class CreateProdOrderScene implements SceneHandlerInterface
 
         $products = $form['products'] ?? [];
 
-        $result .= "Type: <b>$typeName</b>\n";
-        $result .= "Warehouse: <b>$warehouseName</b>\n";
+        $result .= __('telegram.type') . ": <b>$typeName</b>\n";
+        $result .= __('telegram.warehouse') . ": <b>$warehouseName</b>\n";
         if ($agentName) {
-            $result .= "Agent: <b>$agentName</b>\n";
+            $result .= __('telegram.agent') . ": <b>$agentName</b>\n";
         }
         if ($deadline) {
-            $result .= "Deadline: <b>$deadline</b>\n";
+            $result .= __('telegram.deadline') . ": <b>$deadline</b>\n";
         }
 
-        $result .= "\n<b>Products List:</b>\n";
+        $result .= "\n<b>" . __('telegram.products_list') . ":</b>\n";
         if (!empty($products)) {
             foreach ($products as $index => $productItem) {
                 $index++;
-                // fill product name, quantity, and offer price
+
                 /** @var Product $product */
                 $product = Product::query()->find($productItem['product_id']);
                 if (!$product) {
@@ -536,8 +545,8 @@ class CreateProdOrderScene implements SceneHandlerInterface
                 $offerPrice = $productItem['offer_price'] ?? '-';
 
                 $result .= "$index) <b>$productName</b>\n";
-                $result .= "Quantity: <b>$quantity {$product?->getMeasureUnit()->getLabel()}</b>\n";
-                $result .= "Offer Price: <b>$offerPrice</b>\n\n";
+                $result .= __('telegram.quantity') . ": <b>$quantity {$product?->getMeasureUnit()->getLabel()}</b>\n";
+                $result .= __('telegram.offer_price') . ": <b>$offerPrice</b>\n\n";
             }
         }
 

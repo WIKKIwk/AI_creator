@@ -15,19 +15,6 @@ class WorkerHandler extends BaseHandler
     ];
 
     public const templates = [
-        'createExecution' => <<<HTML
-Current production order: <b>{prodOrder}</b>
-Production product: <b>{product}</b>
-Progress: <b>{progress}</b>
-
-Expected output product: <b>{expectedMaterial}</b>
-Produced output product: <b>{producedMaterial}</b>
-
-Using materials:
-{usingMaterials}
-Choose the material to execute:
-HTML,
-
         'createExecutionForm' => <<<HTML
 {errorMsg}
 
@@ -42,16 +29,16 @@ HTML,
         /** @var ProdOrderStepExecution $execution */
         $execution = ProdOrderStepExecution::query()->findOrFail($executionId);
 
-        if ($execution->declinedBy) {
-            $message = "<b>Execution approved by {$this->user->name}</b>\n\n";
+        if ($execution->declinedByProdManager) {
+            $message = "<b>" . __('telegram.execution_approved_by', ['name' => $this->user->name]) . "</b>\n\n";
             $message .= TgMessageService::getExecutionMsg($execution);
 
-            TelegramService::sendMessage($execution->declinedBy->chat_id, $message, [
+            TelegramService::sendMessage($execution->declinedByProdManager, $message, [
                 'parse_mode' => 'HTML',
                 'reply_markup' => TelegramService::getInlineKeyboard([
                     [
-                        ['text' => '❌ Decline', 'callback_data' => "declineExecution:$execution->id"],
-                        ['text' => '✅ Approve', 'callback_data' => "approveExecution:$execution->id"]
+                        ['text' => __('telegram.decline'), 'callback_data' => "declineExecution:$execution->id"],
+                        ['text' => __('telegram.approve'), 'callback_data' => "approveExecution:$execution->id"],
                     ]
                 ])
             ]);
@@ -59,7 +46,7 @@ HTML,
             $this->tgBot->sendRequestAsync('editMessageText', [
                 'chat_id' => $this->tgBot->chatId,
                 'message_id' => $this->tgBot->getMessageId(),
-                'text' => "<b>Execution approved</b>\n\n" . TgMessageService::getExecutionMsg($execution),
+                'text' => "<b>" . __('telegram.execution_approved') . "</b>\n\n" . TgMessageService::getExecutionMsg($execution),
                 'parse_mode' => 'HTML',
             ]);
         }
@@ -68,17 +55,17 @@ HTML,
     public function validateUser(User $user): bool
     {
         if (!$user->work_station_id) {
-            $this->tgBot->answerMsg(['text' => "You're not assigned to any WorkStation. Please contact your manager."]);
+            $this->tgBot->answerMsg(['text' => __('telegram.not_assigned_to_workstation')]);
             return false;
         }
 
         return true;
     }
 
-    protected function getMainKb(): array
+    public function getMainKb(): array
     {
         return TelegramService::getInlineKeyboard([
-            [['text' => '🛠 Add execution', 'callback_data' => 'createExecution']]
+            [['text' => __('telegram.add_execution'), 'callback_data' => 'createExecution']]
         ]);
     }
 }

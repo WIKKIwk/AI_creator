@@ -200,11 +200,7 @@ class BaseHandler implements HandlerInterface
 
         $params = [
             'chat_id' => $this->tgBot->chatId,
-            'text' => <<<HTML
-<b>Your details:</b>
-
-$msg
-HTML,
+            'text' => "<b>" . __('telegram.your_details') . "</b>\n\n" . $msg,
             'reply_markup' => $this->getMainKb(),
             'parse_mode' => 'HTML',
         ];
@@ -221,16 +217,16 @@ HTML,
     {
         $message = '';
         if ($user->organization) {
-            $message .= "Organization: <b>{$user->organization->name}</b>\n";
+            $message .= __('telegram.organization') . ": <b>{$user->organization->name}</b>\n";
         }
-        $message .= "Name: <b>{$user->name}</b>\n";
-        $message .= "Email: <b>{$user->email}</b>\n";
-        $message .= "Role: <b>{$user->role->getLabel()}</b>\n";
+        $message .= __('telegram.name') . ": <b>{$user->name}</b>\n";
+        $message .= __('telegram.email') . ": <b>{$user->email}</b>\n";
+        $message .= __('telegram.role') . ": <b>{$user->role->getLabel()}</b>\n";
         if ($user->warehouse) {
-            $message .= "Warehouse: <b>{$user->warehouse->name}</b>\n";
+            $message .= __('telegram.warehouse') . ": <b>{$user->warehouse->name}</b>\n";
         }
         if ($user->workStation) {
-            $message .= "Work station: <b>{$user->workStation->name}</b>\n";
+            $message .= __('telegram.workstation') . ": <b>{$user->workStation->name}</b>\n";
         }
 
         return $message;

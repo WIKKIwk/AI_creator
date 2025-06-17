@@ -40,8 +40,8 @@ class StartProdOrderScene implements SceneHandlerInterface
         try {
             $insufficientAssets = $this->prodOrderService->checkStart($prodOrder);
             if (!empty($insufficientAssets)) {
-                $this->tgBot->answerCbQuery(['text' => '⚠️ Insufficient assets!']);
-                $message = "<i>⚠️ Insufficient assets:</i>\n\n";
+                $this->tgBot->answerCbQuery(['text' => __('telegram.insufficient_assets')]);
+                $message = "<i>" . __('telegram.insufficient_assets') . ":</i>\n\n";
 
                 foreach ($insufficientAssets as $missingAssets) {
                     foreach ($missingAssets as $item) {
@@ -54,7 +54,7 @@ class StartProdOrderScene implements SceneHandlerInterface
                     }
                 }
 
-                $message .= "\n<b>Would you like to create Supply Orders for these assets?</b>";
+                $message .= "\n<b>" . __('telegram.create_supply_orders_question') . "</b>";
 
                 $this->tgBot->sendRequestAsync('editMessageText', [
                     'chat_id' => $this->tgBot->chatId,
@@ -63,8 +63,8 @@ class StartProdOrderScene implements SceneHandlerInterface
                     'parse_mode' => 'HTML',
                     'reply_markup' => TelegramService::getInlineKeyboard([
                         [
-                            ['text' => '⬅️ Back', 'callback_data' => "cancelStartOrder:$prodOrder->id"],
-                            ['text' => '✅ Confirm', 'callback_data' => "confirmSupplyOrderPO:$prodOrder->id"]
+                            ['text' => __('telegram.back'), 'callback_data' => "cancelStartOrder:$prodOrder->id"],
+                            ['text' => __('telegram.confirm'), 'callback_data' => "confirmSupplyOrderPO:$prodOrder->id"]
                         ],
                     ]),
                 ]);
@@ -73,9 +73,9 @@ class StartProdOrderScene implements SceneHandlerInterface
 
 
             $this->prodOrderService->start($prodOrder);
-            $this->tgBot->answerCbQuery(['text' => '✅ ProdOrder started successfully!']);
+            $this->tgBot->answerCbQuery(['text' => __('telegram.prodorder_started')]);
 
-            $message = "<b>✅ ProdOrder started successfully!</b>\n\n";
+            $message = "<b>" . __('telegram.prodorder_started') . "</b>\n\n";
             $message .= TgMessageService::getProdOrderMsg($prodOrder);
 
             $this->tgBot->sendRequestAsync('editMessageText', [
@@ -86,9 +86,9 @@ class StartProdOrderScene implements SceneHandlerInterface
                 'reply_markup' => TelegramService::getInlineKeyboard($this->handler->getProdOrderButtons($prodOrder)),
             ]);
         } catch (\Throwable $e) {
-            $this->tgBot->answerCbQuery(['text' => '❌ Error starting ProdOrder!']);
+            $this->tgBot->answerCbQuery(['text' => __('telegram.error_occurred')]);
 
-            $message = "<i>❌ Error starting ProdOrder: {$e->getMessage()}</i>\n\n";
+            $message = "<i>" . __('telegram.error_occurred') . ": {$e->getMessage()}</i>\n\n";
             $message .= TgMessageService::getProdOrderMsg($prodOrder);
 
             $this->tgBot->sendRequestAsync('editMessageText', [
@@ -107,9 +107,9 @@ class StartProdOrderScene implements SceneHandlerInterface
 
         $this->prodOrderService->start($prodOrder);
 
-        $this->tgBot->answerCbQuery(['text' => '✅ Supply Orders created successfully!']);
+        $this->tgBot->answerCbQuery(['text' => __('telegram.supply_orders_created')]);
 
-        $message = "<b>✅ Supply Orders created successfully!</b>\n\n";
+        $message = "<b>" . __('telegram.supply_orders_created') . "</b>\n\n";
         $message .= TgMessageService::getProdOrderMsg($prodOrder);
 
         $this->tgBot->sendRequestAsync('editMessageText', [

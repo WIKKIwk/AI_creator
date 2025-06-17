@@ -172,11 +172,11 @@ class SupplyOrderService
             ->whereIn('role', [RoleType::STOCK_MANAGER, RoleType::SENIOR_STOCK_MANAGER])
             ->get();
 
-        $message = "<b>SupplyOrder waiting for StockManager approval</b>\n\n";
+        $message = "<b>" . __('telegram.supplyorder_waiting_approval') . "</b>\n\n";
         $message .= TgMessageService::getSupplyOrderMsg($supplyOrder, false);
 
         foreach ($stockManagers as $stockManager) {
-            TelegramService::sendMessage($stockManager->chat_id, $message, [
+            TelegramService::sendMessage($stockManager, $message, [
                 'parse_mode' => 'HTML',
                 'reply_markup' => TelegramService::getInlineKeyboard([
                     [['text' => 'Compare products', 'callback_data' => "compareSupplyOrder:$supplyOrder->id"]]
@@ -207,7 +207,7 @@ class SupplyOrderService
         $message .= "\nThere are some differences in quantities.";
 
         foreach ($supplyManagers as $supplyManager) {
-            TelegramService::sendMessage($supplyManager->chat_id, $message, [
+            TelegramService::sendMessage($supplyManager, $message, [
                 'parse_mode' => 'HTML',
                 'reply_markup' => TelegramService::getInlineKeyboard([
                     [['text' => 'Close order', 'callback_data' => "closeSupplyOrder:$supplyOrder->id"]]
@@ -237,7 +237,7 @@ class SupplyOrderService
         $message .= TgMessageService::getSupplyOrderMsg($supplyOrder);
 
         foreach ($supplyManagers as $supplyManager) {
-            TelegramService::sendMessage($supplyManager->chat_id, $message, ['parse_mode' => 'HTML']);
+            TelegramService::sendMessage($supplyManager, $message, ['parse_mode' => 'HTML']);
         }
 
         TaskService::createTaskForRoles(

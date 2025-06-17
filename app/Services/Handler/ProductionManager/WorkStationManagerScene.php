@@ -37,11 +37,11 @@ class WorkStationManagerScene implements SceneHandlerInterface
         $this->tgBot->sendRequestAsync('editMessageText', [
             'chat_id' => $this->tgBot->chatId,
             'message_id' => $this->tgBot->getMessageId(),
-            'text' => "🔧 Work Stations List\n\n",
+            'text' => __('telegram.workstations_list'),
             'parse_mode' => 'HTML',
             'reply_markup' => TelegramService::getInlineKeyboard(
                 array_merge($buttons, [
-                    [['text' => '🔙 Back', 'callback_data' => 'backMainMenu']]
+                    [['text' => __('telegram.back'), 'callback_data' => 'backMainMenu']]
                 ])
             ),
         ]);
@@ -59,8 +59,8 @@ class WorkStationManagerScene implements SceneHandlerInterface
             'text' => $title . $this->getWsMsg(),
             'parse_mode' => 'HTML',
             'reply_markup' => TelegramService::getInlineKeyboard([
-                [['text' => '📝 Assign ProdOrder', 'callback_data' => 'assignProdOrders:' . $ws->id]],
-                [['text' => '🔙 Back', 'callback_data' => 'backWsMenu']]
+                [['text' => __('telegram.assign_prodorder'), 'callback_data' => 'assignProdOrders:' . $ws->id]],
+                [['text' => __('telegram.back'), 'callback_data' => 'backWsMenu']],
             ]),
         ]);
     }
@@ -78,7 +78,7 @@ class WorkStationManagerScene implements SceneHandlerInterface
             ->get();
 
         $buttons = [
-            [['text' => 'No PO', 'callback_data' => 'assignProdOrder:0']]
+            [['text' => __('telegram.no_po'), 'callback_data' => 'assignProdOrder:0']]
         ];
         foreach ($orders as $order) {
             $buttons[] = [['text' => $order->number, 'callback_data' => 'assignProdOrder:' . $order->id]];
@@ -87,11 +87,11 @@ class WorkStationManagerScene implements SceneHandlerInterface
         $this->tgBot->sendRequestAsync('editMessageText', [
             'chat_id' => $this->tgBot->chatId,
             'message_id' => $this->tgBot->getMessageId(),
-            'text' => $this->getWsMsg('Select prod order'),
+            'text' => $this->getWsMsg(__('telegram.select_prodorder')),
             'parse_mode' => 'HTML',
             'reply_markup' => TelegramService::getInlineKeyboard(
                 array_merge($buttons, [
-                    [['text' => '🔙 Back', 'callback_data' => "backWsShowMenu:$wsId"]]
+                    [['text' => __('telegram.back'), 'callback_data' => "backWsShowMenu:$wsId"]]
                 ])
             ),
         ]);
@@ -105,7 +105,7 @@ class WorkStationManagerScene implements SceneHandlerInterface
         $prodOrder = ProdOrder::query()->findOrFail($orderId);
         $this->prodOrderService->assignProdOrderToWorkStation($ws, $prodOrder);
 
-        $this->showWorkStation($ws->id, '<b>✅ Assigned successfully</b>');
+        $this->showWorkStation($ws->id, '<b>' . __('telegram.assigned_success') . '</b>');
     }
 
     public function backWsMenu(): void

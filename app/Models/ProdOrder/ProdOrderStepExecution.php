@@ -20,16 +20,21 @@ use Illuminate\Support\Carbon;
  *
  * @property Carbon $approved_at_prod_manager
  * @property int $approved_by_prod_manager
- * @property string $decline_comment
+ * @property Carbon $declined_at_prod_manager
+ * @property int $declined_by_prod_manager
+ * @property string $decline_comment_prod_manager
  *
  * @property Carbon $approved_at_prod_senior_manager
  * @property int $approved_by_prod_senior_manager
+ * @property Carbon $declined_at_senior_prod_manager
+ * @property int $declined_by_senior_prod_manager
+ * @property string $decline_comment_senior_prod_manager
  *
  * @property Carbon $approved_at
  * @property int $approved_by
- *
  * @property Carbon $declined_at
  * @property int $declined_by
+ * @property string $decline_comment
  *
  * @property Carbon $created_at
  * @property Carbon $updated_at
@@ -39,6 +44,8 @@ use Illuminate\Support\Carbon;
  * @property User $approvedByProdManager
  * @property User $approvedByProdSeniorManager
  * @property User $approvedBy
+ * @property User $declinedByProdManager
+ * @property User $declinedByProdSeniorManager
  * @property User $declinedBy
  * @property Collection<ProdOrderStepExecutionProduct> $materials
  */
@@ -52,6 +59,8 @@ class ProdOrderStepExecution extends Model
         'approved_at_prod_manager' => 'datetime',
         'approved_at_prod_senior_manager' => 'datetime',
         'approved_at' => 'datetime',
+        'declined_at_prod_manager' => 'datetime',
+        'declined_at_senior_prod_manager' => 'datetime',
         'declined_at' => 'datetime',
         'created_at' => 'datetime',
         'updated_at' => 'datetime',
@@ -62,24 +71,6 @@ class ProdOrderStepExecution extends Model
         static::creating(function (ProdOrderStepExecution $execution) {
             $execution->executed_by = auth()->user()->id;
         });
-    }
-
-    public function getApprovedAtField(): string
-    {
-        return match (auth()->user()->role) {
-            RoleType::SENIOR_PRODUCTION_MANAGER => 'approved_at_prod_senior_manager',
-            RoleType::PRODUCTION_MANAGER => 'approved_at_prod_manager',
-            default => 'approved_at',
-        };
-    }
-
-    public function getApprovedByField(): string
-    {
-        return match (auth()->user()->role) {
-            RoleType::SENIOR_PRODUCTION_MANAGER => 'approved_by_prod_senior_manager',
-            RoleType::PRODUCTION_MANAGER => 'approved_by_prod_manager',
-            default => 'approved_by',
-        };
     }
 
     public function prodOrderStep(): BelongsTo
@@ -94,17 +85,27 @@ class ProdOrderStepExecution extends Model
 
     public function approvedByProdManager(): BelongsTo
     {
-        return $this->belongsTo(User::class, 'approved_by_prod_manager_id');
+        return $this->belongsTo(User::class, 'approved_by_prod_manager');
     }
 
     public function approvedByProdSeniorManager(): BelongsTo
     {
-        return $this->belongsTo(User::class, 'approved_by_prod_senior_manager_id');
+        return $this->belongsTo(User::class, 'approved_by_prod_senior_manager');
     }
 
     public function approvedBy(): BelongsTo
     {
         return $this->belongsTo(User::class, 'approved_by');
+    }
+
+    public function declinedByProdManager(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'declined_by_prod_manager');
+    }
+
+    public function declinedByProdSeniorManager(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'declined_by_senior_prod_manager');
     }
 
     public function declinedBy(): BelongsTo
@@ -117,32 +118,138 @@ class ProdOrderStepExecution extends Model
         return $this->hasMany(ProdOrderStepExecutionProduct::class);
     }
 
-    public function isApproved(): bool
+    public function getPrevApprovedUser(RoleType $role): ?User
+    {
+        return match ($role) {
+            RoleType::STOCK_MANAGER => $this->approvedByProdSeniorManager,
+            RoleType::SENIOR_PRODUCTION_MANAGER => $this->approvedByProdManager,
+            RoleType::PRODUCTION_MANAGER => $this->executedBy,
+            default => null
+        };
+    }
+
+    public function getNextRole(RoleType $role): ?RoleType
+    {
+        return match ($role) {
+            RoleType::WORK_STATION_WORKER => RoleType::PRODUCTION_MANAGER,
+            RoleType::PRODUCTION_MANAGER => RoleType::SENIOR_PRODUCTION_MANAGER,
+            RoleType::SENIOR_PRODUCTION_MANAGER => RoleType::STOCK_MANAGER,
+            default => null, // No next role
+        };
+    }
+
+    public function approve(): void
     {
         /** @var User $user */
         $user = auth()->user();
-        if ($user->role == RoleType::SENIOR_PRODUCTION_MANAGER) {
-            return $this->approved_at_prod_senior_manager !== null && !$this->declined_at;
+
+        switch ($user->role) {
+            case RoleType::PRODUCTION_MANAGER:
+                $this->update([
+                    'approved_at_prod_manager' => now(),
+                    'approved_by_prod_manager' => $user->id,
+                    'declined_at_prod_manager' => null,
+                    'declined_by_prod_manager' => null,
+                    'decline_comment_prod_manager' => null,
+                ]);
+                break;
+            case RoleType::SENIOR_PRODUCTION_MANAGER:
+                $this->update([
+                    'approved_at_prod_senior_manager' => now(),
+                    'approved_by_prod_senior_manager' => $user->id,
+                    'declined_at_senior_prod_manager' => null,
+                    'declined_by_senior_prod_manager' => null,
+                    'decline_comment_senior_prod_manager' => null,
+                ]);
+                break;
+            case RoleType::STOCK_MANAGER:
+                $this->update([
+                    'approved_at' => now(),
+                    'approved_by' => $user->id,
+                    'declined_at' => null,
+                    'declined_by' => null,
+                    'decline_comment' => null,
+                ]);
+                break;
         }
-        if ($user->role == RoleType::PRODUCTION_MANAGER) {
-            return $this->approved_at_prod_manager !== null && !$this->declined_at;
-        }
-        return $this->approved_at !== null;
     }
 
-    public function approveProdManager(): void
+    public function decline(string $comment): void
     {
-        $this->update([
-            'approved_at_prod_manager' => now(),
-            'approved_by_prod_manager' => auth()->user()->id,
-            'declined_at' => null,
-            'declined_by' => null,
-            'decline_comment' => null
-        ]);
+        /** @var User $user */
+        $user = auth()->user();
+
+        switch ($user->role) {
+            case RoleType::PRODUCTION_MANAGER:
+                $this->update([
+                    'declined_at_prod_manager' => now(),
+                    'declined_by_prod_manager' => $user->id,
+                    'decline_comment_prod_manager' => $comment,
+                ]);
+                break;
+
+            case RoleType::SENIOR_PRODUCTION_MANAGER:
+                $this->update([
+                    'declined_at_senior_prod_manager' => now(),
+                    'declined_by_senior_prod_manager' => $user->id,
+                    'decline_comment_senior_prod_manager' => $comment,
+                ]);
+                break;
+
+            case RoleType::STOCK_MANAGER:
+                $this->update([
+                    'declined_at' => now(),
+                    'declined_by' => $user->id,
+                    'decline_comment' => $comment,
+                ]);
+                break;
+        }
     }
 
-    public function isDeclined(): bool
+    public function getDeclineDetails(): array
     {
-        return $this->declined_at !== null;
+        /** @var User $user */
+        $user = auth()->user();
+        $aboveRole = $this->getNextRole($user->role);
+        if (!$aboveRole) {
+            return [];
+        }
+
+        return [
+            'above' => match ($aboveRole) {
+                RoleType::PRODUCTION_MANAGER => $this->declined_at_prod_manager ? [
+                    'comment' => $this->decline_comment_prod_manager,
+                    'by' => $this->declinedByProdManager->name,
+                    'at' => $this->declined_at_prod_manager->format('d M Y H:i'),
+                ] : null,
+                RoleType::SENIOR_PRODUCTION_MANAGER => $this->declined_at_senior_prod_manager ? [
+                    'comment' => $this->decline_comment_senior_prod_manager,
+                    'by' => $this->declinedByProdSeniorManager->name,
+                    'at' => $this->declined_at_senior_prod_manager->format('d M Y H:i'),
+                ]: null,
+                RoleType::STOCK_MANAGER => $this->declined_at ? [
+                    'comment' => $this->decline_comment,
+                    'by' => $this->declinedBy->name,
+                    'at' => $this->declined_at->format('d M Y H:i'),
+                ] : null
+            },
+
+            'own' => match ($user->role) {
+                RoleType::PRODUCTION_MANAGER => $this->declined_at_prod_manager ? [
+                    'comment' => $this->decline_comment_prod_manager,
+                    'at' => $this->declined_at_prod_manager->format('d M Y H:i'),
+                ] : null,
+                RoleType::SENIOR_PRODUCTION_MANAGER => $this->declined_at_senior_prod_manager ? [
+                    'comment' => $this->decline_comment_senior_prod_manager,
+                    'at' => $this->declined_at_senior_prod_manager->format('d M Y H:i'),
+                ]: null,
+                RoleType::STOCK_MANAGER => $this->declined_at ? [
+                    'comment' => $this->decline_comment,
+                    'at' => $this->declined_at->format('d M Y H:i'),
+                ]: null,
+                default => null,
+            }
+        ];
     }
+
 }

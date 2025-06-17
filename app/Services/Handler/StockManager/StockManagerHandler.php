@@ -10,6 +10,7 @@ use App\Models\ProdOrder\ProdOrderStepExecution;
 use App\Models\SupplyOrder\SupplyOrder;
 use App\Models\User;
 use App\Services\Handler\BaseHandler;
+use App\Services\Handler\ProductionManager\DeclineExecutionScene;
 use App\Services\ProdOrderService;
 use App\Services\TelegramService;
 use App\Services\TgMessageService;
@@ -22,22 +23,17 @@ class StockManagerHandler extends BaseHandler
         'selectMaterial' => SelectMaterialScene::class,
         'selectExecution' => SelectExecutionScene::class,
         'compareSupplyOrder' => CompareSupplyOrderScene::class,
+        'declineExecution' => DeclineExecutionScene::class,
     ];
 
     protected array $callbackHandlers = [
         'cancelMaterial' => [SelectMaterialScene::class, 'cancelMaterial'],
         'cancelExecution' => [SelectExecutionScene::class, 'cancelExecution'],
         'cancelCompare' => [CompareSupplyOrderScene::class, 'cancelCompare'],
+        'cancelDecline' => [DeclineExecutionScene::class, 'cancelDecline'],
     ];
 
     protected const templates = [
-        'addRawMaterial' => <<<HTML
-<b>Form inputs</b>
-
-<b>1) Name</b>: {name}
-<b>2) Quantity</b>: {quantity}
-<b>3) Price</b>: {price}
-HTML,
 
     ];
 
@@ -49,7 +45,7 @@ HTML,
         if (!$user->warehouse_id) {
             $this->tgBot->sendMsg([
                 'chat_id' => $user->chat_id,
-                'text' => "You are not assigned to any warehouse. Please contact the manager.",
+                'text' => __('telegram.not_assigned_to_warehouse'),
             ]);
             return false;
         }
@@ -66,10 +62,10 @@ HTML,
             $poService = app(ProdOrderService::class);
             $poService->approveExecution($poExecution);
 
-            $message = "<b>✅ Execution approved!</b>\n\n";
+            $message = "<b>" . __('telegram.execution_approved') . "</b>\n\n";
             $message .= TgMessageService::getExecutionMsg($poExecution);
 
-            $this->tgBot->answerCbQuery(['text' => '✅ Execution approved!'], true);
+            $this->tgBot->answerCbQuery(['text' => __('telegram.execution_approved')], true);
             $this->tgBot->sendRequestAsync('editMessageText', [
                 'chat_id' => $this->tgBot->chatId,
                 'message_id' => $this->tgBot->getMessageId(),
@@ -80,7 +76,7 @@ HTML,
             $message = "<i>❌ {$e->getMessage()}!</i>\n\n";
             $message .= TgMessageService::getExecutionMsg($poExecution);
 
-            $this->tgBot->answerCbQuery(['text' => '❌ Error occurred!'], true);
+            $this->tgBot->answerCbQuery(['text' => __('telegram.error_occurred')], true);
             $this->tgBot->sendRequestAsync('editMessageText', [
                 'chat_id' => $this->tgBot->chatId,
                 'message_id' => $this->tgBot->getMessageId(),
@@ -123,12 +119,12 @@ HTML,
         if (!$prodOrder) {
             $this->tgBot->sendRequestAsync('sendMessage', [
                 'chat_id' => $this->tgBot->chatId,
-                'text' => "❌ Order not found!",
+                'text' => __('telegram.order_not_found'),
             ]);
             return;
         }
 
-        $message = "<b>Selected order details:</b>\n\n";
+        $message = "<b>" . __('telegram.selected_order_details') . "</b>\n\n";
         $message .= TgMessageService::getProdOrderMsg($prodOrder);
 
         $stepButtons = [];
@@ -160,7 +156,7 @@ HTML,
         $step = $this->getStep($stepId);
         $this->tgBot->answerCbQuery();
 
-        $message = "<b>Selected step details:</b>\n\n";
+        $message = "<b>" . __('telegram.selected_step_details') . "</b>\n\n";
         $message .= TgMessageService::getPoStepMsg($step);
 
         $this->tgBot->sendRequestAsync('editMessageText', [
@@ -170,10 +166,10 @@ HTML,
             'parse_mode' => 'HTML',
             'reply_markup' => TelegramService::getInlineKeyboard([
                 [
-                    ['text' => 'Materials', 'callback_data' => "materialsList:$step->id"],
-                    ['text' => 'Executions', 'callback_data' => "executionsList:$step->id"]
+                    ['text' => __('telegram.materials'), 'callback_data' => "materialsList:$step->id"],
+                    ['text' => __('telegram.executions'), 'callback_data' => "executionsList:$step->id"]
                 ],
-                [['text' => '⬅️ Back', 'callback_data' => "selectProdOrder:$step->prod_order_id"]],
+                [['text' => __('telegram.back'), 'callback_data' => "selectProdOrder:$step->prod_order_id"]],
             ]),
         ]);
 
@@ -185,23 +181,23 @@ HTML,
         $step = $this->getStep($stepId);
 
         $buttons = [];
-        $message = "<b>Materials of {$step->workStation->name} step:</b>\n";
+        $message = "<b>" . __('telegram.materials_of_step', ['ws' => $step->workStation->name]) . "</b>\n";
         foreach ($step->materials as $index => $material) {
             $index++;
 
             $measureUnit = $material->product->getMeasureUnit();
             $message .= "\n";
-            $message .= "$index) Material: <b>{$material->product->catName}</b>\n";
-            $message .= "Required: <b>$material->required_quantity {$measureUnit->getLabel()}</b>\n";
-            $message .= "Available: <b>$material->available_quantity {$measureUnit->getLabel()}</b>\n";
-            $message .= "Used: <b>" . ($material->used_quantity ?? 0) . "{$measureUnit->getLabel()}</b>\n";
+            $message .= "$index) " . __('telegram.material') . ": <b>{$material->product->catName}</b>\n";
+            $message .= __('telegram.required') . ": <b>$material->required_quantity {$measureUnit->getLabel()}</b>\n";
+            $message .= __('telegram.available') . ": <b>$material->available_quantity {$measureUnit->getLabel()}</b>\n";
+            $message .= __('telegram.used') . ": <b>" . ($material->used_quantity ?? 0) . " {$measureUnit->getLabel()}</b>\n";
 
             $buttons[] = [['text' => $material->product->catName, 'callback_data' => "selectMaterial:$material->id"]];
         }
 
         if ($step->status != ProdOrderStepStatus::Completed) {
             $buttons = array_merge($buttons, [
-                [['text' => '⬅️ Back', 'callback_data' => "selectPoStep:$stepId"]],
+                [['text' => __('telegram.back'), 'callback_data' => "selectPoStep:$stepId"]],
             ]);
         }
 
@@ -219,11 +215,12 @@ HTML,
         $step = $this->getStep($stepId);
 
         $buttons = [];
-        $message = "<b>Executions of {$step->workStation->name} step:</b>\n";
+        $message = "<b>" . __('telegram.executions_of_step', ['ws' => $step->workStation->name]) . "</b>\n";
+
         foreach ($step->executions as $execution) {
             $buttons[] = [
                 [
-                    'text' => "{$execution->executedBy->name} at {$execution->created_at->format('d M Y H:i')}",
+                    'text' => "{$execution->executedBy->name}, " . "{$execution->created_at->format('d M Y H:i')}",
                     'callback_data' => "selectExecution:$execution->id"
                 ]
             ];
@@ -236,7 +233,7 @@ HTML,
             'parse_mode' => 'HTML',
             'reply_markup' => TelegramService::getInlineKeyboard(
                 array_merge($buttons, [
-                    [['text' => '⬅️ Back', 'callback_data' => "selectPoStep:$stepId"]],
+                    [['text' => __('telegram.back'), 'callback_data' => "selectPoStep:$stepId"]],
                 ])
             ),
         ]);
@@ -249,7 +246,7 @@ HTML,
         /** @var SupplyOrder $supplyOrder */
         $supplyOrder = SupplyOrder::query()->findOrFail($orderId);
 
-        $message = "<b>SupplyOrder details:</b>\n\n";
+        $message = "<b>" . __('telegram.supplyorder_details') . "</b>\n\n";
         $message .= TgMessageService::getSupplyOrderMsg($supplyOrder);
 
         $messageId = $this->getCache('edit_msg_id');
@@ -260,7 +257,7 @@ HTML,
             'text' => $message,
             'parse_mode' => 'HTML',
             'reply_markup' => TelegramService::getInlineKeyboard([
-                [['text' => 'Compare products', 'callback_data' => "compareSupplyOrder:$supplyOrder->id"]]
+                [['text' => __('telegram.compare_products'), 'callback_data' => "compareSupplyOrder:$supplyOrder->id"]]
             ]),
         ]);
     }
@@ -325,11 +322,11 @@ HTML,
         return $step;
     }
 
-    protected function getMainKb(): array
+    public function getMainKb(): array
     {
         return TelegramService::getInlineKeyboard([
-            [['text' => '🔍 Search PO', 'switch_inline_query_current_chat' => '']],
-            [['text' => '🔍 Compare SO', 'switch_inline_query_current_chat' => 'compareSo']],
+            [['text' => __('telegram.search_po'), 'switch_inline_query_current_chat' => '']],
+            [['text' => __('telegram.compare_so'), 'switch_inline_query_current_chat' => 'compareSo']],
         ]);
     }
 }
