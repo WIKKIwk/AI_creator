@@ -27,13 +27,13 @@ class SupplyOrderAfterClose
         if ($prodOrder && $prodOrder->status == OrderStatus::Blocked) {
             $prodOrder->update(['status' => OrderStatus::Processing]);
 
-            foreach ($prodOrder->firstStep->materials as $material) {
-                $this->prodOrderService->updateMaterialsExact(
-                    $prodOrder->firstStep,
-                    $material->product_id,
-                    $material->required_quantity,
-                );
-            }
+//            foreach ($prodOrder->firstStep->materials as $material) {
+//                $this->prodOrderService->updateMaterialsExact(
+//                    $prodOrder->firstStep,
+//                    $material->product_id,
+//                    $material->required_quantity,
+//                );
+//            }
 
             $this->prodOrderService->notifyProdOrderReady($prodOrder);
         }

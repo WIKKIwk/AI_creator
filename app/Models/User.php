@@ -126,6 +126,7 @@ class User extends Authenticatable implements FilamentUser
     public function generateAuthCode(): void
     {
         $this->auth_code = Str::random(6);
+        $this->chat_id = null;
     }
 
     /**

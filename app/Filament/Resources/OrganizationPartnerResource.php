@@ -3,6 +3,7 @@
 namespace App\Filament\Resources;
 
 use App\Enums\PartnerType;
+use App\Enums\RoleType;
 use App\Filament\Resources\OrganizationPartnerResource\Pages;
 use App\Filament\Resources\OrganizationPartnerResource\RelationManagers;
 use App\Models\OrganizationPartner;
@@ -20,6 +21,17 @@ class OrganizationPartnerResource extends Resource
     protected static ?int $navigationSort = 6;
 
     protected static ?string $navigationIcon = 'heroicon-o-rectangle-stack';
+
+    public static function canAccess(): bool
+    {
+        return !empty(auth()->user()->organization_id) && in_array(auth()->user()->role, [
+            RoleType::ADMIN,
+            RoleType::PLANNING_MANAGER,
+            RoleType::PRODUCTION_MANAGER,
+            RoleType::ALLOCATION_MANAGER,
+            RoleType::SENIOR_STOCK_MANAGER,
+        ]);
+    }
 
     public static function form(Form $form): Form
     {

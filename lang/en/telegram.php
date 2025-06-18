@@ -172,5 +172,32 @@ return [
     'name' => 'Name',
     'email' => 'Email',
     'role' => 'Role',
+    'ready_product' => 'Ready product',
+    'created_at' => 'Created at',
+    'steps' => 'Steps',
+    'no_steps_defined' => 'No steps defined',
+    'status' => 'Status',
+    'prod_order' => 'Prod order',
+
+    'executed_by' => 'Executed by',
+    'executed_at' => 'Executed at',
+    'decline_details' => 'Decline details:',
+    'decline_comment' => 'Decline comment',
+    'declined_by' => 'Declined by',
+    'declined_at' => 'Declined at',
+    'my_decline_details' => 'My decline details:',
+
+    'code' => 'Code',
+    'created_by' => 'Created by',
+    'confirmed' => 'Confirmed',
+    'actual_quantity' => 'Actual quantity',
+    'performance' => 'Performance',
+    'current_prodorder' => 'Current ProdOrder',
+    'manager' => 'Manager',
+    'measure_units' => 'Measure units',
+
+    'progress' => 'Progress',
+    'expected_cost' => 'Expected cost',
+    'expected_deadline' => 'Expected deadline',
 
 ];

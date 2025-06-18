@@ -43,7 +43,8 @@ class OrganizationResource extends Resource
                         ->email()
                         ->maxLength(255),
                     Forms\Components\Select::make('status')
-                        ->options(OrganizationStatus::class),
+                        ->options(OrganizationStatus::class)
+                    ->default(OrganizationStatus::Active),
                 ])
             ]);
     }

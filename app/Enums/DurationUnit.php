@@ -15,11 +15,11 @@ enum DurationUnit: int
     public function getLabel(): string
     {
         return match ($this) {
-            self::Year => 'Year',
-            self::Month => 'Month',
-            self::Week => 'Week',
-            self::Day => 'Day',
-            self::Hour => 'Hour',
+            self::Year => __('time.year'),
+            self::Month => __('time.month'),
+            self::Week => __('time.week'),
+            self::Day => __('time.day'),
+            self::Hour => __('time.hour'),
         };
     }
 }
