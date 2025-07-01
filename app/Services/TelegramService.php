@@ -88,7 +88,7 @@ class TelegramService
             return $data;
         } catch (\Throwable $e) {
             Log::error('Failed to send Telegram message', [
-                'user_id' => $username,
+//                'user_id' => $username,
                 'error' => $e->getMessage(),
             ]);
             return null;
