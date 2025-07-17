@@ -11,7 +11,7 @@ class ProductService
 {
     public static function getSfpName(Product $product, WorkStation $workStation): string
     {
-        return "$workStation->name {$product->name} SFP";
+        return "$workStation->name {$product->name} YTM";
     }
 
     public function createOrGetSemiFinished(ProdTemplate $prodTmp, $workStationId, $isLast = false): ?Product

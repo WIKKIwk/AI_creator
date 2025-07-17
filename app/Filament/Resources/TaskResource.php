@@ -27,6 +27,7 @@ class TaskResource extends Resource
 
     public static function canAccess(): bool
     {
+        return false;
         return !empty(auth()->user()->organization_id) && in_array(auth()->user()->role, [
                 RoleType::ADMIN,
                 RoleType::SENIOR_SUPPLY_MANAGER,

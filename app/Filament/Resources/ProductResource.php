@@ -17,6 +17,8 @@ use App\Filament\Resources\ProductResource\RelationManagers;
 class ProductResource extends Resource
 {
     protected static ?string $model = Product::class;
+    protected static ?string $label = 'Mahsulot';
+    protected static ?string $pluralLabel = 'Mahsulotlar';
     protected static ?int $navigationSort = 5;
 
     protected static ?string $navigationIcon = 'heroicon-o-rectangle-stack';

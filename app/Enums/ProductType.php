@@ -16,9 +16,9 @@ enum ProductType: int implements HasColor, HasLabel
     public function getLabel(): string
     {
         return match ($this) {
-            self::RawMaterial => 'Raw Material',
-            self::SemiFinishedProduct => 'Semi Finished Product',
-            self::ReadyProduct => 'Ready Product',
+            self::RawMaterial => 'Xom ashyo',
+            self::SemiFinishedProduct => 'YTM',
+            self::ReadyProduct => 'Tayyor',
         };
     }
 

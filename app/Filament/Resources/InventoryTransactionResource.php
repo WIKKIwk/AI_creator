@@ -20,6 +20,8 @@ class InventoryTransactionResource extends Resource
 {
     protected static ?string $model = InventoryTransaction::class;
     protected static ?string $navigationGroup = 'Warehouse';
+    protected static ?string $label = 'Ombor Kirim/Chiqim';
+    protected static ?string $pluralLabel = 'Ombor Kirim/Chiqim';
     protected static ?int $navigationSort = 3;
     protected static ?string $navigationIcon = 'heroicon-o-rectangle-stack';
 

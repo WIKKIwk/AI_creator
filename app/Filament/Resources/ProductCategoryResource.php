@@ -18,6 +18,8 @@ use Illuminate\Database\Eloquent\SoftDeletingScope;
 class ProductCategoryResource extends Resource
 {
     protected static ?string $model = ProductCategory::class;
+    protected static ?string $label = 'Categoriya';
+    protected static ?string $pluralLabel = 'Categoriyalar';
     protected static ?int $navigationSort = 4;
 
     protected static ?string $navigationIcon = 'heroicon-o-rectangle-stack';

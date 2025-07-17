@@ -16,8 +16,8 @@ enum PartnerType: int implements HasLabel, HasColor, HasIcon
     public function getLabel(): string
     {
         return match ($this) {
-            self::Agent => 'Agent',
-            self::Supplier => 'Supplier',
+            self::Agent => 'Mijoz',
+            self::Supplier => 'Ta\'minotchi',
         };
     }
 

@@ -15,8 +15,8 @@ enum TransactionType: int implements HasLabel, HasColor
     public function getLabel(): string
     {
         return match ($this) {
-            self::In => 'In',
-            self::Out => 'Out',
+            self::In => 'Kirim',
+            self::Out => 'Chiqim',
         };
     }
 

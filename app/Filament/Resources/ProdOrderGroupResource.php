@@ -20,7 +20,8 @@ use App\Filament\Resources\ProdOrderGroupResource\RelationManagers\ProdOrdersRel
 class ProdOrderGroupResource extends Resource
 {
     protected static ?string $model = ProdOrderGroup::class;
-    protected static ?string $label = 'Prod order';
+    protected static ?string $label = 'Buyurtma';
+    protected static ?string $pluralLabel = 'Buyurtmalar';
     protected static ?int $navigationSort = 2;
 
     protected static ?string $navigationIcon = 'heroicon-o-rectangle-stack';

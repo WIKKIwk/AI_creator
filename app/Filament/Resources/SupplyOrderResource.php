@@ -23,6 +23,8 @@ use Throwable;
 class SupplyOrderResource extends Resource
 {
     protected static ?string $model = SupplyOrder::class;
+    protected static ?string $label = 'Ta\'minot buyurtmasi';
+    protected static ?string $pluralLabel = 'Ta\'minot buyurtmalari';
     protected static ?int $navigationSort = 6;
 
     protected static ?string $navigationIcon = 'heroicon-o-rectangle-stack';

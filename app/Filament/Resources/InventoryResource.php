@@ -21,6 +21,9 @@ class InventoryResource extends Resource
 {
     protected static ?string $model = Inventory::class;
     protected static ?string $navigationGroup = 'Warehouse';
+    protected static ?string $label = 'Ombor';
+    protected static ?string $pluralLabel = 'Ombor';
+
     protected static ?int $navigationSort = 1;
     protected static ?string $navigationIcon = 'heroicon-o-rectangle-stack';
 

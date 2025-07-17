@@ -18,6 +18,9 @@ class WorkStationCategoryResource extends Resource
 {
     protected static ?string $model = WorkStationCategory::class;
     protected static ?string $navigationGroup = 'Manage';
+    protected static ?string $label = 'Bo\'lim kategoriyasi';
+    protected static ?string $pluralLabel = 'Bo\'lim kategoriyalari';
+
     protected static ?int $navigationSort = 9;
     protected static ?string $navigationIcon = 'heroicon-o-rectangle-stack';
 
