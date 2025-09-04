@@ -1,0 +1,17 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# docker compose wrapper that works with v1 (docker-compose) and v2 (docker compose)
+
+if command -v docker-compose >/dev/null 2>&1; then
+  exec docker-compose "$@"
+fi
+
+if command -v docker >/dev/null 2>&1 && docker compose version >/dev/null 2>&1; then
+  exec docker compose "$@"
+fi
+
+echo "Error: neither 'docker-compose' nor 'docker compose' is available."
+echo "Install one of them. On Arch: sudo pacman -S docker-compose (or docker-compose-plugin)." >&2
+exit 127
+

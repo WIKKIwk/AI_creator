@@ -1,3 +1,5 @@
+.DEFAULT_GOAL := start
+
 ############# BUILD PUSH CONTAINERS #############
 build: php-build nginx-build
 push: php-push nginx-push
@@ -21,34 +23,50 @@ push:
 
 ############# DOCKER COMPOSE #############
 
+# Wrapper for docker compose (supports v1 and v2)
+DC=bash ./bin/dc
+
 restart: compose-down compose-up
 restart-prod: compose-down-prod compose-up-prod
 
 compose-up:
-	docker-compose up -d
+	$(DC) up -d
 compose-down:
-	docker-compose down --remove-orphans
+	$(DC) down --remove-orphans
 
 compose-up-prod:
-	docker-compose -f docker-compose-prod.yml up -d
+	$(DC) -f docker-compose-prod.yml up -d
 compose-down-prod:
-	docker-compose -f docker-compose-prod.yml down --remove-orphans
+	$(DC) -f docker-compose-prod.yml down --remove-orphans
 
 
 ############# APP COMMANDS #############
-include .env
+# Load .env variables if the file exists (first run may not have it)
+-include .env
+ifneq (,$(wildcard .env))
 export $(shell sed 's/=.*//' .env)
+endif
 
 args = $(filter-out $@,$(MAKECMDGOALS))
 
 .PHONY: artisan
 artisan:
-	docker-compose exec php php artisan $(args)
+	$(DC) exec php php artisan $(args)
 
 .PHONY: composer
 composer:
-	docker-compose exec php composer $(args)
+	$(DC) exec php composer $(args)
 
 .PHONY: backup
 backup:
-	docker-compose exec db pg_dumpall -c -U postgres > backups/backup.sql
+	$(DC) exec db pg_dumpall -c -U postgres > backups/backup.sql
+
+
+############# ONE-COMMAND START #############
+.PHONY: start
+start:
+	bash ./scripts/start.sh
+
+.PHONY: bot
+bot:
+	$(DC) exec php php artisan bot:run
