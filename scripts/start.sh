@@ -75,6 +75,11 @@ update_env_var DB_PASSWORD "${DB_PASSWORD:-postgres}"
 update_env_var REDIS_HOST "${REDIS_HOST:-redis}"
 update_env_var REDIS_PORT "${REDIS_PORT:-6379}"
 
+# AI defaults
+update_env_var AI_SERVICE_URL "${AI_SERVICE_URL:-http://ai:8000}"
+update_env_var OPENAI_MODEL "${OPENAI_MODEL:-gpt-4o-mini}"
+update_env_var OPENAI_API_KEY "${OPENAI_API_KEY:-}"
+
 update_env_var USER "${USER:-$CUR_USER}"
 update_env_var UID "${UID:-$CUR_UID}"
 update_env_var GID "${GID:-$CUR_GID}"
@@ -128,10 +133,18 @@ prompt_if_empty() {
 TELEGRAM_BOT_TOKEN_VAL=""
 ADMIN_EMAIL_VAL=""
 ADMIN_PASSWORD_VAL=""
+OPENAI_API_KEY_VAL=""
 
 prompt_if_empty TELEGRAM_BOT_TOKEN "Enter TELEGRAM_BOT_TOKEN" TELEGRAM_BOT_TOKEN_VAL
 prompt_if_empty ADMIN_EMAIL "Enter ADMIN_EMAIL" ADMIN_EMAIL_VAL
 prompt_if_empty ADMIN_PASSWORD "Enter ADMIN_PASSWORD" ADMIN_PASSWORD_VAL
+# OpenAI is optional; skip prompt if empty but keep placeholder
+if [ -z "$(grep -E '^OPENAI_API_KEY=' .env | sed -E 's/^OPENAI_API_KEY=//')" ]; then
+  read -rp "(Optional) Enter OPENAI_API_KEY (or leave blank): " input
+  if [ -n "$input" ]; then
+    sed_inplace "s|^OPENAI_API_KEY=.*|OPENAI_API_KEY=${input}|" .env || echo "OPENAI_API_KEY=${input}" >> .env
+  fi
+fi
 
 echo "[PulBot] Bringing containers up..."
 $DC up -d

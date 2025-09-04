@@ -50,6 +50,18 @@ services:
         volumes:
             - ./_docker/data/redis:/data
 
+    ai:
+        build:
+            context: .
+            dockerfile: _docker/development/ai/Dockerfile
+        environment:
+            - OPENAI_API_KEY=${OPENAI_API_KEY}
+            - OPENAI_MODEL=${OPENAI_MODEL}
+        volumes:
+            - ./ai:/app
+        depends_on:
+            - php
+
 #    mailhog:
 #        image: mailhog/mailhog
 #        restart: always

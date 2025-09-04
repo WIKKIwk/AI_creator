@@ -73,7 +73,7 @@ class TgBot
     /**
      * @throws GuzzleException
      */
-    public function sendMsg(array $params, bool $async = false): array
+    public function sendMsg(array $params, bool $async = false): mixed
     {
         $method = $async ? 'sendRequestAsync' : 'sendRequest';
         if (Arr::has($params, 'message_id')) {
@@ -83,7 +83,7 @@ class TgBot
         return $this->{$method}('sendMessage', $params);
     }
 
-    public function answerMsg(array $params, bool $async = false): array
+    public function answerMsg(array $params, bool $async = false): mixed
     {
         $method = $async ? 'sendRequestAsync' : 'sendRequest';
         return $this->{$method}('sendMessage', array_merge($params, [

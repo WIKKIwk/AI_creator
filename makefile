@@ -70,3 +70,10 @@ start:
 .PHONY: bot
 bot:
 	$(DC) exec php php artisan bot:run
+
+.PHONY: ai-key
+ai-key:
+	@if [ -z "$(KEY)" ]; then echo "Usage: make ai-key KEY=sk-..."; exit 1; fi
+	bash ./scripts/set_openai_key.sh "$(KEY)"
+	@echo "Restarting AI service to pick up env..."
+	$(DC) up -d ai

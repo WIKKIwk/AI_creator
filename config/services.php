@@ -31,4 +31,8 @@ return [
         'region' => env('AWS_DEFAULT_REGION', 'us-east-1'),
     ],
 
+    'ai' => [
+        'url' => env('AI_SERVICE_URL', 'http://ai:8000'),
+    ],
+
 ];

@@ -5,6 +5,7 @@ namespace App\Services\Handler;
 use App\Enums\RoleType;
 use App\Models\User;
 use App\Services\Handler\Interface\HandlerInterface;
+use App\Services\Handler\Ai\AiHandler;
 use App\Services\Handler\ProductionManager\ProductionManagerHandler;
 use App\Services\Handler\StockManager\StockManagerHandler;
 use App\Services\Handler\SupplyManager\SupplyManagerHandler;
@@ -15,6 +16,7 @@ class HandlerFactory
     public static function make(User $user): HandlerInterface
     {
         return match ($user->role) {
+            RoleType::AI_ASSISTANT => app(AiHandler::class),
             RoleType::SENIOR_PRODUCTION_MANAGER,
             RoleType::PRODUCTION_MANAGER => app(ProductionManagerHandler::class),
 
