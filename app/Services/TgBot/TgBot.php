@@ -24,7 +24,7 @@ class TgBot
         protected TelegramService $telegramService
     ) {
         $this->client = new Client([
-            'base_uri' => 'https://api.telegram.org/bot' . env('TELEGRAM_BOT_TOKEN') . '/',
+            'base_uri' => 'https://api.telegram.org/bot' . config('services.telegram.bot_token') . '/',
         ]);
     }
 

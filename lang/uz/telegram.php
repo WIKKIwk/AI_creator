@@ -167,6 +167,7 @@ return [
     'notes' => 'Izohlar',
     'execution_approved_by' => ':name tomonidan bajarish tasdiqlandi',
     'not_assigned_to_workstation' => "Siz hech qanday ish joyiga biriktirilmagansiz. Iltimos, menejeringiz bilan bog‘laning.",
+    'not_assigned_to_organization' => "Siz hech qanday tashkilotga biriktirilmagansiz. Iltimos, menejeringiz bilan bog‘laning.",
     'add_execution' => '🛠 Bajarish qo‘shish',
     'your_details' => 'Sizning ma’lumotlaringiz:',
     'organization' => 'Tashkilot',

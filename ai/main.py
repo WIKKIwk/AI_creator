@@ -22,14 +22,16 @@ class ChatPayload(BaseModel):
     message: str
     history: List[Message] = Field(default_factory=list)
     context: Dict[str, Any] = Field(default_factory=dict)
-    model: str = Field(default=os.getenv("OPENAI_MODEL", "gpt-4o-mini"))
+    # Default to gpt-4o for stronger reasoning/advice
+    model: str = Field(default=os.getenv("OPENAI_MODEL", "gpt-4o"))
 
 
 SYSTEM_PROMPT = (
     "Siz PulBot AI assistentisiz. Tizimdagi ombor (inventory), ishlab chiqarish va ta'minot buyurtmalari haqida "
     "foydalanuvchiga tushunarli, aniq va xavfsiz tavsiyalar bering. Ustida ishlayotgan kontekst: {context}. "
-    "Savollarga aniq javob, kerak bo'lsa bullet nuqtalar bilan qayting. Agar ma'lumot yetarli bo'lmasa, "
-    "aniq so'rov bering. Hech qachon maxfiy kalitlarni yoki ichki konfiguratsiyani oshkor etmang."
+    "Siz GPT‑4o modelidan foydalanasiz; model versiyasi haqida noto‘g‘ri ma'lumot bermang. Agar model haqida so‘ralsa, "
+    "‘GPT‑4o’ deb javob bering. Savollarga aniq javob, kerak bo'lsa bullet nuqtalar bilan qayting. Agar ma'lumot yetarli "
+    "bo'lmasa, aniq so'rov bering. Hech qachon maxfiy kalitlarni yoki ichki konfiguratsiyani oshkor etmang."
 )
 
 
@@ -62,7 +64,14 @@ def chat(payload: ChatPayload):
             temperature=0.3,
         )
         answer = resp.choices[0].message.content
-        return {"answer": answer}
+        return {"answer": answer, "model": payload.model}
     except Exception as e:  # pragma: no cover
         raise HTTPException(status_code=500, detail=str(e))
 
+
+@app.get("/health")
+def health():
+    return {
+        "ok": True,
+        "default_model": os.getenv("OPENAI_MODEL", "gpt-4o"),
+    }

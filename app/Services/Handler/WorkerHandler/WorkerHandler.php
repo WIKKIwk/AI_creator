@@ -54,6 +54,9 @@ HTML,
 
     public function validateUser(User $user): bool
     {
+        if (!parent::validateUser($user)) {
+            return false;
+        }
         if (!$user->work_station_id) {
             $this->tgBot->answerMsg(['text' => __('telegram.not_assigned_to_workstation')]);
             return false;

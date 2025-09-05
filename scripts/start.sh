@@ -77,7 +77,8 @@ update_env_var REDIS_PORT "${REDIS_PORT:-6379}"
 
 # AI defaults
 update_env_var AI_SERVICE_URL "${AI_SERVICE_URL:-http://ai:8000}"
-update_env_var OPENAI_MODEL "${OPENAI_MODEL:-gpt-4o-mini}"
+# Default model upgraded to gpt-4o for better answers
+update_env_var OPENAI_MODEL "${OPENAI_MODEL:-gpt-4o}"
 update_env_var OPENAI_API_KEY "${OPENAI_API_KEY:-}"
 
 update_env_var USER "${USER:-$CUR_USER}"

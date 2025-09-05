@@ -42,6 +42,9 @@ class StockManagerHandler extends BaseHandler
      */
     public function validateUser(User $user): bool
     {
+        if (!parent::validateUser($user)) {
+            return false;
+        }
         if (!$user->warehouse_id) {
             $this->tgBot->sendMsg([
                 'chat_id' => $user->chat_id,

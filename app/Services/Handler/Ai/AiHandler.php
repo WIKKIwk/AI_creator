@@ -5,6 +5,7 @@ namespace App\Services\Handler\Ai;
 use App\Services\AiContextService;
 use App\Services\AiService;
 use App\Services\Handler\BaseHandler;
+use Illuminate\Support\Arr;
 
 class AiHandler extends BaseHandler
 {
@@ -25,6 +26,24 @@ class AiHandler extends BaseHandler
             return;
         }
 
+        // Show typing indicator and quick placeholder (like ChatGPT)
+        try {
+            $this->tgBot->sendRequest('sendChatAction', [
+                'chat_id' => $this->tgBot->chatId,
+                'action' => 'typing',
+            ]);
+        } catch (\Throwable $e) {
+            // ignore chat action failures
+        }
+
+        $placeholder = $this->tgBot->answerMsg([
+            'text' => "🧠 O'ylayapman...",
+        ], false);
+        $editMsgId = Arr::get($placeholder, 'result.message_id');
+        if ($editMsgId) {
+            $this->setCache('edit_msg_id', $editMsgId);
+        }
+
         // Build history
         $history = $this->getCacheArray(self::HISTORY_KEY) ?? [];
         $history[] = ['role' => 'user', 'content' => $text];
@@ -43,7 +62,31 @@ class AiHandler extends BaseHandler
         $history[] = ['role' => 'assistant', 'content' => $answer];
         $this->setCacheArray(self::HISTORY_KEY, $history);
 
-        foreach ($this->chunkTelegram($answer) as $chunk) {
+        // Escape HTML to avoid invalid tags in Telegram HTML mode
+        $safeAnswer = htmlspecialchars($answer, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
+        $chunks = $this->chunkTelegram($safeAnswer);
+
+        if ($editMsgId && !empty($chunks)) {
+            // Edit the placeholder with the first chunk
+            $first = array_shift($chunks);
+            try {
+                $this->tgBot->sendRequest('editMessageText', [
+                    'chat_id' => $this->tgBot->chatId,
+                    'message_id' => $editMsgId,
+                    'text' => $first,
+                    'parse_mode' => 'HTML',
+                ]);
+            } catch (\Throwable $e) {
+                // Fallback: send as a new message if edit fails
+                $this->tgBot->answerMsg([
+                    'text' => $first,
+                    'parse_mode' => 'HTML',
+                ], true);
+            }
+        }
+
+        // Send remaining chunks (if any)
+        foreach ($chunks as $chunk) {
             $this->tgBot->answerMsg([
                 'text' => $chunk,
                 'parse_mode' => 'HTML',
@@ -77,4 +120,3 @@ class AiHandler extends BaseHandler
         return $chunks;
     }
 }
-

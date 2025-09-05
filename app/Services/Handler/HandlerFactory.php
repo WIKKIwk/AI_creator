@@ -17,9 +17,12 @@ class HandlerFactory
     {
         return match ($user->role) {
             RoleType::AI_ASSISTANT => app(AiHandler::class),
+            // Planning and Allocation managers currently share features with production/supply flows
+            RoleType::PLANNING_MANAGER => app(ProductionManagerHandler::class),
             RoleType::SENIOR_PRODUCTION_MANAGER,
             RoleType::PRODUCTION_MANAGER => app(ProductionManagerHandler::class),
 
+            RoleType::ALLOCATION_MANAGER,
             RoleType::SUPPLY_MANAGER,
             RoleType::SENIOR_SUPPLY_MANAGER => app(SupplyManagerHandler::class),
 

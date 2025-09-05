@@ -35,4 +35,11 @@ return [
         'url' => env('AI_SERVICE_URL', 'http://ai:8000'),
     ],
 
+    'telegram' => [
+        'bot_token' => env('TELEGRAM_BOT_TOKEN'),
+        'test_chat_id' => env('TELEGRAM_TEST_CHAT_ID'),
+        // Optional: set this to enforce webhook header validation
+        'webhook_secret' => env('TELEGRAM_WEBHOOK_SECRET'),
+    ],
+
 ];

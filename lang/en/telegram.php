@@ -166,6 +166,7 @@ return [
     'notes' => 'Notes',
     'execution_approved_by' => 'Execution approved by :name',
     'not_assigned_to_workstation' => "You're not assigned to any WorkStation. Please contact your manager.",
+    'not_assigned_to_organization' => "You're not assigned to any organization. Please contact your manager.",
     'add_execution' => '🛠 Add execution',
     'your_details' => 'Your details:',
     'organization' => 'Organization',

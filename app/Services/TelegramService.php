@@ -16,8 +16,6 @@ class TelegramService
     {
         return [
             'inline_keyboard' => $data,
-            'resize_keyboard' => true,
-            'one_time_keyboard' => true,
         ];
     }
 
@@ -37,21 +35,17 @@ class TelegramService
      */
     public function sendRequest(string $method, array $params = []): array
     {
-        if (!env('TELEGRAM_BOT_TOKEN')) {
+        $token = config('services.telegram.bot_token');
+        if (!$token) {
             throw new Exception('TELEGRAM_BOT_TOKEN is not set');
         }
 
-        $client = new Client();
-
-        $requestUrl = 'https://api.telegram.org/bot' . env('TELEGRAM_BOT_TOKEN') . '/' . $method;
-
-        $response = $client->request('POST', $requestUrl, [
-            'json' => $params
-        ]);
-
         try {
-            $response = $response->getBody()->getContents();
-            return json_decode($response, true);
+            $resp = Http::post(
+                'https://api.telegram.org/bot' . $token . '/' . $method,
+                $params
+            );
+            return $resp->json() ?? [];
         } catch (Exception $e) {
             return [];
         }
@@ -62,21 +56,27 @@ class TelegramService
      */
     public static function sendMessage(User $user, string $message, $params = []): ?array
     {
-        /** @var User $fromUser */
+        /** @var User|null $fromUser */
         $fromUser = auth()->user();
         $chatId = $user->chat_id;
 
         try {
-            if (env('TELEGRAM_TEST_CHAT_ID')) {
-                $chatId = env('TELEGRAM_TEST_CHAT_ID'); // Replace with your test chat ID
-                $message .= "\n\n<code>Test mode: message sent from " . $fromUser->name . " to " . $user->name . "</code>";
+            $testChatId = config('services.telegram.test_chat_id');
+            if ($testChatId) {
+                $chatId = $testChatId; // Replace with your test chat ID
+                if ($fromUser) {
+                    $message .= "\n\n<code>Test mode: message sent from " . $fromUser->name . " to " . $user->name . "</code>";
+                } else {
+                    $message .= "\n\n<code>Test mode</code>";
+                }
             }
 
             $resp = Http::post(
-                'https://api.telegram.org/bot' . env('TELEGRAM_BOT_TOKEN') . '/sendMessage',
+                'https://api.telegram.org/bot' . config('services.telegram.bot_token') . '/sendMessage',
                 array_merge([
                     'chat_id' => $chatId,
                     'text' => $message,
+                    'parse_mode' => 'HTML',
                 ], $params)
             );
 

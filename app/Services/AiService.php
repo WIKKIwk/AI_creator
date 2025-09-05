@@ -18,7 +18,8 @@ class AiService
             'message' => $message,
             'history' => $history,
             'context' => $context,
-            'model' => env('OPENAI_MODEL', 'gpt-4o-mini'),
+            // Default to gpt-4o for stronger reasoning/advice unless overridden in .env
+            'model' => env('OPENAI_MODEL', 'gpt-4o'),
         ];
 
         $resp = Http::timeout(60)->post($url, $payload);
@@ -30,4 +31,3 @@ class AiService
         return (string) Arr::get($data, 'answer', 'No answer.');
     }
 }
-

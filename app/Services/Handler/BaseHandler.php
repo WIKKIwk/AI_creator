@@ -25,8 +25,12 @@ class BaseHandler implements HandlerInterface
 
     public function validateUser(User $user): bool
     {
-        // Org is active
-        return $user->organization_id;
+        // Must belong to an organization for most roles
+        if (!$user->organization_id) {
+            $this->tgBot->answerMsg(['text' => __('telegram.not_assigned_to_organization')]);
+            return false;
+        }
+        return true;
     }
 
     public function handle(User $user, array $update): void

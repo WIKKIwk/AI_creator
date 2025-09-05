@@ -65,7 +65,7 @@ HTML,
         /** @var SupplyOrder $supplyOrder */
         $supplyOrder = SupplyOrder::query()->findOrFail($orderId);
 
-        $message = "<b>" . __('supplyorder_details') . "</b>\n\n";
+        $message = "<b>" . __('telegram.supplyorder_details') . "</b>\n\n";
         $message .= TgMessageService::getSupplyOrderMsg($supplyOrder);
 
         $messageId = $this->getCache('edit_msg_id');
