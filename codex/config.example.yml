@@ -1,0 +1,31 @@
+repo_root: "."               # Path where pulbot repo is mounted inside container
+docker_compose: "docker-compose-prod.yml"
+php_container: "php"        # Service name to run tests in
+ai_url: "http://ai:8000"    # AI microservice endpoint
+branch_prefix: "codex/auto"
+remote: "origin"
+push_mode: "pr"             # pr|direct|off
+health:
+  url: "http://nginx/"      # Optional: internal URL to check after deploy (or leave empty)
+  timeout: 5
+  retries: 10
+tests:
+  command: ["bash","-lc","docker compose -f docker-compose-prod.yml exec -T php php artisan test --env=testing"]
+lint:
+  command: ["bash","-lc","docker compose -f docker-compose-prod.yml exec -T php vendor/bin/phpunit --version"]
+deploy:
+  command: ["bash","-lc","docker compose -f docker-compose-prod.yml up -d --build php nginx bot"]
+restart_services: ["php","nginx","bot"]
+protected_paths:
+  - ".env"
+  - "**/*.key"
+  - "_docker/data/**"
+allow_paths:
+  - "app/**"
+  - "routes/**"
+  - "config/**"
+  - "resources/**"
+  - "tests/**"
+commit_message_template: "chore(codex): {title}\n\n{summary}"
+rollback:
+  strategy: "git_reset"      # git_reset|git_revert

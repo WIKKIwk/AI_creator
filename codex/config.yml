@@ -1,0 +1,31 @@
+repo_root: "."
+docker_compose: "docker-compose-prod.yml"
+php_container: "php"
+ai_url: "http://ai:8000"
+branch_prefix: "codex/auto"
+remote: "origin"
+push_mode: "direct"   # direct commit to current branch
+health:
+  url: "http://nginx/"
+  timeout: 5
+  retries: 10
+tests:
+  command: ["bash","-lc","docker compose -f docker-compose-prod.yml exec -T php bash -lc 'COMPOSER_ALLOW_SUPERUSER=1 composer install --no-interaction --prefer-dist --no-ansi --no-progress' && docker compose -f docker-compose-prod.yml exec -T php php artisan test --env=testing"]
+lint:
+  command: ["bash","-lc","docker compose -f docker-compose-prod.yml exec -T php php -v"]
+deploy:
+  command: ["bash","-lc","docker compose -f docker-compose-prod.yml up -d --build php nginx bot"]
+restart_services: ["php","nginx","bot"]
+protected_paths:
+  - ".env"
+  - "**/*.key"
+  - "_docker/data/**"
+allow_paths:
+  - "app/**"
+  - "routes/**"
+  - "config/**"
+  - "resources/**"
+  - "tests/**"
+commit_message_template: "chore(codex): {title}\n\n{summary}"
+rollback:
+  strategy: "git_reset"

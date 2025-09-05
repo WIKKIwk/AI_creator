@@ -13,6 +13,17 @@ services:
     volumes:
       - ./_docker/data/postgres:/var/lib/postgresql/data
 
+  redis:
+    image: redis:7.0-alpine
+    command: ["redis-server", "--appendonly", "yes"]
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    volumes:
+      - ./_docker/data/redis:/data
+
   php:
     build:
       args:
@@ -26,6 +37,9 @@ services:
     depends_on:
       db:
         condition: service_healthy
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
 
   nginx:
     build:
@@ -36,6 +50,19 @@ services:
       - "${APP_PORT}:80"
     depends_on:
       - php
+    restart: unless-stopped
+
+  bot:
+    image: ravshan014/memolingo-php:1
+    env_file:
+      - .env
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    command: ["php", "artisan", "bot:run"]
+    restart: unless-stopped
 
   pgadmin:
     image: dpage/pgadmin4:latest
@@ -49,3 +76,39 @@ services:
     depends_on:
       db:
         condition: service_healthy
+    restart: unless-stopped
+
+  ai:
+    build:
+      context: .
+      dockerfile: _docker/development/ai/Dockerfile
+    environment:
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - OPENAI_MODEL=${OPENAI_MODEL}
+    depends_on:
+      - php
+    restart: unless-stopped
+
+  codex:
+    build:
+      context: .
+      dockerfile: _docker/production/codex/Dockerfile
+    image: pulbot-codex:latest
+    env_file:
+      - .env
+    environment:
+      - AI_SERVICE_URL=${AI_SERVICE_URL}
+      - GH_TOKEN=${GH_TOKEN}
+      - CODEX_CONFIG=codex/config.yml
+      - REPO_ROOT=/app
+      - GIT_AUTHOR_NAME=${GIT_AUTHOR_NAME:-PulBot Codex}
+      - GIT_AUTHOR_EMAIL=${GIT_AUTHOR_EMAIL:-codex@pulbot.local}
+    volumes:
+      - ./:/app
+      - /var/run/docker.sock:/var/run/docker.sock
+    depends_on:
+      - php
+      - db
+      - redis
+      - ai
+    restart: unless-stopped
