@@ -41,7 +41,9 @@ class TelegramService
         }
 
         try {
-            $resp = Http::post(
+            $resp = Http::timeout((int) env('TELEGRAM_HTTP_TIMEOUT', 10))
+                ->retry(2, 200)
+                ->post(
                 'https://api.telegram.org/bot' . $token . '/' . $method,
                 $params
             );
@@ -71,7 +73,9 @@ class TelegramService
                 }
             }
 
-            $resp = Http::post(
+            $resp = Http::timeout((int) env('TELEGRAM_HTTP_TIMEOUT', 10))
+                ->retry(2, 200)
+                ->post(
                 'https://api.telegram.org/bot' . config('services.telegram.bot_token') . '/sendMessage',
                 array_merge([
                     'chat_id' => $chatId,

@@ -6,6 +6,7 @@ use App\Models\User;
 use App\Services\Cache\Cache;
 use App\Services\Handler\HandlerFactory;
 use App\Services\TgBot\TgBot;
+use App\Jobs\ProcessTelegramUpdate;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
@@ -61,15 +62,24 @@ class BotController
         }
 
         if ($text === '/login' && $chatId) {
-            $this->cache->put($loginKey, 0);
+            // Open a 5-minute login window (keep consistent with BotCommand)
+            $this->cache->put($loginKey, 1, 300);
             $this->tgBot->answerMsg(['text' => 'Send auth code:']);
             return response()->json(['ok' => true]);
         }
 
         if ($user) {
-            Auth::login($user);
-            $handlerByRole = HandlerFactory::make($user);
-            $handlerByRole->handle($user, $update);
+            // If queue is configured (non-sync) and bot queueing enabled, dispatch
+            $queueIsAsync = config('queue.default') !== 'sync';
+            $useQueue = (bool) env('BOT_QUEUE', true);
+
+            if ($queueIsAsync && $useQueue) {
+                ProcessTelegramUpdate::dispatch($user->id, $update);
+            } else {
+                Auth::login($user);
+                $handlerByRole = HandlerFactory::make($user);
+                $handlerByRole->handle($user, $update);
+            }
         }
 
         return response()->json(['ok' => true]);

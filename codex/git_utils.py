@@ -56,3 +56,9 @@ def revert_last(cwd: str) -> bool:
     code, _, _ = git(["revert", "--no-edit", "HEAD"], cwd)
     return code == 0
 
+
+def has_changes(cwd: str) -> bool:
+    code, out, _ = git(["status", "--porcelain"], cwd)
+    if code != 0:
+        return False
+    return bool(out.strip())

@@ -14,6 +14,7 @@ class CodexConfig:
     branch_prefix: str
     remote: str
     push_mode: str
+    improve_when_green: bool = True
     health: Dict[str, Any] = field(default_factory=dict)
     tests: Dict[str, Any] = field(default_factory=dict)
     lint: Dict[str, Any] = field(default_factory=dict)
@@ -32,4 +33,3 @@ class CodexConfig:
         ai_url = os.getenv("AI_SERVICE_URL", data.get("ai_url", "http://ai:8000"))
         data["ai_url"] = ai_url
         return CodexConfig(**data)
-

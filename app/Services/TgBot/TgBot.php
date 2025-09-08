@@ -25,6 +25,13 @@ class TgBot
     ) {
         $this->client = new Client([
             'base_uri' => 'https://api.telegram.org/bot' . config('services.telegram.bot_token') . '/',
+            'timeout' => (float) env('TELEGRAM_HTTP_TIMEOUT', 10),
+            'connect_timeout' => (float) env('TELEGRAM_HTTP_CONNECT_TIMEOUT', 5),
+            'http_errors' => false,
+            'headers' => [
+                'Connection' => 'keep-alive',
+                'User-Agent' => 'PulBot/1.0 (+Laravel)'
+            ],
         ]);
     }
 
@@ -52,20 +59,28 @@ class TgBot
         $promise = $this->client->requestAsync('POST', $method, [
             'json' => $params
         ]);
-        $this->promises[$method] = $promise;
+        // Keep all promises; don't overwrite by method name
+        $this->promises[] = $promise;
         return $promise;
     }
 
     public function settlePromises(): array
     {
+        if (empty($this->promises)) {
+            return [];
+        }
+
         $responses = Utils::settle($this->promises)->wait();
 
         $result = [];
-        foreach ($responses as $method => $response) {
-            if ($response['state'] === 'fulfilled') {
-                $result[$method] = json_decode($response['value']->getBody()->getContents(), true);
+        foreach ($responses as $idx => $response) {
+            if (($response['state'] ?? null) === 'fulfilled') {
+                $result[$idx] = json_decode($response['value']->getBody()->getContents(), true);
             }
         }
+
+        // Free memory for next update cycle
+        $this->promises = [];
 
         return $result;
     }

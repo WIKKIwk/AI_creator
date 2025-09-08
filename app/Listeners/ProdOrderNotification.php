@@ -17,11 +17,14 @@ use App\Models\User;
 use App\Services\TaskService;
 use App\Services\TelegramService;
 use App\Services\TgMessageService;
+use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Database\Eloquent\Collection;
+use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Support\Facades\Log;
 
-class ProdOrderNotification
+class ProdOrderNotification implements ShouldQueue
 {
+    use InteractsWithQueue;
     /**
      * Create the event listener.
      */

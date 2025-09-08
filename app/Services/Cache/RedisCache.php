@@ -38,6 +38,6 @@ class RedisCache implements Cache
 
     public function has($key): bool
     {
-        return Redis::exists($key);
+        return (bool) Redis::exists($key);
     }
 }

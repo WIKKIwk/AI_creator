@@ -5,16 +5,17 @@ ai_url: "http://ai:8000"
 branch_prefix: "codex/auto"
 remote: "origin"
 push_mode: "direct"   # direct commit to current branch
+improve_when_green: true
 health:
   url: "http://nginx/"
   timeout: 5
   retries: 10
 tests:
-  command: ["bash","-lc","docker compose -f docker-compose-prod.yml exec -T php bash -lc 'COMPOSER_ALLOW_SUPERUSER=1 composer install --no-interaction --prefer-dist --no-ansi --no-progress' && docker compose -f docker-compose-prod.yml exec -T php php artisan test --env=testing"]
+  command: ["bash","-lc","bash ./bin/dc -f docker-compose-prod.yml exec -T php bash -lc 'COMPOSER_ALLOW_SUPERUSER=1 composer install --no-interaction --prefer-dist --no-ansi --no-progress' && bash ./bin/dc -f docker-compose-prod.yml exec -T php php artisan test --env=testing"]
 lint:
-  command: ["bash","-lc","docker compose -f docker-compose-prod.yml exec -T php php -v"]
+  command: ["bash","-lc","bash ./bin/dc -f docker-compose-prod.yml exec -T php php -v"]
 deploy:
-  command: ["bash","-lc","docker compose -f docker-compose-prod.yml up -d --build php nginx bot"]
+  command: ["bash","-lc","bash ./bin/dc -f docker-compose-prod.yml up -d --build php nginx bot"]
 restart_services: ["php","nginx","bot"]
 protected_paths:
   - ".env"

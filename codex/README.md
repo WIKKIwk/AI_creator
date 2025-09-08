@@ -33,10 +33,11 @@ Safety
 - Protected paths (e.g., `.env`) are never modified.
 - Only allowed paths are touched by patches.
 - Auto‑rollback using last known good SHA.
+- Optional: set `improve_when_green: true` to let Codex propose small
+  improvements even when tests already pass.
 
 Extending
 --------
 - Add lint or static analysis commands in `config.yml`.
 - Wire GitHub PR creation if `push_mode: pr` (future extension).
 - Add custom health checks (HTTP endpoint or artisan commands).
-

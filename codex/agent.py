@@ -12,7 +12,7 @@ from .config import CodexConfig
 from .executor import run
 from .git_utils import (
     current_sha, current_branch, create_branch, add_all, commit, push,
-    tag, hard_reset, revert_last
+    tag, hard_reset, revert_last, has_changes
 )
 from .ai_client import propose
 
@@ -128,24 +128,56 @@ def once(config: Optional[str] = typer.Option(None, help="Path to config.yml")):
             raise SystemExit(1)
         if not test_suite(cfg):
             raise SystemExit(1)
+        rprint("[green]Tests fixed by AI.[/green]")
+    else:
+        # Optionally propose safe improvements even when green
+        if getattr(cfg, "improve_when_green", True):
+            rprint("[cyan]Tests green. Proposing safe improvements...[/cyan]")
+            prompt = (
+                "Tests pass. Propose small, safe improvements (performance, readability, minor bugs) "
+                "as minimal unified diffs. Do not change behavior."
+            )
+            context = {"last_sha": start_sha}
+            suggestion = propose(cfg.ai_url, prompt, context)
+            diffs = suggestion.get("diffs", [])
+            if diffs:
+                if not apply_diffs(cfg, diffs):
+                    rprint("[yellow]No improvements applied.[/yellow]")
+                else:
+                    # Re-run tests after applying improvements
+                    if not test_suite(cfg):
+                        rprint("[red]Improvements broke tests, reverting...[/red]")
+                        hard_reset(repo, start_sha)
+                    else:
+                        rprint("[green]Improvements validated by tests.[/green]
+")
 
     # Optional lint step (placeholder)
     if cfg.lint and cfg.lint.get("command"):
         run_cmd(cfg.lint["command"], repo)
 
-    # Commit & push
+    # Commit & push (only if there are changes)
     ts = datetime.utcnow().strftime("%Y%m%d-%H%M%S")
     current = current_branch(repo)
     branch = current
     if cfg.push_mode != "direct":
         branch = f"{cfg.branch_prefix}/{ts}"
         create_branch(repo, branch)
-    add_all(repo)
-    title = "automated improvements"
-    summary = "applied minimal safe changes"
-    msg = cfg.commit_message_template.format(title=title, summary=summary)
-    commit(repo, msg)
-    push(repo, cfg.remote, branch)
+    if has_changes(repo):
+        add_all(repo)
+        # Try to read last suggestion if any, else default
+        try:
+            title = suggestion.get("title", "automated update") if 'suggestion' in locals() else "automated update"
+            summary = suggestion.get("summary", "applied minimal safe changes") if 'suggestion' in locals() else "applied minimal safe changes"
+        except Exception:
+            title, summary = "automated update", "applied minimal safe changes"
+        msg = cfg.commit_message_template.format(title=title, summary=summary)
+        if not commit(repo, msg):
+            rprint("[yellow]Nothing to commit or commit failed.[/yellow]")
+        else:
+            push(repo, cfg.remote, branch)
+    else:
+        rprint("[yellow]No changes detected; skipping commit/push.[/yellow]")
 
     # Deploy
     rprint("[cyan]Deploying...[/cyan]")

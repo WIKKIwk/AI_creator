@@ -128,7 +128,7 @@ class BaseHandler implements HandlerInterface
             $params[] = $matches[2];
         }
 
-        dump("Handling callback: $method with params: " . json_encode($params));
+        //
 
         $activeSceneHandler = $this->getSceneHandler();
         if ($activeSceneHandler && method_exists($activeSceneHandler, $method)) {
@@ -171,7 +171,6 @@ class BaseHandler implements HandlerInterface
     protected function getSceneHandler($scene = null): ?SceneHandlerInterface
     {
         $scene = $scene ?: $this->getScene();
-        dump("active scene: $scene");
         if (!$scene) {
             return null;
         }

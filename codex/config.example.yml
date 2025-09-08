@@ -5,16 +5,17 @@ ai_url: "http://ai:8000"    # AI microservice endpoint
 branch_prefix: "codex/auto"
 remote: "origin"
 push_mode: "pr"             # pr|direct|off
+improve_when_green: true
 health:
   url: "http://nginx/"      # Optional: internal URL to check after deploy (or leave empty)
   timeout: 5
   retries: 10
 tests:
-  command: ["bash","-lc","docker compose -f docker-compose-prod.yml exec -T php php artisan test --env=testing"]
+  command: ["bash","-lc","bash ./bin/dc -f docker-compose-prod.yml exec -T php php artisan test --env=testing"]
 lint:
-  command: ["bash","-lc","docker compose -f docker-compose-prod.yml exec -T php vendor/bin/phpunit --version"]
+  command: ["bash","-lc","bash ./bin/dc -f docker-compose-prod.yml exec -T php vendor/bin/phpunit --version"]
 deploy:
-  command: ["bash","-lc","docker compose -f docker-compose-prod.yml up -d --build php nginx bot"]
+  command: ["bash","-lc","bash ./bin/dc -f docker-compose-prod.yml up -d --build php nginx bot"]
 restart_services: ["php","nginx","bot"]
 protected_paths:
   - ".env"
