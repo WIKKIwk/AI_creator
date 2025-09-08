@@ -149,8 +149,7 @@ def once(config: Optional[str] = typer.Option(None, help="Path to config.yml")):
                         rprint("[red]Improvements broke tests, reverting...[/red]")
                         hard_reset(repo, start_sha)
                     else:
-                        rprint("[green]Improvements validated by tests.[/green]
-")
+                        rprint("[green]Improvements validated by tests.[/green]")
 
     # Optional lint step (placeholder)
     if cfg.lint and cfg.lint.get("command"):

@@ -145,8 +145,8 @@ init-prod:
 	done
 	@echo "[init] Installing composer dependencies..." ; \
 	$(DC_PROD) exec -T php composer install --no-interaction --prefer-dist --no-ansi --no-progress
-	@echo "[init] Generating app key (idempotent)..." ; \
-	$(DC_PROD) exec -T php php artisan key:generate --force || true
+	@echo "[init] Generating app key (idempotent, if .env exists)..." ; \
+	$(DC_PROD) exec -T php sh -lc 'if [ -f /app/.env ]; then php artisan key:generate --force; else echo "[init] Skipping key:generate (no .env file in container)"; fi'
 	@echo "[init] Running migrations..." ; \
 	$(DC_PROD) exec -T php php artisan migrate --force
 	@echo "[init] Seeding database..." ; \
