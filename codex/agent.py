@@ -9,8 +9,6 @@ from datetime import datetime
 from rich import print as rprint
 from pathlib import Path
 from typing import Optional
-import threading
-from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 from .config import CodexConfig
 from .executor import run

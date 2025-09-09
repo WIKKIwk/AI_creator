@@ -70,8 +70,14 @@ COPY ./_docker/production/php/php.ini /usr/local/etc/php/conf.d/php.ini
 COPY --chown=$user:$user . .
 RUN composer dump-autoload --optimize
 
+# Ensure runtime directories are writable by php-fpm (www-data)
+USER root
+RUN mkdir -p /app/storage /app/bootstrap/cache \
+    && chown -R www-data:www-data /app/storage /app/bootstrap/cache \
+    && chmod -R 775 /app/storage /app/bootstrap/cache || true
+
 # Expose default PHP-FPM port
 EXPOSE 9000
 
-# Start PHP-FPM
+# Start PHP-FPM as root (master) which will drop privileges to www-data per pool config
 CMD ["php-fpm"]
