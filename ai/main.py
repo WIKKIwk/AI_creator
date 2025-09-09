@@ -35,9 +35,8 @@ SYSTEM_PROMPT = (
 )
 
 
-@app.post("/chat")
-def chat(payload: ChatPayload):
-    api_key = os.getenv("OPENAI_API_KEY")
+def _chat_with_key(payload: ChatPayload, api_key_env: str = "OPENAI_API_KEY", force_json: bool = False):
+    api_key = os.getenv(api_key_env) or os.getenv("OPENAI_API_KEY")
     if OpenAI is None or not api_key:
         # Return a deterministic fallback for local runs without API key
         return {
@@ -58,15 +57,31 @@ def chat(payload: ChatPayload):
         messages.append({"role": "user", "content": payload.message})
 
         # Use chat.completions for broad compatibility
-        resp = client.chat.completions.create(
-            model=payload.model,
-            messages=messages,
-            temperature=0.3,
-        )
+        kwargs = {
+            "model": payload.model,
+            "messages": messages,
+            "temperature": 0.3,
+        }
+        # In Codex mode we want strict JSON back
+        if force_json:
+            kwargs["response_format"] = {"type": "json_object"}
+        resp = client.chat.completions.create(**kwargs)
         answer = resp.choices[0].message.content
         return {"answer": answer, "model": payload.model}
     except Exception as e:  # pragma: no cover
         raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/chat")
+def chat(payload: ChatPayload):
+    """Default chat using OPENAI_API_KEY."""
+    return _chat_with_key(payload, "OPENAI_API_KEY", force_json=False)
+
+
+@app.post("/chat-codex")
+def chat_codex(payload: ChatPayload):
+    """Codex-dedicated chat using OPENAI_FOR_CODEX_API_KEY if present."""
+    return _chat_with_key(payload, "OPENAI_FOR_CODEX_API_KEY", force_json=True)
 
 
 @app.get("/health")

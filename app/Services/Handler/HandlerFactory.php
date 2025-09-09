@@ -6,6 +6,7 @@ use App\Enums\RoleType;
 use App\Models\User;
 use App\Services\Handler\Interface\HandlerInterface;
 use App\Services\Handler\Ai\AiHandler;
+use App\Services\Handler\Codex\CodexHandler;
 use App\Services\Handler\ProductionManager\ProductionManagerHandler;
 use App\Services\Handler\StockManager\StockManagerHandler;
 use App\Services\Handler\SupplyManager\SupplyManagerHandler;
@@ -17,6 +18,7 @@ class HandlerFactory
     {
         return match ($user->role) {
             RoleType::AI_ASSISTANT => app(AiHandler::class),
+            RoleType::CODEX => app(CodexHandler::class),
             // Planning and Allocation managers currently share features with production/supply flows
             RoleType::PLANNING_MANAGER => app(ProductionManagerHandler::class),
             RoleType::SENIOR_PRODUCTION_MANAGER,

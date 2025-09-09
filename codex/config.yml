@@ -13,7 +13,11 @@ health:
 tests:
   command: ["bash","-lc","bash ./bin/dc -f docker-compose-prod.yml exec -T php bash -lc 'COMPOSER_ALLOW_SUPERUSER=1 composer install --no-interaction --prefer-dist --no-ansi --no-progress' && bash ./bin/dc -f docker-compose-prod.yml exec -T php php artisan test --env=testing"]
 lint:
-  command: ["bash","-lc","bash ./bin/dc -f docker-compose-prod.yml exec -T php php -v"]
+  command: [
+    "bash","-lc",
+    "bash ./bin/dc -f docker-compose-prod.yml exec -T php bash -lc 'vendor/bin/pint -v --test' && \
+     bash ./bin/dc -f docker-compose-prod.yml exec -T php bash -lc 'find app -type f -name \"*.php\" -print0 | xargs -0 -n1 -P4 php -l'"
+  ]
 deploy:
   command: ["bash","-lc","bash ./bin/dc -f docker-compose-prod.yml up -d --build php nginx bot"]
 restart_services: ["php","nginx","bot"]

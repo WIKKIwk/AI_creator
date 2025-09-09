@@ -1,0 +1,12 @@
+{
+  "id": "prop-20250908-175418",
+  "created_at": "20250908-175418",
+  "base_sha": "",
+  "prompt": "menga taklif ber qanday ozgartirishlar kiritsak boladi?",
+  "suggestion": {
+    "title": "no-change",
+    "summary": "AI returned non-JSON",
+    "diffs": []
+  },
+  "files": []
+}

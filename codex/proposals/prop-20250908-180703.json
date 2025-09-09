@@ -1,0 +1,12 @@
+{
+  "id": "prop-20250908-180703",
+  "created_at": "20250908-180703",
+  "base_sha": "",
+  "prompt": "sen qaysi loyihani nazarda tutyapsan?",
+  "suggestion": {
+    "title": "Loyiha haqida ma'lumot yetishmayapti",
+    "summary": "Siz qaysi loyiha haqida so'rayotganingizni aniqlash uchun qo'shimcha ma'lumot kerak. Iltimos, loyiha nomi yoki kontekstini taqdim eting.",
+    "diffs": []
+  },
+  "files": []
+}

@@ -19,6 +19,7 @@ enum RoleType: int implements HasLabel, HasColor, HasIcon
     case SUPPLY_MANAGER = 8;
     case SENIOR_SUPPLY_MANAGER = 9;
     case AI_ASSISTANT = 11;
+    case CODEX = 12;
 
     public function getLabel(): string
     {
@@ -34,6 +35,7 @@ enum RoleType: int implements HasLabel, HasColor, HasIcon
             self::SENIOR_SUPPLY_MANAGER => 'Senior Supply Manager',
             self::SENIOR_PRODUCTION_MANAGER => 'Senior Production Manager',
             self::AI_ASSISTANT => 'AI Assistant',
+            self::CODEX => 'Codex',
         };
     }
 
@@ -51,6 +53,7 @@ enum RoleType: int implements HasLabel, HasColor, HasIcon
             self::SENIOR_SUPPLY_MANAGER => 'success',
             self::SENIOR_PRODUCTION_MANAGER => 'warning',
             self::AI_ASSISTANT => 'primary',
+            self::CODEX => 'primary',
         };
     }
 
@@ -68,6 +71,7 @@ enum RoleType: int implements HasLabel, HasColor, HasIcon
             self::SENIOR_SUPPLY_MANAGER => 'heroicon-o-cog',
             self::SENIOR_PRODUCTION_MANAGER => 'heroicon-o-cog',
             self::AI_ASSISTANT => 'heroicon-o-sparkles',
+            self::CODEX => 'heroicon-o-code-bracket',
         };
     }
 }

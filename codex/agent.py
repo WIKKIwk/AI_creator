@@ -2,11 +2,15 @@ from __future__ import annotations
 import os
 import json
 import time
+import glob
+import shutil
 import typer
 from datetime import datetime
 from rich import print as rprint
 from pathlib import Path
 from typing import Optional
+import threading
+from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 from .config import CodexConfig
 from .executor import run
@@ -153,7 +157,12 @@ def once(config: Optional[str] = typer.Option(None, help="Path to config.yml")):
 
     # Optional lint step (placeholder)
     if cfg.lint and cfg.lint.get("command"):
-        run_cmd(cfg.lint["command"], repo)
+        code, out, err = run_cmd(cfg.lint["command"], repo)
+        rprint(out)
+        if code != 0:
+            rprint("[red]Lint failed, reverting...[/red]")
+            hard_reset(repo, start_sha)
+            raise SystemExit(1)
 
     # Commit & push (only if there are changes)
     ts = datetime.utcnow().strftime("%Y%m%d-%H%M%S")
@@ -201,19 +210,257 @@ def once(config: Optional[str] = typer.Option(None, help="Path to config.yml")):
     rprint(f"[green]Success. Last good: {good_sha}[/green]")
 
 
+def _run_prompt(cfg: CodexConfig, prompt: str) -> None:
+    repo = cfg.repo_root
+    start_sha = current_sha(repo)
+    rprint(f"Start SHA: [bold]{start_sha}[/bold]")
+
+    context = {"last_sha": start_sha}
+    rprint("[cyan]Proposing changes from custom prompt...[/cyan]")
+    suggestion = propose(cfg.ai_url, prompt, context)
+    diffs = suggestion.get("diffs", [])
+    if not diffs:
+        rprint("[yellow]No diffs from prompt; exiting.[/yellow]")
+        return
+    if not apply_diffs(cfg, diffs):
+        raise SystemExit(1)
+    # If tests fail, ask AI for minimal fixes up to 2 attempts
+    attempts = 0
+    while not test_suite(cfg) and attempts < 2:
+        attempts += 1
+        rprint(f"[yellow]Tests failing. Attempting AI fix #{attempts}...[/yellow]")
+        fix = propose(cfg.ai_url,
+                      "Tests failing after prompt changes. Provide minimal unified diff to fix failures only.",
+                      {"last_sha": start_sha})
+        if not apply_diffs(cfg, fix.get("diffs", [])):
+            break
+    if not test_suite(cfg):
+        rprint("[red]Custom prompt changes still failing, reverting...[/red]")
+        hard_reset(repo, start_sha)
+        raise SystemExit(1)
+
+    # Lint
+    if cfg.lint and cfg.lint.get("command"):
+        code, out, err = run_cmd(cfg.lint["command"], repo)
+        rprint(out)
+        if code != 0:
+            rprint("[red]Lint failed, reverting...[/red]")
+            hard_reset(repo, start_sha)
+            raise SystemExit(1)
+
+    # Commit & push
+    ts = datetime.utcnow().strftime("%Y%m%d-%H%M%S")
+    current = current_branch(repo)
+    branch = current if cfg.push_mode == "direct" else f"{cfg.branch_prefix}/{ts}"
+    if cfg.push_mode != "direct":
+        create_branch(repo, branch)
+    if has_changes(repo):
+        add_all(repo)
+        title = suggestion.get("title", "codex nudge")
+        summary = suggestion.get("summary", prompt[:200])
+        msg = cfg.commit_message_template.format(title=title, summary=summary)
+        if commit(repo, msg):
+            push(repo, cfg.remote, branch)
+    # Deploy and health
+    rprint("[cyan]Deploying...[/cyan]")
+    if not deploy(cfg):
+        raise SystemExit(1)
+    if not health_check(cfg):
+        rprint("[red]Health check failed, rolling back...[/red]")
+        last_good = read_last_good(repo) or start_sha
+        if (cfg.rollback or {}).get("strategy", "git_reset") == "git_reset":
+            hard_reset(repo, last_good)
+        else:
+            revert_last(repo)
+        deploy(cfg)
+        raise SystemExit(1)
+    good_sha = current_sha(repo)
+    save_last_good(repo, good_sha)
+    tag(repo, f"codex-nudge-{ts}")
+    rprint(f"[green]Success. Last good: {good_sha}[/green]")
+
+
+def _queue_dir(root: str) -> Path:
+    d = Path(root) / "codex" / "queue"
+    d.mkdir(parents=True, exist_ok=True)
+    return d
+
+
+def _processed_dir(root: str) -> Path:
+    d = Path(root) / "codex" / "processed"
+    d.mkdir(parents=True, exist_ok=True)
+    return d
+
+
+def process_queue(cfg: CodexConfig) -> None:
+    qdir = _queue_dir(cfg.repo_root)
+    pdir = _processed_dir(cfg.repo_root)
+    files = sorted(glob.glob(str(qdir / "*.json")))
+    if not files:
+        return
+    rprint(f"[cyan]Processing {len(files)} queued Codex job(s)...[/cyan]")
+    for f in files:
+        try:
+            data = json.loads(Path(f).read_text(encoding="utf-8"))
+            prompt = (data.get("prompt") or "").strip()
+            if not prompt:
+                rprint(f"[yellow]Skipping empty prompt in {os.path.basename(f)}[/yellow]")
+            else:
+                _run_prompt(cfg, prompt)
+            # move to processed
+            shutil.move(f, pdir / os.path.basename(f))
+        except Exception as e:
+            rprint(f"[red]Failed processing queue file {f}: {e}[/red]")
+
+
 @app.command()
 def run_loop(
-    interval: int = typer.Option(86400, help="Seconds between runs; default daily"),
+    interval: int = typer.Option(86400, help="Seconds between maintenance runs; default daily"),
+    queue_poll: int = typer.Option(60, help="Seconds between queue checks"),
     config: Optional[str] = typer.Option(None, help="Path to config.yml")
 ):
+    last_maintenance = 0
     while True:
         try:
-            once(config)
+            cfg = load_config(config)
+            # Process queued jobs frequently
+            process_queue(cfg)
+            now = time.time()
+            if now - last_maintenance >= interval:
+                once(config)
+                last_maintenance = now
         except SystemExit as e:
             rprint(f"[red]Codex once failed with code {e.code}[/red]")
         except Exception as e:
             rprint(f"[red]Unexpected error: {e}[/red]")
-        time.sleep(interval)
+        time.sleep(queue_poll)
+
+
+@app.command()
+def nudge(prompt: str = typer.Argument(..., help="Instruction for Codex to apply changes"),
+          config: Optional[str] = typer.Option(None, help="Path to config.yml")):
+    """Run a one-off Codex cycle using a custom prompt (e.g., from Telegram)."""
+    cfg = load_config(config)
+    _run_prompt(cfg, prompt)
+
+
+def _proposals_dir(root: str) -> Path:
+    d = Path(root) / "codex" / "proposals"
+    d.mkdir(parents=True, exist_ok=True)
+    return d
+
+
+def propose_changes(cfg: CodexConfig, prompt: str) -> dict:
+    ts = datetime.utcnow().strftime("%Y%m%d-%H%M%S")
+    start_sha = current_sha(cfg.repo_root)
+    suggestion = propose(cfg.ai_url, prompt, {"last_sha": start_sha})
+    diffs = suggestion.get("diffs", []) or []
+    files = []
+    for d in diffs:
+        p = (d.get("path") or "").strip()
+        if p:
+            files.append(p)
+    pid = f"prop-{ts}"
+    payload = {
+        "id": pid,
+        "created_at": ts,
+        "base_sha": start_sha,
+        "prompt": prompt,
+        "suggestion": suggestion,
+        "files": files,
+    }
+    (_proposals_dir(cfg.repo_root) / f"{pid}.json").write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
+    return {
+        "id": pid,
+        "title": suggestion.get("title", "proposal"),
+        "summary": suggestion.get("summary", ""),
+        "files": files,
+    }
+
+
+def apply_proposal(cfg: CodexConfig, proposal_id: str) -> None:
+    repo = cfg.repo_root
+    pfile = _proposals_dir(repo) / f"{proposal_id}.json"
+    if not pfile.exists():
+        raise SystemExit(f"proposal not found: {proposal_id}")
+    data = json.loads(pfile.read_text(encoding="utf-8"))
+    start_sha = data.get("base_sha") or current_sha(repo)
+    suggestion = data.get("suggestion") or {}
+    diffs = suggestion.get("diffs", []) or []
+    if not diffs:
+        rprint("[yellow]Proposal contains no diffs; aborting[/yellow]")
+        return
+    if not apply_diffs(cfg, diffs):
+        raise SystemExit(1)
+    attempts = 0
+    while not test_suite(cfg) and attempts < 2:
+        attempts += 1
+        rprint(f"[yellow]Tests failing. Attempting AI fix #{attempts}...[/yellow]")
+        fix = propose(cfg.ai_url,
+                      "Tests failing after proposal apply. Provide minimal unified diff to fix failures only.",
+                      {"last_sha": start_sha})
+        if not apply_diffs(cfg, fix.get("diffs", [])):
+            break
+    if not test_suite(cfg):
+        rprint("[red]Changes still failing, reverting...[/red]")
+        hard_reset(repo, start_sha)
+        raise SystemExit(1)
+
+    # Strict lint
+    if cfg.lint and cfg.lint.get("command"):
+        code, out, err = run_cmd(cfg.lint["command"], repo)
+        rprint(out)
+        if code != 0:
+            rprint("[red]Lint failed, reverting...[/red]")
+            hard_reset(repo, start_sha)
+            raise SystemExit(1)
+
+    # Commit & push
+    ts = datetime.utcnow().strftime("%Y%m%d-%H%M%S")
+    current = current_branch(repo)
+    branch = current if cfg.push_mode == "direct" else f"{cfg.branch_prefix}/{ts}"
+    if cfg.push_mode != "direct":
+        create_branch(repo, branch)
+    if has_changes(repo):
+        add_all(repo)
+        title = suggestion.get("title", "codex proposal")
+        summary = suggestion.get("summary", "applied approved changes")
+        msg = cfg.commit_message_template.format(title=title, summary=summary)
+        if commit(repo, msg):
+            push(repo, cfg.remote, branch)
+
+    # Deploy & health
+    rprint("[cyan]Deploying...[/cyan]")
+    if not deploy(cfg):
+        raise SystemExit(1)
+    if not health_check(cfg):
+        rprint("[red]Health check failed, rolling back...[/red]")
+        last_good = read_last_good(repo) or start_sha
+        if (cfg.rollback or {}).get("strategy", "git_reset") == "git_reset":
+            hard_reset(repo, last_good)
+        else:
+            revert_last(repo)
+        deploy(cfg)
+        raise SystemExit(1)
+    good_sha = current_sha(repo)
+    save_last_good(repo, good_sha)
+    tag(repo, f"codex-prop-{ts}")
+    rprint(f"[green]Success. Last good: {good_sha}[/green]")
+
+
+@app.command()
+def propose_cmd(prompt: str = typer.Argument(..., help="Ask Codex to propose changes only"),
+                config: Optional[str] = typer.Option(None, help="Path to config.yml")):
+    cfg = load_config(config)
+    meta = propose_changes(cfg, prompt)
+    rprint(json.dumps(meta, ensure_ascii=False))
+
+
+@app.command()
+def apply(proposal_id: str = typer.Argument(..., help="Proposal id to apply"),
+          config: Optional[str] = typer.Option(None, help="Path to config.yml")):
+    cfg = load_config(config)
+    apply_proposal(cfg, proposal_id)
 
 
 if __name__ == "__main__":

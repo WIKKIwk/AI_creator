@@ -42,4 +42,9 @@ return [
         'webhook_secret' => env('TELEGRAM_WEBHOOK_SECRET'),
     ],
 
+    'codex' => [
+        'url' => env('CODEX_URL', 'http://codex:8090'),
+        'secret' => env('CODEX_SECRET'),
+    ],
+
 ];

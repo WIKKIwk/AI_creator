@@ -87,6 +87,7 @@ services:
     environment:
       - OPENAI_API_KEY=${OPENAI_API_KEY}
       - OPENAI_MODEL=${OPENAI_MODEL}
+      - OPENAI_FOR_CODEX_API_KEY=${OPENAI_FOR_CODEX_API_KEY}
     depends_on:
       - php
     restart: unless-stopped
@@ -113,4 +114,5 @@ services:
       - db
       - redis
       - ai
+    command: ["bash","-lc","python -m codex.agent run-loop --interval 86400 --queue-poll 5 & python -m codex.httpd_main"]
     restart: unless-stopped
